@@ -16,6 +16,7 @@ All detailed documentation lives in [`docs/`](docs/README.md).
 - [Installation: Docker and LXC](docs/INSTALLATION.md)
 - [CI/CD and releases](docs/CI-CD.md)
 - [Operations and rollback](docs/OPERATIONS.md)
+- [Infrastructure](docs/INFRASTRUCTURE.md)
 - [Architecture and repository layout](docs/ARCHITECTURE.md)
 - [Contributing and third-party code](docs/CONTRIBUTING.md)
 - [Security](docs/SECURITY.md)

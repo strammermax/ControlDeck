@@ -8,12 +8,14 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [functioneel-ontwerp.md](functioneel-ontwerp.md) | Modules, gebruikersprocessen en navigatie |
 | [technisch-ontwerp.md](technisch-ontwerp.md) | Architectuur en technische richting |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Werkelijke repository en runtime |
+| [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Ingerichte LXC, netwerk, accounts, services en GitHub-route |
 | [INSTALLATION.md](INSTALLATION.md) | Docker, LXC en runnerregistratie |
 | [CI-CD.md](CI-CD.md) | Build, release en deployment |
 | [OPERATIONS.md](OPERATIONS.md) | Health, logs, backup en herstel |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Ontwikkelen, documenteren en codehergebruik |
 | [SECURITY.md](SECURITY.md) | Toegangsgrenzen en meldprocedure |
 | [THIRD-PARTY.md](THIRD-PARTY.md) | Bronnen en afhankelijkheden |
+| [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt) | Licentieteksten van frontenddependencies |
 | [CHANGELOG.md](CHANGELOG.md) | Wijzigingen per versie |
 | [VERIFICATION.md](VERIFICATION.md) | Uitgevoerde controles en meetgrenzen |
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 — Distribution notices
+
+- Automatisch verzamelde frontendlicentieteksten in de statische export, Linux-bundle en het Docker-image.
+- Snapshot van de frontendlicentieteksten bij de projectdocumentatie.
+
 ## 0.1.0 — Infrastructure foundation
 
 - Next.js/React/TypeScript-startpagina als statische export.
