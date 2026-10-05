@@ -20,7 +20,9 @@ De admin opent **Admin → Modulebeheer** en kiest een tabblad:
 
 Bij Termix kiest de admin **Gegevens bewaren** (standaard; het Docker-volume blijft, opnieuw installeren brengt alles terug) of **Alles verwijderen** (`--delete-data`: verbindingen, sleutels en opnamen definitief weg). Docker en Nginx blijven geïnstalleerd. De verwijderopdracht bevat naast de vaste velden alleen `action: "uninstall"` en de boolean `keepData`; de worker zet dat om in een vaste argumentenlijst.
 
-**Na een update:** de root-worker en de scripts onder `/opt/controldeck-integrations/installer` worden niet automatisch bijgewerkt. Draai na deze versie eenmalig opnieuw `bash scripts/install-wizard.sh` als root, anders mislukt verwijderen met een duidelijke melding. Installatieopdrachten behouden hun oude vorm en blijven ook met een oudere worker werken.
+**Nieuwe installatie:** `scripts/install-lxc.sh` installeert de root-worker automatisch (het roept `install-wizard.sh` aan).
+
+**Na een update:** de root-worker en de scripts onder `/opt/controldeck-integrations/installer` worden bewust niet door een CI-uitrol bijgewerkt; een overgenomen pipeline mag geen root-code kunnen plaatsen. Draai na deze versie eenmalig opnieuw `bash scripts/install-wizard.sh` (of `bash scripts/install-lxc.sh`) als root vanuit een bijgewerkte checkout, De worker meldt een protocolversie in zijn heartbeat (`worker.json`). Is die lager dan de app nodig heeft (`REQUIRED_WORKER` in `backend/installations.py`), dan toont Modulebeheer een melding en worden acties die een nieuwere worker vereisen vooraf geblokkeerd in plaats van halverwege te mislukken. Installatieopdrachten behouden hun oude vorm en blijven ook met een oudere worker werken.
 
 ## Installeren
 

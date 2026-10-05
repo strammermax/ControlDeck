@@ -29,4 +29,6 @@ visudo -cf "$rule"
 install -m 0440 "$rule" /etc/sudoers.d/controldeck-ci
 systemctl daemon-reload
 systemctl enable controldeck
+# Root-owned module installation worker; re-running this bootstrap also updates it after review.
+bash "$source_root/scripts/install-wizard.sh"
 echo 'Bootstrap complete. Register the runner, then enable deployment in GitHub.'

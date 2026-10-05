@@ -19,7 +19,7 @@ def wizard(tmp_path,monkeypatch):
     root=tmp_path/'data/installations'
     (root/'queue').mkdir(parents=True)
     (root/'results').mkdir()
-    (root/'worker.json').write_text(json.dumps({'updatedAt':time.time()}))
+    (root/'worker.json').write_text(json.dumps({'updatedAt':time.time(),'version':2}))
     monkeypatch.setattr('backend.installations.requests.get',Mock(return_value=Mock(status_code=200)))
     app=create_app(data_dir=tmp_path/'data',accounts_path=accounts)
     app.config['TESTING']=True
@@ -215,3 +215,36 @@ def test_worker_accepts_uninstall_jobs(case):
     else:
         for invalid in ({**value,'action':'uninstall'},{**value,'action':'install','keepData':True},{**value,'action':'uninstall','keepData':'false'},{**value,'keepData':True}):
             with pytest.raises(ValueError):worker.validate_job(invalid,'a'*32,1001)
+
+
+def test_app_and_worker_agree_on_latest_protocol():
+    spec=importlib.util.spec_from_file_location('worker',Path(__file__).resolve().parent.parent/'scripts/install-worker.py')
+    worker=importlib.util.module_from_spec(spec);spec.loader.exec_module(worker)
+    from backend.installations import LATEST_WORKER
+    assert worker.WORKER_VERSION==LATEST_WORKER
+
+
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_outdated_worker_is_reported_and_blocks_uninstall(wizard,monkeypatch,case):
+    client,root=wizard
+    import backend.installations as installations
+    monkeypatch.setattr(installations,'load_config',lambda path:{'providers':[{'id':'termix','type':'termix','enabled':True}]})
+    heartbeat={'updatedAt':time.time(),'version':3} if case=='normaal' else {'updatedAt':time.time()} if case=='boundary' else {'updatedAt':time.time(),'version':'2'}
+    (root/'worker.json').write_text(json.dumps(heartbeat))
+    status=client.get('/api/installations').json['status']
+    assert status['workerOutdated'] is (case!='normaal')
+    plan=client.post('/api/installations/plan',json=UNINSTALL,headers={'X-CSRF-Token':'csrf'}).json
+    assert plan['canInstall'] is (case=='normaal')
+    response=client.post('/api/installations/jobs',json=UNINSTALL,headers={'X-CSRF-Token':'csrf'})
+    assert response.status_code==(202 if case=='normaal' else 409)
+    if case!='normaal':
+        assert 'install-wizard.sh' in response.json['error']
+        # Installing still works with an older worker.
+        assert client.post('/api/installations/jobs',json=SELECTION,headers={'X-CSRF-Token':'csrf'}).status_code==202
+
+
+def test_install_scripts_bootstrap_the_worker():
+    root=Path(__file__).resolve().parent.parent/'scripts'
+    install=(root/'install-lxc.sh').read_text()
+    assert 'scripts/install-wizard.sh' in install and install.index('install-wizard.sh')>install.index('accounts.json')
+    assert '/opt/controldeck/current' not in (root/'install-wizard.sh').read_text()

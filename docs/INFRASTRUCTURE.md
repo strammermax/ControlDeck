@@ -140,6 +140,6 @@ De admin-installatiewizard biedt Docker en Proxmox LXC als keuzes, met voorafgaa
 | Installatiebestanden | Root-owned allowlist onder `/opt/controldeck-integrations/installer` |
 | Privé-installatielog | `/var/log/controldeck-install.log`, uitsluitend root |
 
-De webservice heeft geen Docker-socket of algemene rootrechten. De aparte installatieworker controleert opdrachten en de actuele adminrechten voordat hij de toegestane installer uitvoert. De bootstrap `scripts/install-wizard.sh` installeert deze worker; wijzigingen aan de root-owned installatiebestanden vereisen opnieuw uitvoeren van die bootstrap na review. Een normale apprelease vervangt deze bestanden niet.
+De webservice heeft geen Docker-socket of algemene rootrechten. De aparte installatieworker controleert opdrachten en de actuele adminrechten voordat hij de toegestane installer uitvoert. De bootstrap `scripts/install-wizard.sh` installeert deze worker en wordt door `scripts/install-lxc.sh` automatisch uitgevoerd; wijzigingen aan de root-owned installatiebestanden vereisen opnieuw uitvoeren van die bootstrap na review. Een normale apprelease vervangt deze bestanden niet.
 
 De Docker-installatie vanuit de wizard is op productie uitgevoerd en voltooid, met behoud van het bestaande Termix-volume. De keuze Proxmox LXC is zichtbaar, maar uitvoering is geblokkeerd totdat de Proxmox-hostverbinding en Helper-Script-adapter zijn aangesloten. Er is nog geen nieuwe LXC vanuit ControlDeck aangemaakt.

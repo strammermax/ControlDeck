@@ -7,6 +7,7 @@
 - ProxMenux Monitor-koppeling via Admin → Modules (cluster-CA, API-token per node, hostnamecontrole); Overzicht toont gezondheid per node, schijven/ZFS en LXC-updates.
 - ProxMenux-wizard zoekt per node de monitor (niet gevonden, alleen http, ander certificaat, login uit, klaar) en begeleidt installatie en inrichting.
 - Admin → Modulebeheer met tabbladen Installeren (alleen niet-geïnstalleerd), Bewerken en Verwijderen (alleen geïnstalleerd), inclusief verwijderwizard en `uninstall-termix.sh` (gegevens bewaren of wissen). Vereist eenmalig opnieuw `install-wizard.sh` op de host.
+- `install-lxc.sh` installeert de root-worker voor Modulebeheer voortaan automatisch.
 - Modulecatalogus ondersteunt meerdere modules en koppelingen naast installaties.
 - Gebruikersdropdown rechtsboven met Profiel, Instellingen en Uitloggen.
 - Persoonlijke Instellingen-pagina per gebruiker: interfacetaal (Nederlands/English) en volgorde van de hoofdnavigatie met slepen, Annuleren, Opslaan en Standaard herstellen.

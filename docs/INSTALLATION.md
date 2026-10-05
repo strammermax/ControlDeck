@@ -25,7 +25,7 @@ cd /root/controldeck-bootstrap
 bash scripts/install-lxc.sh
 ```
 
-Dit maakt de gebruikers `controldeck` en `controldeck-runner`, de systemd-service en de root-owned deployhelper. De service wordt pas bruikbaar na de eerste deployment; er is nog geen `current`-release bij alleen bootstrap.
+Dit maakt de gebruikers `controldeck` en `controldeck-runner`, de systemd-service, de root-owned deployhelper en de root-worker voor Modulebeheer (`install-wizard.sh`). De service wordt pas bruikbaar na de eerste deployment; er is nog geen `current`-release bij alleen bootstrap.
 
 ## GitHub Actions-runner
 
