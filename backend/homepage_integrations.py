@@ -10,6 +10,7 @@ import requests
 from cryptography.fernet import Fernet, InvalidToken
 from flask import jsonify, request
 from backend.auth import database
+from backend.homepage import validate_homepage_link
 
 CATALOG = [
     {'type': 'seerr', 'name': 'Seerr', 'icon': 'jellyseerr', 'authModes': ['apiKey'], 'capabilities': ['request-counts']},
@@ -39,10 +40,15 @@ def validate_integration(value):
         if not isinstance(text, str) or not text.strip() or len(text) > limit or any(ord(c) < 32 for c in text):
             raise ValueError('Vul een geldige naam en groep in.')
         result[key] = text.strip()
-    result['appUrl'] = integration_url(value.get('appUrl') or result['url'])
+    result['appUrl'] = validate_homepage_link({'name':'App','collection':'Apps','url':value.get('appUrl') or result['url']})['url']
     result['showApp'] = value.get('showApp', True)
     if type(result['showApp']) is not bool:
         raise ValueError('Ongeldige app-instelling.')
+    if not urlsplit(result['appUrl']).fragment:
+        result['appUrl'] = result['appUrl'].rstrip('/')
+    result['linkId'] = value.get('linkId')
+    if result['linkId'] is not None and (type(result['linkId']) is not int or result['linkId'] <= 0 or not result['showApp']):
+        raise ValueError('Kies een geldige bestaande Homepage-link.')
     credentials = {}
     for key in (['apiKey'] if result['authMode'] == 'apiKey' else ['username', 'password']):
         secret = value.get(key)
@@ -120,6 +126,16 @@ def setup_homepage_integrations(app, data_dir):
             encrypted = cipher.encrypt(json.dumps(credentials).encode()).decode()
             with database(db_path) as db:
                 db.execute('BEGIN IMMEDIATE')
+                if metadata['linkId'] is not None:
+                    links_path = Path(data_dir) / 'homepage/links.json'
+                    links = json.loads(links_path.read_text(encoding='utf-8')) if links_path.exists() else []
+                    link = next((item for item in links if item.get('id') == metadata['linkId']), None)
+                    if not link:
+                        raise ValueError('De bestaande Homepage-link is niet meer beschikbaar.')
+                    for row in db.execute('SELECT id, metadata FROM homepage_integrations'):
+                        if row[0] != integration_id and json.loads(row[1]).get('linkId') == metadata['linkId']:
+                            raise ValueError('Deze Homepage-link is al aan een integratie gekoppeld.')
+                    metadata['appUrl'] = validate_homepage_link({'name':'App','collection':'Apps','url':link['url']})['url']
                 if request.method == 'POST':
                     if db.execute('SELECT COUNT(*) FROM homepage_integrations').fetchone()[0] >= 50:
                         return jsonify(error='Maximaal 50 integraties toegestaan.'), 400

@@ -156,3 +156,37 @@ def test_homepage_integration_regression_catalog_endpoint_collision(setup):
     assert clients().get("/api/homepage/integrations/catalog").status_code==200
     assert "catalog" in app.view_functions
     assert "homepage_integration_catalog" in app.view_functions
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_integration_existing_homepage_link(setup,case):
+    clients,tmp,app,accounts=setup;c=clients()
+    row={'name':'Jellyfin link','url':'https://open.example.test/web/index.html#/home','collection':'Media'}
+    c.post('/api/homepage/links',json=row,headers=H)
+    if case=='normaal':
+        r=c.post('/api/homepage/integrations',json={**ROW,'linkId':1},headers=H);assert r.status_code==201
+        assert r.json['integration']['linkId']==1;assert r.json['integration']['appUrl']==row['url']
+        assert len(c.get('/api/homepage/links').json['links'])==1
+        assert c.delete('/api/homepage/integrations/1',headers=H).status_code==200
+        assert len(c.get('/api/homepage/links').json['links'])==1
+    elif case=='boundary':
+        assert c.post('/api/homepage/integrations',json={**ROW,'linkId':1},headers=H).status_code==201
+        assert c.post('/api/homepage/integrations',json={**ROW,'linkId':1},headers=H).status_code==400
+        assert c.put('/api/homepage/integrations/1',json={**ROW,'linkId':1},headers=H).status_code==200
+    else:
+        for link_id in [True,0,-1,'1',999]:
+            assert c.post('/api/homepage/integrations',json={**ROW,'linkId':link_id},headers=H).status_code==400
+        assert c.get('/api/homepage/integrations').json['integrations']==[]
+
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_integration_application_deep_link(setup,case):
+    clients,tmp,app,accounts=setup
+    if case=='normaal':assert validate_integration({**ROW,'appUrl':'https://open.example.test/web/index.html#/dashboard'})[0]['appUrl'].endswith('#/dashboard')
+    elif case=='boundary':assert validate_integration({**ROW,'appUrl':''})[0]['appUrl']==ROW['url']
+    else:
+        for value in ['javascript:alert(1)','https://user:secret@example.test','https://example.test?apiKey=secret']:
+            with pytest.raises(ValueError):validate_integration({**ROW,'appUrl':value})
+
+
+def test_integration_regression_deep_link_retains_fragment_and_normalizes_root_slash():
+    """Opening URLs need hash routes; normal root URLs must keep the previous canonical form."""
+    assert validate_integration({**ROW,"appUrl":"https://example.test/"})[0]["appUrl"]=="https://example.test"
+    assert validate_integration({**ROW,"appUrl":"https://example.test/web/index.html#/"})[0]["appUrl"].endswith("#/")

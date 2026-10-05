@@ -9,6 +9,7 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [technisch-ontwerp.md](technisch-ontwerp.md) | Architectuur en technische richting |
 | [CONFIGURATION.md](CONFIGURATION.md) | JSON-menu, modules, providers en widgetdefinities |
 | [AUTHENTICATION.md](AUTHENTICATION.md) | Google-login, accountprofielen, rechten en voorkeuren |
+| [HOMEPAGE-INTEGRATIONS.md](HOMEPAGE-INTEGRATIONS.md) | Appkeuze, API-aanmelding, verbindingscontrole, bestaande links en opslaan zonder API |
 | [PYTHON-LICENSES.txt](PYTHON-LICENSES.txt) | Notices van Python-dependencies |
 | [UI.md](UI.md) | Basisinterface, navigatie, status en thema |
 | [PROXMOX.md](PROXMOX.md) | Alleen-lezen Proxmox-koppeling, certificaatpinning en takenoverzicht |
