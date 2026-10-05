@@ -58,7 +58,15 @@ De aangeleverde token wordt privé gecontroleerd via `/api/v1/users/me`. Voor ee
 
 Linkwarden blijft een afzonderlijke upstreamtoepassing; er is geen Linkwarden-broncode gekopieerd in de ControlDeck-module. Linkwarden gebruikt AGPL-3.0; de upstreamlicentie en voorwaarden blijven gelden voor zijn distributie en eventuele wijzigingen.
 
-## Officiële bronnen
+## Herstel na een afgebroken LXC-update
+
+Op 5 oktober 2026 ontbrak de productiebuild van de webinterface. Na opnieuw bouwen bleek ook de database achter te lopen: Prisma meldde een ontbrekende `User.uuid`-kolom. Een actieve service is onvoldoende als alleen de worker draait.
+
+Het herstel bestond uit een gecontroleerde databaseback-up, opnieuw bouwen met `yarn web:build`, uitvoeren van de officiële migraties met `yarn prisma:deploy` en herstarten. De LXC kreeg tijdelijk 4 GiB RAM voor de build en is daarna teruggezet op 2 GiB. De aantallen gebruikers, bookmarks en collecties bleven gelijk. De oorspronkelijke oorzaak van het afbreken van de update is niet definitief vastgesteld.
+
+Verificatie: publieke HTTPS-site en persoonlijke API geven HTTP 200; zonder token geeft de identiteits-API HTTP 401. De ControlDeck-koppeling, tokenisolatie en bestandsrechten zijn opnieuw gecontroleerd. Bestaande tokens en configuratie bleven behouden. Bij toekomstige updates moeten zowel de webbuild als de migraties succesvol eindigen voordat de service wordt gestart.
+
+## Bronverwijzingen
 
 - [API](https://docs.linkwarden.app/api/api-introduction)
 - [Installatie](https://docs.linkwarden.app/self-hosting/setup)
