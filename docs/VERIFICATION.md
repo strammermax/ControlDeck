@@ -34,3 +34,11 @@ De productie-export en TypeScript-controle slagen; beide Python-tests slagen, in
 De lokale browsercontrole gebruikt uitsluitend een apart loopback-testharnas buiten de repository met testaccounts: profiel aanmaken (user en enabled=true als defaults), dynamische wijziging van het menu zonder rebuild, activeren van een Kasm-testmodule en de adres/open-knop zijn gecontroleerd. Dit is geen echte provider-API-integratie. Verplichte login toont bij niet-ingestelde OAuth uitsluitend de gesloten aanmeldpagina. Er is geen testloginroute in de applicatiebroncode of releasebundle.
 
 De productieomgeving gebruikt een eigen Google OAuth-client die privé uit het door de gebruiker verstrekte JSON-bestand is geïnstalleerd. De callback in dat bestand komt exact overeen met de productiecallback. Een complete Google-login vereist nog browserverificatie door een echte toegestane gebruiker; de unit-tests vervangen Google-netwerktransport door fixtures.
+
+### Productieverificatie na uitrol 0.3.0
+
+De main-workflow en LXC-deployment zijn geslaagd. Via het publieke HTTPS-adres geven `/api/config`, `/api/preferences` en `/api/accounts` voor anonieme bezoekers HTTP 401. De eigen Google OAuth-client leidt naar de accountkeuze zonder redirectfout. Een echte Google-login met een toegestaan useraccount is succesvol doorlopen; het Admin-menu ontbreekt voor die rol. Thema en laatst bezochte module zijn op productie na herladen teruggezet.
+
+De adminpagina is met een lokaal testaccount gecontroleerd: overzicht, alle gevraagde profielvelden, aanmaken en defaults user/enabled=true. De serverzijdige admin/user-grens, wijzigen en laatste-adminbescherming zijn geautomatiseerd getest. Een echte Google-login van de admin is nog niet door de agent doorlopen; de betreffende gebruiker kan dit zelf doen.
+
+Na Google-login gebruikte de appservice in een momentopname 52.948.992 bytes (ongeveer 50,5 MiB), met een piek van 53.977.088 bytes. Dit is één observatie, geen gegarandeerd maximum. De lichte architectuur blijft één Python-service en een statische frontend.
