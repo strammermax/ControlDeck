@@ -1,5 +1,7 @@
 # ControlDeck — Homelab Control Center
 
+[![Build, release and deploy](https://github.com/strammermax/ControlDeck/actions/workflows/ci.yml/badge.svg)](https://github.com/strammermax/ControlDeck/actions/workflows/ci.yml)
+
 A lightweight, modular entry point for your homelab, designed for Docker and an unprivileged Debian LXC.
 
 **Current status: infrastructure foundation.** The first release contains a static Next.js/React landing page, a Flask runtime, health checks and build/release/deployment automation. Authentication, providers and the nine functional modules are planned. No infrastructure credentials or privileged operations are exposed by this foundation.

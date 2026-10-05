@@ -19,6 +19,8 @@
 
 Runtimecode is niet schrijfbaar door de servicegebruiker. Bewerk productiecode niet rechtstreeks: wijzigingen lopen via GitHub en een gecontroleerde deployment.
 
+De root-owned deployhelper en systemd-unit worden bewust bij bootstrap geïnstalleerd en niet door een artifact vervangen. Als deze bestanden wijzigen, werk dan de bootstrapcheckout bij en voer `scripts/install-lxc.sh` opnieuw als root uit vóór de volgende deployment. Een runner-update wordt via de GitHub-runner geregeld.
+
 ## Automatisch herstel
 
 Na het wisselen van de release controleert de deployhelper maximaal ongeveer één minuut op readiness en de juiste commit. Bij falen wordt de vorige release teruggezet en de workflow als mislukt gemarkeerd. Bij een eerste installatie zonder vorige release wordt de mislukte service gestopt.

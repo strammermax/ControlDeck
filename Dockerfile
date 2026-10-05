@@ -8,6 +8,9 @@ RUN npm run build
 
 FROM python:3.12-slim-bookworm AS runtime
 ARG APP_COMMIT=development
+LABEL org.opencontainers.image.source="https://github.com/strammermax/ControlDeck" \
+      org.opencontainers.image.title="ControlDeck" \
+      org.opencontainers.image.licenses="GPL-3.0"
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt && useradd --uid 10001 --create-home controldeck
