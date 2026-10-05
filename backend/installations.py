@@ -25,7 +25,7 @@ def validate_install_request(value):
 def setup_installations(app, configuration_path, data_dir):
     root = Path(data_dir) / 'installations'
     queue_lock = Lock()
-    catalog_path = Path(__file__).resolve().parent.parent / 'config/catalog/termix.json'
+    catalog_root = Path(__file__).resolve().parent.parent / 'config/catalog'
 
     def status():
         try:
@@ -54,8 +54,11 @@ def setup_installations(app, configuration_path, data_dir):
     @app.get('/api/installations')
     def catalog():
         try:
-            module = json.loads(catalog_path.read_text())
-            return jsonify(modules=[module], status=status())
+            # Installable modules first, then connections; each entry is reviewed metadata only.
+            modules = sorted((json.loads(item.read_text()) for item in catalog_root.glob('*.json')), key=lambda module: (module.get('kind', 'install') != 'install', module['id']))
+            for module in modules:
+                module.setdefault('kind', 'install')
+            return jsonify(modules=modules, status=status(), connections={'proxmox': (Path(data_dir) / 'proxmox/connection.json').is_file()})
         except (OSError, ValueError):
             return jsonify(error='De modulecatalogus is niet beschikbaar.'),503
 

@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { cleanAddress, describeTask, duration, filterTasks } from '../lib/proxmox.ts';
+
+const task = (extra) => ({id:'U', node:'pve-amd', user:'root@pam', type:'vzstart', target:'165', targetType:'lxc', targetName:'controldeck', start:100, end:102, status:'ok', message:null, ...extra});
+test('describeTask / normaal: container start with name', () => {
+  assert.equal(describeTask(task()),'CT 165 (controldeck) – Start');
+  assert.equal(describeTask(task({type:'vzdump', target:'200', targetType:'qemu', targetName:'win'})),'VM 200 (win) – Backup');
+});
+test('describeTask / boundary: no target, removed guest and unknown type', () => {
+  assert.equal(describeTask(task({type:'vncshell', target:''})),'Shell');
+  assert.equal(describeTask(task({type:'qmstop', target:'999', targetType:null, targetName:null})),'VM 999 – Stop');
+  assert.equal(describeTask(task({type:'cephcreateosd', target:'osd.1', targetType:null, targetName:null})),'cephcreateosd osd.1');
+});
+test('describeTask / faal: untrusted text stays plain text without markup', () => {
+  assert.equal(describeTask(task({targetName:'<b>x</b>'})),'CT 165 (<b>x</b>) – Start');
+});
+test('filterTasks / normaal: node and status filters combine', () => {
+  const tasks = [task(), task({id:'B', node:'pve-nas', status:'error'}), task({id:'C', status:'error'})];
+  assert.deepEqual(filterTasks(tasks,{node:'pve-amd', status:'error'}).map(t => t.id),['C']);
+});
+test('filterTasks / boundary: empty filter returns everything; empty list stays empty', () => {
+  assert.equal(filterTasks([task()],{node:'', status:''}).length,1);
+  assert.deepEqual(filterTasks([],{node:'pve-amd', status:'ok'}),[]);
+});
+test('filterTasks / faal: malformed input is rejected', () => {
+  assert.throws(() => filterTasks(null,{node:'', status:''}),TypeError);
+});
+test('duration / normaal, boundary and faal', () => {
+  assert.equal(duration(100,145,0),'45s');
+  assert.equal(duration(0,185,0),'3m 05s');
+  assert.equal(duration(0,7440,0),'2u 04m');
+  assert.equal(duration(100,null,160),'1m 00s');
+  assert.equal(duration(100,50,0),'0s');
+});
+test('cleanAddress / normaal, boundary and faal', () => {
+  assert.equal(cleanAddress(' https://192.168.1.98:8006/# '),'https://192.168.1.98:8006');
+  assert.equal(cleanAddress('https://pm.vanburik.info'),'https://pm.vanburik.info');
+  assert.equal(cleanAddress(''),'');
+});
+import { bytes, meter } from '../lib/proxmox.ts';
+test('meter / normaal: value becomes bar width with load level', () => {
+  assert.deepEqual(meter(42.5),{width:42.5, level:'normal'});
+  assert.equal(meter(80).level,'high');
+});
+test('meter / boundary: 0, 75, 90 and >100 are clamped and classified', () => {
+  assert.deepEqual(meter(0),{width:0, level:'normal'});
+  assert.equal(meter(75).level,'high');
+  assert.equal(meter(90).level,'critical');
+  assert.deepEqual(meter(250),{width:100, level:'critical'});
+});
+test('meter / faal: missing or invalid values are unknown, never healthy', () => {
+  for (const value of [null, undefined, NaN, Infinity]) assert.deepEqual(meter(value),{width:0, level:'unknown'});
+});
+test('bytes / normaal, boundary and faal', () => {
+  assert.equal(bytes(64 * 1024 ** 3),'64 GiB');
+  assert.equal(bytes(1536),'1.5 KiB');
+  assert.equal(bytes(0),'0 B');
+  assert.equal(bytes(-1),'—');
+  assert.equal(bytes(null),'—');
+});

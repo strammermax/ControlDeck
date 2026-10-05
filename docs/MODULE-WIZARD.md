@@ -2,7 +2,7 @@
 
 De admin opent **Admin → Modules**. De wizard heeft vijf stappen: module kiezen, Docker of Proxmox LXC kiezen, bestemming en instellingen bekijken, het installatieplan controleren, en installeren met zichtbare voortgang. Gewone gebruikers gebruiken daarna de module; het aanpassen van infrastructuur blijft adminwerk.
 
-Termix is het eerste catalogusvoorbeeld. De openbare beschrijving staat in `config/catalog/termix.json`. De catalogus bevat uitsluitend metadata; een browser kan geen willekeurig image, shellcommando of downloadadres laten uitvoeren. Nieuwe modules krijgen een expliciet beoordeelde installer, API-controles en normale, boundary- en faaltests.
+Elk bestand in `config/catalog/` is één catalogusmodule. `kind` is `install` (standaard, bijvoorbeeld Termix) of `connect` (een bestaande toepassing koppelen, zoals Proxmox VE; zie [PROXMOX.md](PROXMOX.md)). Termix is het eerste installatievoorbeeld. De openbare beschrijving staat in `config/catalog/termix.json`. De catalogus bevat uitsluitend metadata; een browser kan geen willekeurig image, shellcommando of downloadadres laten uitvoeren. Nieuwe modules krijgen een expliciet beoordeelde installer, API-controles en normale, boundary- en faaltests.
 
 ## Docker
 

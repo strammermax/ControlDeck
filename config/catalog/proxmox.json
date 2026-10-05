@@ -1,0 +1,9 @@
+{
+  "id": "proxmox",
+  "name": "Proxmox VE",
+  "kind": "connect",
+  "description": "Alleen-lezen koppeling met je Proxmox-cluster: taken, nodes, VM's, containers en opslag.",
+  "version": "API v2",
+  "module": "proxmox",
+  "documentation": "https://pve.proxmox.com/pve-docs/pveum-plain.html"
+}
