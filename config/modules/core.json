@@ -61,7 +61,8 @@
   {
     "id": "terminal",
     "enabled": true,
-    "title": "Terminal"
+    "title": "Terminal",
+    "view": "terminal"
   },
   {
     "id": "admin",

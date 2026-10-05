@@ -92,7 +92,8 @@ def validate(config):
         text(module["title"], "module.title")
         if "description" in module:
             text(module["description"], "module.description", 2000)
-        require(module.get("view", "placeholder") in ("empty", "placeholder", "integration"), "Unsupported module.view")
+        require(module.get("view", "placeholder") in ("empty", "placeholder", "integration", "terminal"), "Unsupported module.view")
+        require(module.get("view") != "terminal" or mid == "terminal", "Terminal view requires terminal module")
         if "provider" in module:
             require(isinstance(module["provider"], str) and module["provider"] in provider_ids, "module.provider: unknown provider")
         require(module.get("view") != "integration" or "provider" in module, "Integration module requires provider")

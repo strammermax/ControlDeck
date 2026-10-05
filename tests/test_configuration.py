@@ -20,7 +20,7 @@ def test_split_configuration_and_private_projection(configuration):
     result = load_config(configuration)
     assert len(result["menu"]) == 7
     assert result["widgets"] == []
-    assert {provider["id"] for provider in result["providers"]} == {"kasm", "radarr", "plex"}
+    assert {provider["id"] for provider in result["providers"]} == {"kasm", "radarr", "plex", "termix"}
     assert "tokenEnv" not in json.dumps(result)
     assert all(module["id"] not in ("kasm", "radarr", "plex") for module in result["modules"])
 

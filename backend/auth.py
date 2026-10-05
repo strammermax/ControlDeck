@@ -85,6 +85,8 @@ def filter_configuration(config, account):
         # External menu links are shared links, not provider permissions.
         return item
     provider_ids = {module["provider"] for module in modules if "provider" in module}
+    if any(module.get("view") == "terminal" for module in modules):
+        provider_ids.add("termix")
     return {**config, "modules": modules, "menu": [item for item in (entry(item) for item in config["menu"]) if item], "providers": [p for p in config["providers"] if p["id"] in provider_ids], "widgets": [w for w in config["widgets"] if w["route"] in routes and w["provider"] in provider_ids]}
 
 

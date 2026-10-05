@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { version } from "../package.json";
 import { firstRoute, getDestinations, href, isActive, type Configuration } from "../lib/navigation";
 import { Icon } from "../components/icon";
+import { Terminal } from "../components/terminal";
 import { Accounts } from "../components/accounts";
 
 type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string } | null; csrfToken: string | null };
@@ -180,7 +181,7 @@ export default function Home() {
       <main id="workspace" tabIndex={-1} className={destination?.view === "empty" ? "workspace" : "workspace module"}>
         {destination?.view === "empty" ? <h2 className="sr-only">{destination.label}</h2> : <>
           <h2>{destination?.label}</h2>
-          {active === "admin/users" && auth.user?.role === "admin" ? <Accounts csrfToken={auth.csrfToken!}/> : active === "admin/providers" ? <div className="provider-list">{config.providers.length ? config.providers.map(item => <section key={item.id} className="provider-card"><h3>{item.label}</h3><p>{item.enabled ? "Ingeschakeld" : "Niet ingericht"}</p>{item.url ? <a href={item.url}>{item.url}</a> : <p>Nog geen adres ingesteld.</p>}</section>) : <p>Er zijn nog geen koppelingen ingesteld.</p>}</div> : <>
+          {destination?.view === "terminal" ? <Terminal key={auth.user?.email} enabled={config.providers.some(p => p.id === "termix" && p.enabled)} csrfToken={auth.csrfToken!}/> : active === "admin/users" && auth.user?.role === "admin" ? <Accounts csrfToken={auth.csrfToken!}/> : active === "admin/providers" ? <div className="provider-list">{config.providers.length ? config.providers.map(item => <section key={item.id} className="provider-card"><h3>{item.label}</h3><p>{item.enabled ? "Ingeschakeld" : "Niet ingericht"}</p>{item.url ? <a href={item.url}>{item.url}</a> : <p>Nog geen adres ingesteld.</p>}</section>) : <p>Er zijn nog geen koppelingen ingesteld.</p>}</div> : <>
             <p>{destination?.description ?? "Dit onderdeel is nog niet ingericht."}</p>
             {provider?.url && <><p>Adres: <a href={provider.url}>{provider.url}</a></p><a className="provider-open" href={provider.url} target="_blank" rel="noopener noreferrer">Open {provider.label} ↗</a><p>Deze koppeling opent de toepassing. Gegevens uit de toepassing volgen later.</p></>}
           </>}

@@ -54,3 +54,7 @@ The development server listens on localhost only. Production uses Gunicorn. Runt
 ## License
 
 GPL-3.0. See [LICENSE](LICENSE). ProxMenux Monitor is a design and technology reference. No ProxMenux application code has been imported into this foundation; any later reuse must retain applicable notices and comply with its license.
+
+## Termix
+
+De optionele Terminal-integratie gebruikt een afzonderlijke Docker-container, de bestaande Google-login en een beveiligde Nginx-gateway. Zie [Termix-installatie en beheer](docs/TERMIX.md).

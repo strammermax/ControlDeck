@@ -1,0 +1,31 @@
+services:
+  termix:
+    image: ghcr.io/lukegus/termix:2.9.1@sha256:79206f0774bc146121c7c4664da2592fa3b482d7bba12da69ed1108ce1d6c68d
+    container_name: controldeck-termix
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8090:8080'
+    volumes:
+      - termix-data:/app/data
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    environment:
+      PORT: '8080'
+      BASE_PATH: /termix
+      ENABLE_GUACAMOLE: 'false'
+      ENABLE_TELEMETRY: 'false'
+      ALLOW_PASSWORD_LOGIN: 'false'
+      ALLOW_PASSWORD_RESET: 'false'
+      # Only the loopback bridge can reach /users/create; gateway always denies it.
+      ALLOW_REGISTRATION: 'true'
+      TRUSTED_PROXY_AUTH_ENABLED: 'true'
+      # The bundled Nginx connects to the Node backend from loopback.
+      TRUSTED_PROXY_AUTH_TRUSTED_PROXIES: '127.0.0.1,::1'
+      TRUSTED_PROXY_AUTH_ROLE_MAP: '{"admin":"admin","user":"user"}'
+volumes:
+  termix-data:

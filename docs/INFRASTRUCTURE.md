@@ -120,3 +120,7 @@ Releasecleanup blijft voorlopig handmatig. Automatisch herstel is gericht op cod
 De systemd-unit is bijgewerkt met `CONTROLDECK_CONFIG=/var/lib/controldeck/config/controldeck.json`, `CONTROLDECK_DATA_DIR=/var/lib/controldeck`, `CONTROLDECK_ACCOUNTS=/var/lib/controldeck/accounts.json` en het optionele root-only EnvironmentFile `/etc/controldeck/controldeck.env`. De server heeft een eigen ControlDeck Google OAuth-client. Accounts en clientgeheimen zijn uitsluitend privé op de server geïnstalleerd.
 
 De accountlijst is niet onderdeel van de publieke repository. Configuratie, accounts, sessiesleutel en gebruikersdatabase blijven buiten de release-mappen bestaan. Een nieuwe installatie kopieert configuratievoorbeelden uitsluitend wanneer nog geen hoofdbestand aanwezig is. Google-login is verplicht voor de interfacegegevens, inclusief de interne LAN-route. De health/readiness-probes blijven zonder login bruikbaar. Meer details in AUTHENTICATION.md en CONFIGURATION.md.
+
+## Termix
+
+De optionele Terminal-integratie gebruikt een afzonderlijke Docker-container, de bestaande Google-login en een beveiligde Nginx-gateway. Zie [Termix-installatie en beheer](TERMIX.md).

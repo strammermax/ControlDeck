@@ -48,3 +48,7 @@ Elke functie krijgt minimaal drie herkenbare testcategorieën: `normaal` voor ve
 | Menulink | Geldige route | Subpagina/externe URL | Ontbrekende bestemming |
 
 Browserinteractie vult deze unit/contract-tests aan; hiervoor worden geen productielogin-bypasses toegevoegd.
+
+## Termix
+
+De optionele Terminal-integratie gebruikt een afzonderlijke Docker-container, de bestaande Google-login en een beveiligde Nginx-gateway. Zie [Termix-installatie en beheer](TERMIX.md).

@@ -1,5 +1,5 @@
 export type Provider = { id: string; type: string; label: string; enabled: boolean; url: string | null };
-export type Module = { id: string; enabled: boolean; title: string; description?: string; view?: "empty" | "placeholder" | "integration"; provider?: string; pages?: { id: string; title: string; description?: string }[] };
+export type Module = { id: string; enabled: boolean; title: string; description?: string; view?: "empty" | "placeholder" | "integration" | "terminal"; provider?: string; pages?: { id: string; title: string; description?: string }[] };
 export type MenuItem = { id: string; label: string; icon?: string; route?: string; url?: string; children?: MenuItem[] };
 export type Configuration = {
   schemaVersion: number;
