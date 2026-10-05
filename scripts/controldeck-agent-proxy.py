@@ -245,8 +245,10 @@ class Handler(socketserver.StreamRequestHandler):
 def serve(socket_path):
     path = Path(socket_path)
     path.unlink(missing_ok=True)
-    os.umask(0o117)  # socket 0660: owner and the controldeck-ssh group (which contains the web app user)
     server = socketserver.ThreadingUnixStreamServer(str(path), Handler)
+    # Socket 0660: owner and the controldeck-ssh group (which contains the web app user). Set on the file itself:
+    # changing the process umask would also affect every other file this process creates (regression, see tests).
+    os.chmod(path, 0o660)
     server.daemon_threads = True
     print(f"{datetime.datetime.now().isoformat()} controldeck-agent-proxy listening on {path}", flush=True)
     server.serve_forever()

@@ -138,6 +138,15 @@ def test_socket_server_and_client(proxy_state, monkeypatch, tmp_path):
             break
         time.sleep(0.02)
     assert oct(socket_path.stat().st_mode & 0o777) == "0o660"
+    # Regression: serve() once set the process umask to 0117, so every directory the process created afterwards
+    # lacked the execute bit and 217 unrelated tests failed with "Permission denied" in CI.
+    probe = tmp_path / "probe-dir"
+    probe.mkdir()
+    (probe / "file").write_text("ok")
+    assert (probe / "file").read_text() == "ok"
+    current = os.umask(0o022)
+    os.umask(current)
+    assert current & 0o100 == 0
     monkeypatch.setenv("CONTROLDECK_AGENT_SOCKET", str(socket_path))
     assert agent_client.proxy_request({"op": "status"})["data"]["keyExists"] is True
     assert agent_client.proxy_request({"op": "nope"})["error"] == "invalid_request"
