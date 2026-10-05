@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import ssl
 
 import pytest
 import requests
@@ -120,13 +121,16 @@ def test_node_summary(case):
 
 def test_monitor_get_maps_errors_without_leaking_token(monkeypatch, tmp_path):
     node = {"name": "pve-amd", "url": "https://192.168.1.98:8008", "token": TOKEN}
+    with pytest.raises(MonitorError, match="cluster-CA kan niet"):
+        proxmenux.monitor_get(node, tmp_path / "missing.pem", "system")
+    (tmp_path / "ca.pem").write_text(CA)
     for side_effect, text in ((requests.exceptions.SSLError(TOKEN), "certificaat"), (requests.ConnectionError(TOKEN), "bereikbaar")):
-        monkeypatch.setattr(proxmenux.requests, "get", Mock(side_effect=side_effect))
+        monkeypatch.setattr(proxmenux.requests.Session, "get", Mock(side_effect=side_effect))
         with pytest.raises(MonitorError) as error:
             proxmenux.monitor_get(node, tmp_path / "ca.pem", "system")
         assert text in str(error.value) and TOKEN not in str(error.value)
     get = Mock(return_value=Mock(status_code=401))
-    monkeypatch.setattr(proxmenux.requests, "get", get)
+    monkeypatch.setattr(proxmenux.requests.Session, "get", get)
     with pytest.raises(MonitorError, match="weigert"):
         proxmenux.monitor_get(node, tmp_path / "ca.pem", "system")
     assert get.call_args.kwargs["verify"] == str(tmp_path / "ca.pem") and get.call_args.kwargs["allow_redirects"] is False
@@ -222,7 +226,10 @@ def test_detect_states(monkeypatch, tmp_path, case):
     def fake(url, **kwargs):
         calls.append((url, kwargs))
         return responder(url)
+    # https goes through the cluster-CA session, the http probe through plain requests.get.
+    monkeypatch.setattr(proxmenux.requests.Session, "get", staticmethod(fake))
     monkeypatch.setattr(proxmenux.requests, "get", fake)
+    (tmp_path / "ca.pem").write_text(CA)
     url = "https://192.168.1.98:8008"
     if case == "normaal":
         responder = lambda u: FakeResponse(200, {"auth_enabled": True})
@@ -263,3 +270,80 @@ def test_detect_endpoint_validation_and_access(env, monkeypatch):
     assert admin.post("/api/proxmenux/connection/detect", headers=H, json={"ca": CA, "nodes": [{"name": "../x", "url": "https://h"}]}).status_code == 400
     assert client("viewer@example.test").post("/api/proxmenux/connection/detect", headers=H, json=body).status_code == 403
     assert admin.post("/api/proxmenux/connection/detect", json=body).status_code == 403
+
+
+def tls_pair(tmp_path, ip="127.0.0.1", critical=False):
+    """A Proxmox-like CA (no keyUsage, like pve-root-ca.pem) and a node certificate for one IP."""
+    import ipaddress
+    from cryptography.x509.oid import ExtendedKeyUsageOID
+    now = datetime.datetime.now(datetime.timezone.utc)
+    ca_key = ec.generate_private_key(ec.SECP256R1())
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Proxmox Virtual Environment"), x509.NameAttribute(NameOID.ORGANIZATION_NAME, "PVE Cluster Manager CA")])
+    ca = (x509.CertificateBuilder().subject_name(ca_name).issuer_name(ca_name).public_key(ca_key.public_key()).serial_number(1)
+          .not_valid_before(now).not_valid_after(now + datetime.timedelta(days=2))
+          .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=critical).sign(ca_key, hashes.SHA256()))
+    key = ec.generate_private_key(ec.SECP256R1())
+    leaf = (x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "pve-amd.home")])).issuer_name(ca_name)
+            .public_key(key.public_key()).serial_number(2).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=1))
+            .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=False)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+            .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address(ip))]), critical=False)
+            .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+            .sign(ca_key, hashes.SHA256()))
+    ca_path, cert_path, key_path = tmp_path / "ca.pem", tmp_path / "node.pem", tmp_path / "node.key"
+    ca_path.write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+    cert_path.write_bytes(leaf.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+    return ca_path, cert_path, key_path
+
+
+@pytest.fixture
+def monitor_server(tmp_path):
+    """Real HTTPS server on 127.0.0.1 that answers like ProxMenux /api/auth/status."""
+    import http.server, ssl, threading
+    def start(ip="127.0.0.1", critical=False):
+        ca_path, cert_path, key_path = tls_pair(tmp_path, ip, critical)
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = json.dumps({"auth_enabled": True, "hostname": "pve-amd"}).encode()
+                self.send_response(200); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+            def log_message(self, *args):
+                pass
+        server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(cert_path, key_path)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        servers.append(server)
+        return f"https://127.0.0.1:{server.server_address[1]}", ca_path
+    servers = []
+    yield start
+    for server in servers:
+        server.shutdown()
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_cluster_ca_tls_against_real_server(monitor_server, tmp_path, case):
+    url, ca_path = monitor_server(critical=(case == "boundary"))
+    node = {"name": "pve-amd", "url": url, "token": TOKEN}
+    if case in ("normaal", "boundary"):
+        # A Proxmox-like CA (non-critical basicConstraints) is accepted; the strict profile check is not applied.
+        assert proxmenux.monitor_get(node, ca_path, "system")["hostname"] == "pve-amd"
+        assert proxmenux.detect(url, ca_path) == {"state": "ready"}
+        context = ssl.create_default_context(cafile=str(ca_path))
+        context.verify_flags |= ssl.VERIFY_X509_STRICT
+        if case == "normaal":
+            # Documents the original failure on Python 3.13: the strict profile rejects this CA.
+            with pytest.raises(ssl.SSLError):
+                import socket
+                port = int(url.rsplit(":", 1)[1])
+                with socket.create_connection(("127.0.0.1", port), 5) as raw, context.wrap_socket(raw, server_hostname="127.0.0.1"):
+                    pass
+    else:
+        other_ca, _, _ = tls_pair(tmp_path / "x" if (tmp_path / "x").mkdir() is None else tmp_path)
+        assert proxmenux.detect(url, other_ca) == {"state": "untrusted_tls"}
+        with pytest.raises(MonitorError, match="certificaat"):
+            proxmenux.monitor_get(node, other_ca, "system")
+        # Certificate for another IP: chain is valid, hostname check still rejects it.
+        wrong_url, wrong_ca = monitor_server(ip="192.0.2.10")
+        assert proxmenux.detect(wrong_url, wrong_ca) == {"state": "untrusted_tls"}

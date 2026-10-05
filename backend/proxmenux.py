@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import ssl
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -9,6 +10,7 @@ from pathlib import Path
 from threading import Lock, Thread
 
 import requests
+from requests.adapters import HTTPAdapter
 from cryptography import x509
 from flask import g, jsonify, request
 
@@ -64,13 +66,43 @@ def validate_nodes(nodes, stored):
     return result
 
 
+class ClusterCAAdapter(HTTPAdapter):
+    """Uses one prepared TLS context: only the cluster CA is trusted and the hostname is checked."""
+
+    def __init__(self, context):
+        self.context = context
+        super().__init__()
+
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs["ssl_context"] = self.context
+        super().init_poolmanager(*args, **kwargs)
+
+
+def cluster_session(ca_path):
+    """Session that trusts only the Proxmox cluster CA.
+
+    urllib3 enables VERIFY_X509_STRICT on Python 3.13+. The self-generated Proxmox root CA has no keyUsage
+    extension, which that profile requires, so valid node certificates were rejected. The chain to the cluster CA and
+    the hostname/IP are still verified; only the profile check is relaxed.
+    """
+    context = ssl.create_default_context(cafile=str(ca_path))
+    context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    session = requests.Session()
+    session.mount("https://", ClusterCAAdapter(context))
+    return session
+
+
 def monitor_get(node, ca_path, path):
     try:
-        response = requests.get(f"{node['url']}/api/{path}", headers={"Authorization": f"Bearer {node['token']}"}, timeout=TIMEOUT, verify=str(ca_path), allow_redirects=False)
+        with cluster_session(ca_path) as session:
+            # verify is the same CA file, so no public CA bundle is ever added to the context.
+            response = session.get(f"{node['url']}/api/{path}", headers={"Authorization": f"Bearer {node['token']}"}, timeout=TIMEOUT, verify=str(ca_path), allow_redirects=False)
     except requests.exceptions.SSLError:
         raise MonitorError("Het certificaat past niet bij de cluster-CA of het adres.") from None
     except requests.RequestException:
         raise MonitorError("Monitor niet bereikbaar.") from None
+    except (OSError, ssl.SSLError):
+        raise MonitorError("De cluster-CA kan niet worden gelezen. Koppel ProxMenux opnieuw.") from None
     if response.status_code == 401:
         raise MonitorError("Monitor weigert het API-token.")
     if response.status_code != 200:
@@ -91,9 +123,10 @@ INSTALL_COMMANDS = {
 def detect(url, ca_path):
     """Read-only probe without token: absent, http_only, untrusted_tls, auth_disabled or ready."""
     try:
-        response = requests.get(f"{url}/api/auth/status", timeout=6, verify=str(ca_path), allow_redirects=False)
+        with cluster_session(ca_path) as session:
+            response = session.get(f"{url}/api/auth/status", timeout=6, verify=str(ca_path), allow_redirects=False)
         status = response.json() if response.status_code == 200 else None
-    except requests.exceptions.SSLError:
+    except (requests.exceptions.SSLError, ssl.SSLError):
         return {"state": "untrusted_tls"}
     except ValueError:
         return {"state": "absent"}  # Something answers over https, but it is not ProxMenux Monitor.
