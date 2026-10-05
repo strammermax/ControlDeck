@@ -1,0 +1,7 @@
+{
+  "id": "kasm",
+  "enabled": true,
+  "title": "Kasm",
+  "provider": "kasm",
+  "route": "kasm"
+}

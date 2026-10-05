@@ -1,0 +1,8 @@
+{
+  "id": "kasm",
+  "type": "kasm",
+  "label": "Kasm",
+  "enabled": false,
+  "url": null,
+  "tokenEnv": "CONTROLDECK_KASM_TOKEN"
+}

@@ -9,6 +9,10 @@ Group=controldeck
 WorkingDirectory=/opt/controldeck/current
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
+Environment=CONTROLDECK_CONFIG=/var/lib/controldeck/config/controldeck.json
+Environment=CONTROLDECK_DATA_DIR=/var/lib/controldeck
+Environment=CONTROLDECK_ACCOUNTS=/var/lib/controldeck/accounts.json
+EnvironmentFile=-/etc/controldeck/controldeck.env
 ExecStart=/opt/controldeck/current/venv/bin/gunicorn --bind 0.0.0.0:8080 --workers 1 --threads 2 --worker-tmp-dir /tmp backend.app:app
 Restart=on-failure
 RestartSec=3

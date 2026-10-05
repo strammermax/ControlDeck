@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "site": {
+    "title": "ControlDeck",
+    "subtitle": "ControlDeck homelab Dashboard",
+    "logo": "/controldeck-logo.jpg",
+    "defaultTheme": "dark",
+    "refreshSeconds": 30,
+    "footerText": "ControlDeck homelab Dashboard",
+    "supportLabel": "Support and contribute to the project",
+    "supportUrl": "https://github.com/strammermax/ControlDeck"
+  },
+  "menu": [
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "icon": "dashboard",
+      "route": "dashboard"
+    },
+    {
+      "id": "virtual-apps",
+      "label": "Virtual Apps",
+      "icon": "virtual-apps",
+      "children": [
+        {
+          "id": "virtual-apps-overview",
+          "label": "Overzicht",
+          "route": "virtual-apps"
+        },
+        {
+          "id": "kasm-menu",
+          "label": "Kasm",
+          "route": "kasm"
+        }
+      ]
+    },
+    {
+      "id": "bookmarks",
+      "label": "Bookmarks",
+      "icon": "bookmarks",
+      "route": "bookmarks"
+    },
+    {
+      "id": "proxmox",
+      "label": "Proxmox",
+      "icon": "proxmox",
+      "children": [
+        {
+          "id": "proxmox-overview",
+          "label": "Overzicht",
+          "route": "proxmox"
+        },
+        {
+          "id": "proxmox-nodes",
+          "label": "Nodes",
+          "route": "proxmox/nodes"
+        },
+        {
+          "id": "proxmox-vms",
+          "label": "Virtual Machines",
+          "route": "proxmox/vms"
+        },
+        {
+          "id": "proxmox-containers",
+          "label": "Containers",
+          "route": "proxmox/containers"
+        },
+        {
+          "id": "proxmox-storage",
+          "label": "Storage",
+          "route": "proxmox/storage"
+        },
+        {
+          "id": "files",
+          "label": "Files",
+          "route": "files"
+        },
+        {
+          "id": "network",
+          "label": "Network",
+          "route": "network"
+        },
+        {
+          "id": "monitoring",
+          "label": "Monitoring",
+          "route": "monitoring"
+        }
+      ]
+    },
+    {
+      "id": "media",
+      "label": "Media",
+      "icon": "media",
+      "children": [
+        {
+          "id": "media-overview",
+          "label": "Overzicht",
+          "route": "media"
+        },
+        {
+          "id": "radarr-menu",
+          "label": "Radarr",
+          "route": "radarr"
+        },
+        {
+          "id": "plex-menu",
+          "label": "Plex",
+          "route": "plex"
+        }
+      ]
+    },
+    {
+      "id": "terminal",
+      "label": "Terminal",
+      "icon": "terminal",
+      "route": "terminal"
+    },
+    {
+      "id": "admin",
+      "label": "Admin",
+      "icon": "admin",
+      "children": [
+        {
+          "id": "settings",
+          "label": "Instellingen",
+          "route": "admin"
+        },
+        {
+          "id": "modules",
+          "label": "Modules",
+          "route": "admin/modules"
+        },
+        {
+          "id": "providers",
+          "label": "Providers",
+          "route": "admin/providers"
+        },
+        {
+          "id": "users",
+          "label": "Gebruikers",
+          "route": "admin/users"
+        }
+      ]
+    }
+  ],
+  "includes": {
+    "modules": "modules",
+    "providers": "providers",
+    "widgets": "widgets"
+  }
+}

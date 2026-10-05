@@ -7,6 +7,9 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [visie.md](visie.md) | Doel, principes en toekomstbeeld |
 | [functioneel-ontwerp.md](functioneel-ontwerp.md) | Modules, gebruikersprocessen en navigatie |
 | [technisch-ontwerp.md](technisch-ontwerp.md) | Architectuur en technische richting |
+| [CONFIGURATION.md](CONFIGURATION.md) | JSON-menu, modules, providers en widgetdefinities |
+| [AUTHENTICATION.md](AUTHENTICATION.md) | Google-login, accountprofielen, rechten en voorkeuren |
+| [PYTHON-LICENSES.txt](PYTHON-LICENSES.txt) | Notices van Python-dependencies |
 | [UI.md](UI.md) | Basisinterface, navigatie, status en thema |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Werkelijke repository en runtime |
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Ingerichte LXC, netwerk, accounts, services en GitHub-route |
@@ -19,6 +22,7 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [THIRD-PARTY.md](THIRD-PARTY.md) | Bronnen en afhankelijkheden |
 | [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt) | Licentieteksten van frontenddependencies |
 | [CHANGELOG.md](CHANGELOG.md) | Wijzigingen per versie |
+| [TESTING.md](TESTING.md) | Verplichte controles bij iedere uitrol |
 | [VERIFICATION.md](VERIFICATION.md) | Uitgevoerde controles en meetgrenzen |
 
 ## Documentatiebeleid

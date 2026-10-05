@@ -16,3 +16,5 @@ data/
 *.log
 work/
 build-info.json
+secrets/
+config/accounts.local.json

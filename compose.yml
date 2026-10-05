@@ -5,6 +5,15 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
+    environment:
+      CONTROLDECK_CONFIG: /config/controldeck.json
+      CONTROLDECK_ACCOUNTS: /data/accounts.json
+      CONTROLDECK_BASE_URL: ${CONTROLDECK_BASE_URL:-}
+      CONTROLDECK_GOOGLE_CLIENT_ID: ${CONTROLDECK_GOOGLE_CLIENT_ID:-}
+      CONTROLDECK_GOOGLE_CLIENT_SECRET: ${CONTROLDECK_GOOGLE_CLIENT_SECRET:-}
+    volumes:
+      - ./config:/config:ro
+      - controldeck-data:/data
     read_only: true
     tmpfs:
       - /tmp:size=32m
@@ -12,3 +21,5 @@ services:
     security_opt: [no-new-privileges:true]
     mem_limit: 512m
     cpus: 1
+volumes:
+  controldeck-data:

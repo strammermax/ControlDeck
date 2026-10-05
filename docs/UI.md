@@ -4,19 +4,19 @@ De basisinterface volgt de door de gebruiker aangeleverde ProxMenux Monitor-mock
 
 ## Navigatie
 
-`frontend/lib/navigation.ts` definieert het menu en de bestemmingen. Dashboard, Virtual Apps, Bookmarks, Media en Terminal openen rechtstreeks. Proxmox bevat Overzicht, Nodes, Virtual Machines, Containers, Storage, Files, Network en Monitoring. Admin bevat Instellingen, Modules, Providers en Gebruikers.
+`config/controldeck.json` en de bestanden onder `config/modules/` bepalen het menu en de bestemmingen. `frontend/lib/navigation.ts` verwerkt de gevalideerde configuratie. Dashboard, Bookmarks en Terminal openen rechtstreeks. Virtual Apps en Media hebben configureerbare dropdowns voor toepassingen. Proxmox bevat Overzicht, Nodes, Virtual Machines, Containers, Storage, Files, Network en Monitoring. Admin bevat Instellingen, Modules, Providers en Gebruikers.
 
-Elke bestemming heeft een hashlink, bijvoorbeeld `/#proxmox/nodes`. Links kunnen worden gedeeld en de terugknop werkt. Er zijn nog geen providerintegraties: de modulepagina's melden dat het onderdeel nog niet is ingericht. Het Dashboard blijft bewust leeg overeenkomstig de mockup.
+Elke bestemming heeft een hashlink, bijvoorbeeld `/#proxmox/nodes`. Links kunnen worden gedeeld en de terugknop werkt. Providerdefinities kunnen een toepassing openen; echte API-adapters volgen later. De meegeleverde Kasm/Radarr/Plex-voorbeelden staan uit. Admin → Gebruikers bevat werkelijk profielbeheer voor admins. Het Dashboard blijft bewust leeg overeenkomstig de mockup.
 
 Onder 800 pixels wordt het hoofdmenu inklapbaar met een hamburgerknop. Dit is de mobiele hoofdnav; het toekomstige boommenu naast de werkruimte is nog niet gebouwd. Native disclosure-elementen ondersteunen toetsenbordbediening. Escape sluit een dropdown en herstelt focus. Klikken buiten het menu sluit de dropdowns. Een skiplink gaat naar de inhoud.
 
 ## Bovenbalk
 
-- `User: Guest`: er is nog geen authenticatie. Dit is geen ingelogde identiteit.
+- De naam of het e-mailadres van de aangemelde gebruiker, met Uitloggen. Zonder login verschijnt uitsluitend de aanmeldpagina.
 - Online/Offline/Checking: bereikbaarheid van de ControlDeck-service, niet de gezondheid van het hele homelab.
 - Uptime: verstreken tijd sinds de start van het Flask-applicatieproces. Deze wordt opnieuw nul na een herstart.
-- Refresh: vernieuwt `/health`; automatisch gebeurt dit elke 30 seconden. Een aanvraag heeft een timeout van acht seconden.
-- Thema: licht/donker, opgeslagen in de browser indien lokale opslag beschikbaar is.
+- Refresh: vernieuwt sessie, configuratie en `/health`; het automatische interval komt uit JSON (standaard 30 seconden). Een aanvraag heeft een timeout van acht seconden.
+- Thema: licht/donker, als persoonlijke voorkeur centraal opgeslagen. De laatst bezochte module wordt eveneens per gebruiker bewaard.
 - Footer: de versie van de actieve backend, met de frontendversie als fallback, en een link naar het project op GitHub.
 
 ## Runtime en hergebruik
@@ -25,4 +25,4 @@ De interface blijft een statische Next.js-export. Er komen geen extra runtimepro
 
 ## Verificatie
 
-Bij deze wijziging worden TypeScript, productie-export en Python-tests uitgevoerd. Browsercontrole omvat desktop- en mobiele navigatie, dropdowns, directe links, terugnavigatie, thema en refresh. De bestaande CI controleert ook Docker en rolt de main-commit uit naar LXC 164. Integraties en login vallen buiten deze versie.
+Bij deze wijziging worden TypeScript, productie-export en Python-tests uitgevoerd. Browsercontrole omvat desktop- en mobiele navigatie, dropdowns, directe links, terugnavigatie, thema en refresh. De bestaande CI controleert ook Docker en rolt de main-commit uit naar LXC 164. Google OIDC-login, serverzijdige rollen en accountbeheer worden apart getest. Windows-login en API-adapters volgen later; widgetdefinities worden nog niet als Dashboard gerenderd.

@@ -26,3 +26,11 @@ Automatische rollback bij een opstartfout is geïmplementeerd, maar een opzettel
 ## Basisinterface 0.2.0
 
 De productie-export en TypeScript-controle slagen; beide Python-tests slagen, inclusief de nieuwe uptimecontrole. In de browser zijn Proxmox- en Admin-dropdowns, selectie van subpagina's, behoud van directe hashlinks na herladen, terugnavigatie, lichte/donkere themaopslag, refresh en de mobiele hamburgernavigatie gecontroleerd. Op het mobiele testformaat is geen horizontale overflow gemeten. Het eigen logo en de desktopindeling zijn visueel beoordeeld. De modulepagina's blijven placeholders en er is nog geen authenticatie.
+
+## 0.3.0 — Configuratie, SSO en testcontracten
+
+87 Python-tests en 12 frontend-unit-tests slagen. De nieuwe functies hebben expliciete normaal/boundary/faal-contracten; login heeft aanvullend tests voor echte RSA-tokenvalidatie, state, nonce, audience, issuer, expiry, geverifieerde e-mail en accounttoelating. TypeScript en productie-export slagen. Een lege startpagina voldoet niet meer aan readiness.
+
+De lokale browsercontrole gebruikt uitsluitend een apart loopback-testharnas buiten de repository met testaccounts: profiel aanmaken (user en enabled=true als defaults), dynamische wijziging van het menu zonder rebuild, activeren van een Kasm-testmodule en de adres/open-knop zijn gecontroleerd. Dit is geen echte provider-API-integratie. Verplichte login toont bij niet-ingestelde OAuth uitsluitend de gesloten aanmeldpagina. Er is geen testloginroute in de applicatiebroncode of releasebundle.
+
+De productieomgeving gebruikt een eigen Google OAuth-client die privé uit het door de gebruiker verstrekte JSON-bestand is geïnstalleerd. De callback in dat bestand komt exact overeen met de productiecallback. Een complete Google-login vereist nog browserverificatie door een echte toegestane gebruiker; de unit-tests vervangen Google-netwerktransport door fixtures.

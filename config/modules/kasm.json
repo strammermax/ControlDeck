@@ -1,0 +1,8 @@
+{
+  "id": "kasm",
+  "enabled": true,
+  "title": "Kasm",
+  "view": "integration",
+  "provider": "kasm",
+  "description": "Open Kasm vanuit ControlDeck."
+}

@@ -1,0 +1,8 @@
+{
+  "id": "plex",
+  "type": "plex",
+  "label": "Plex",
+  "enabled": false,
+  "url": null,
+  "tokenEnv": "CONTROLDECK_PLEX_TOKEN"
+}

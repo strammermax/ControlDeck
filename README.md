@@ -4,7 +4,7 @@
 
 A lightweight, modular entry point for your homelab, designed for Docker and an unprivileged Debian LXC.
 
-**Current status: dashboard shell and infrastructure foundation.** The static Next.js/React interface includes responsive navigation, Proxmox/Admin dropdowns, theme switching, refresh and service uptime. A Flask runtime serves the prebuilt interface, with automated builds, releases and LXC deployment. Authentication, providers and functional module content are planned.
+**Current status: configurable dashboard shell with Google login.** Menu, modules and providers come from split JSON files. Authorized administrators manage user profiles; users have their own persistent theme and last-page preferences. Google OAuth credentials and an approved administrator are required to sign in. Provider API adapters and dashboard widget rendering are planned.
 
 ## Documentation
 
@@ -16,6 +16,8 @@ The maintainer's deployment is available at [controldeck.vanburik.info](https://
 - [Functional design](docs/functioneel-ontwerp.md)
 - [Technical design](docs/technisch-ontwerp.md)
 - [Interface and navigation](docs/UI.md)
+- [JSON configuration and providers](docs/CONFIGURATION.md)
+- [Login, users and preferences](docs/AUTHENTICATION.md)
 - [Installation: Docker and LXC](docs/INSTALLATION.md)
 - [CI/CD and releases](docs/CI-CD.md)
 - [Operations and rollback](docs/OPERATIONS.md)
@@ -32,7 +34,7 @@ The maintainer's deployment is available at [controldeck.vanburik.info](https://
 docker compose up --build -d
 ```
 
-Open `http://127.0.0.1:8080`. Building uses Node.js; the final runtime serves prebuilt files from Python and does not need a Node.js server.
+Configure the Google OAuth environment and account list as described in [Authentication](docs/AUTHENTICATION.md), and use an HTTPS reverse proxy. An unconfigured installation stays closed to visitors. Building uses Node.js; the final runtime serves prebuilt files from Python and does not need a Node.js server.
 
 ## Development
 

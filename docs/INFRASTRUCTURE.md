@@ -114,3 +114,9 @@ De inrichting is getest met een startpagina, zonder gekoppelde homelabsystemen. 
 Voor verdere functionaliteit volgen authenticatie, rechten en providers. De HTTPS-ingang is ingericht via een bestaande Cloudflare Tunnel; de laatste verbinding naar de LXC gebruikt HTTP op het LAN. De rechtstreekse HTTP-route blijft de interne verificatieroute. De huidige openbare foundation bevat geen gevoelige infrastructuurintegraties of beheeracties.
 
 Releasecleanup blijft voorlopig handmatig. Automatisch herstel is gericht op code en runtime; toekomstige databasemigraties krijgen een aanvullend backup- en herstelontwerp. Zie [OPERATIONS.md](OPERATIONS.md), [CI-CD.md](CI-CD.md) en [INSTALLATION.md](INSTALLATION.md).
+
+## 0.3.0 — Persistente configuratie en toegang
+
+De systemd-unit is bijgewerkt met `CONTROLDECK_CONFIG=/var/lib/controldeck/config/controldeck.json`, `CONTROLDECK_DATA_DIR=/var/lib/controldeck`, `CONTROLDECK_ACCOUNTS=/var/lib/controldeck/accounts.json` en het optionele root-only EnvironmentFile `/etc/controldeck/controldeck.env`. De server heeft een eigen ControlDeck Google OAuth-client. Accounts en clientgeheimen zijn uitsluitend privé op de server geïnstalleerd.
+
+De accountlijst is niet onderdeel van de publieke repository. Configuratie, accounts, sessiesleutel en gebruikersdatabase blijven buiten de release-mappen bestaan. Een nieuwe installatie kopieert configuratievoorbeelden uitsluitend wanneer nog geen hoofdbestand aanwezig is. Google-login is verplicht voor de interfacegegevens, inclusief de interne LAN-route. De health/readiness-probes blijven zonder login bruikbaar. Meer details in AUTHENTICATION.md en CONFIGURATION.md.

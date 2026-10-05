@@ -1,0 +1,7 @@
+{
+  "id": "radarr",
+  "enabled": true,
+  "title": "Radarr",
+  "provider": "radarr",
+  "route": "radarr"
+}

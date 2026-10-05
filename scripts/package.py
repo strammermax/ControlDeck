@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import tarfile
+from python_licenses import collect
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -18,11 +19,12 @@ def main():
     dist = ROOT / "dist"
     dist.mkdir(exist_ok=True)
     version = (ROOT / "VERSION").read_text().strip()
+    (ROOT / "frontend/out/PYTHON-LICENSES.txt").write_text(collect(ROOT / "requirements.txt"), encoding="utf-8")
     metadata = {"version": version, "commit": args.commit}
     (ROOT / "build-info.json").write_text(json.dumps(metadata) + "\n")
     archive = dist / "controldeck-linux.tar.gz"
     with tarfile.open(archive, "w:gz") as bundle:
-        for relative in ("backend", "frontend/out", "requirements.txt", "VERSION", "build-info.json", "LICENSE"):
+        for relative in ("backend", "config", "frontend/out", "requirements.txt", "VERSION", "build-info.json", "LICENSE"):
             bundle.add(ROOT / relative, arcname=relative, filter=clean_member)
     checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
     (dist / "SHA256SUMS").write_text(f"{checksum}  {archive.name}\n")

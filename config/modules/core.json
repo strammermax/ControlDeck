@@ -1,0 +1,85 @@
+[
+  {
+    "id": "dashboard",
+    "enabled": true,
+    "title": "Dashboard",
+    "view": "empty"
+  },
+  {
+    "id": "virtual-apps",
+    "enabled": true,
+    "title": "Virtual Apps"
+  },
+  {
+    "id": "bookmarks",
+    "enabled": true,
+    "title": "Bookmarks"
+  },
+  {
+    "id": "proxmox",
+    "enabled": true,
+    "title": "Proxmox",
+    "pages": [
+      {
+        "id": "nodes",
+        "title": "Nodes"
+      },
+      {
+        "id": "vms",
+        "title": "Virtual Machines"
+      },
+      {
+        "id": "containers",
+        "title": "Containers"
+      },
+      {
+        "id": "storage",
+        "title": "Storage"
+      }
+    ]
+  },
+  {
+    "id": "files",
+    "enabled": true,
+    "title": "Files"
+  },
+  {
+    "id": "network",
+    "enabled": true,
+    "title": "Network"
+  },
+  {
+    "id": "monitoring",
+    "enabled": true,
+    "title": "Monitoring"
+  },
+  {
+    "id": "media",
+    "enabled": true,
+    "title": "Media"
+  },
+  {
+    "id": "terminal",
+    "enabled": true,
+    "title": "Terminal"
+  },
+  {
+    "id": "admin",
+    "enabled": true,
+    "title": "Instellingen",
+    "pages": [
+      {
+        "id": "modules",
+        "title": "Modules"
+      },
+      {
+        "id": "providers",
+        "title": "Providers"
+      },
+      {
+        "id": "users",
+        "title": "Gebruikers"
+      }
+    ]
+  }
+]

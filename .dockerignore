@@ -1,4 +1,7 @@
 .git
+secrets
+config/accounts.local.json
+docs/mockup
 .venv
 **/__pycache__
 frontend/node_modules

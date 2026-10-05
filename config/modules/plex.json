@@ -1,0 +1,8 @@
+{
+  "id": "plex",
+  "enabled": true,
+  "title": "Plex",
+  "view": "integration",
+  "provider": "plex",
+  "description": "Open Plex vanuit ControlDeck."
+}

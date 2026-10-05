@@ -2,7 +2,7 @@
 
 ## Huidige runtime
 
-De frontend wordt met Next.js, React en TypeScript gebouwd als statische export. Flask serveert de bestanden en `/health` en `/ready`. Gunicorn draait in productie met één worker en twee threads. Er zijn nog geen database, login, providercollectors of beheeracties.
+De frontend wordt met Next.js, React en TypeScript gebouwd als statische export. Flask serveert de bestanden en `/health` en `/ready`. Gunicorn draait in productie met één worker en twee threads. Google OIDC verzorgt de login. ControlDeck valideert JSON-configuratie en accounts serverzijdig, slaat gebruikersidentiteiten en voorkeuren op in SQLite en biedt admin-only profielbeheer. Providercollectors en infrastructuuracties volgen later.
 
 ```text
 Browser → Flask/Gunicorn → vooraf gebouwde frontend
@@ -16,7 +16,8 @@ Node.js en TypeScript zijn builddependencies, geen verplichte productieprocessen
 | Pad | Doel |
 | --- | --- |
 | `frontend/` | Next.js-app en vastgelegde npm-lockfile |
-| `backend/` | Flask-applicatie |
+| `backend/` | Flask, OIDC, rollen, configuratievalidatie en voorkeuren |
+| `config/` | Menu en gesplitste module/provider/widgetdefinities |
 | `tests/` | Gedrag van readiness, health en statische bestandstoegang |
 | `scripts/package.py` | Linux-bundle, buildmetadata en checksum |
 | `scripts/install-lxc.sh` | Eenmalige service- en runnergebruikerinrichting |
@@ -29,4 +30,4 @@ Node.js en TypeScript zijn builddependencies, geen verplichte productieprocessen
 
 ## Richting
 
-De visie en ontwerpen vormen het kader voor providers, login, submenu's en boomnavigatie. Die worden na de infrastructurele basis toegevoegd. Geen roottoegang, hostmounts of Docker-socket zijn nodig voor de huidige applicatie.
+De visie en ontwerpen vormen het kader voor API-adapters, widgets en boomnavigatie. De huidige login, JSON-configuratie en submenu's vormen de basis hiervoor. Geen roottoegang, hostmounts of Docker-socket zijn nodig voor de huidige applicatie.

@@ -1,0 +1,8 @@
+{
+  "id": "radarr",
+  "enabled": true,
+  "title": "Radarr",
+  "view": "integration",
+  "provider": "radarr",
+  "description": "Open Radarr vanuit ControlDeck."
+}

@@ -1,0 +1,8 @@
+{
+  "id": "radarr",
+  "type": "radarr",
+  "label": "Radarr",
+  "enabled": false,
+  "url": null,
+  "tokenEnv": "CONTROLDECK_RADARR_TOKEN"
+}

@@ -15,3 +15,7 @@ Docker-baselagen en GitHub Actions zijn eveneens externe dependencies. GitHub Ac
 ## Basisinterface 0.2.0
 
 De door de gebruiker aangeleverde mockup vormt de visuele referentie voor de nieuwe shell. Kleuren, indeling en navigatie zijn opnieuw opgebouwd in de eigen React-broncode. De opgeslagen ProxMenux-bundles en het ProxMenux-logo zijn niet opgenomen in de runtime. Het eigen ControlDeck-logo wordt gebruikt. De projectlicentie blijft GPL-3.0.
+
+## Python OAuth-dependencies
+
+Authlib en joserfc gebruiken BSD-3-Clause. Cryptography gebruikt Apache-2.0 of BSD-3-Clause; overige notices staan in [PYTHON-LICENSES.txt](PYTHON-LICENSES.txt). De snapshot is uit de lokale ontwikkelomgeving verzameld. Linux-bundles en Docker-images genereren het bestand opnieuw uit de daadwerkelijk geïnstalleerde Python-distributies, inclusief Gunicorn. Het runtimebestand is `PYTHON-LICENSES.txt` naast de frontend-notices.

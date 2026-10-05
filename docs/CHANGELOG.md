@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — Configuration, SSO and users
+
+- Runtime-configuratie in gesplitste JSON-bestanden voor site, menu, modules, providers en toekomstige widgets.
+- Voorbereide, uitgeschakelde voorbeelden voor Kasm, Radarr en Plex.
+- Verplichte Google OIDC-login, actieve accountlijst en serverzijdige admin/user-rechten.
+- Adminpagina voor gebruikersprofielen, SSO-type en inschakelen/uitschakelen.
+- Persoonlijke voorkeuren persistent in SQLite, buiten versie-releases.
+- Uitgebreide configuratie-, autorisatie-, ondertekende OIDC- en navigatietests vóór uitrol.
+- Geheimen uitgesloten van Git, Dockercontext en configuratie-API.
+- Het Dashboard blijft leeg; Windows-login en provider-API-adapters volgen later.
+
 ## 0.2.0 — Dashboard shell
 
 - Basisinterface volgens de aangeleverde mockup, met eigen ControlDeck-logo.

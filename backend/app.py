@@ -5,15 +5,19 @@ import os
 import time
 from pathlib import Path
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, g, jsonify, send_from_directory
+from backend.configuration import ConfigurationError, DEFAULT_PATH, load_config
+from backend.auth import filter_configuration, setup_auth
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def create_app(static_directory=None):
+def create_app(static_directory=None, config_path=None, data_dir=None, accounts_path=None):
     static_root = Path(static_directory or ROOT / "frontend" / "out")
     app = Flask(__name__, static_folder=None)
     started_at = time.monotonic()
+    configuration_path = config_path or os.environ.get("CONTROLDECK_CONFIG") or DEFAULT_PATH
+    setup_auth(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data", accounts_path or os.environ.get("CONTROLDECK_ACCOUNTS") or ROOT / "config/accounts.json")
     metadata_path = ROOT / "build-info.json"
     metadata = (
         json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -27,8 +31,21 @@ def create_app(static_directory=None):
 
     @app.get("/ready")
     def ready():
-        status = static_root.joinpath("index.html").is_file()
+        index_path = static_root / "index.html"
+        status = index_path.is_file() and index_path.stat().st_size > 0
+        try:
+            load_config(configuration_path)
+        except ConfigurationError:
+            status = False
         return jsonify(status="ready" if status else "not_ready"), 200 if status else 503
+
+    @app.get("/api/config")
+    def configuration():
+        try:
+            return jsonify(filter_configuration(load_config(configuration_path), g.account))
+        except ConfigurationError as error:
+            app.logger.error("Invalid UI configuration: %s", error)
+            return jsonify(error="De configuratie kan niet worden geladen. Controleer het JSON-bestand."), 503
 
     @app.get("/")
     def index():
