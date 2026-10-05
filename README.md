@@ -4,17 +4,18 @@
 
 A lightweight, modular entry point for your homelab, designed for Docker and an unprivileged Debian LXC.
 
-**Current status: infrastructure foundation.** The first release contains a static Next.js/React landing page, a Flask runtime, health checks and build/release/deployment automation. Authentication, providers and the nine functional modules are planned. No infrastructure credentials or privileged operations are exposed by this foundation.
+**Current status: dashboard shell and infrastructure foundation.** The static Next.js/React interface includes responsive navigation, Proxmox/Admin dropdowns, theme switching, refresh and service uptime. A Flask runtime serves the prebuilt interface, with automated builds, releases and LXC deployment. Authentication, providers and functional module content are planned.
 
 ## Documentation
 
 All detailed documentation lives in [`docs/`](docs/README.md).
 
-The maintainer's deployment is available at [controldeck.vanburik.info](https://controldeck.vanburik.info). This is the infrastructure foundation described above.
+The maintainer's deployment is available at [controldeck.vanburik.info](https://controldeck.vanburik.info).
 
 - [Vision](docs/visie.md)
 - [Functional design](docs/functioneel-ontwerp.md)
 - [Technical design](docs/technisch-ontwerp.md)
+- [Interface and navigation](docs/UI.md)
 - [Installation: Docker and LXC](docs/INSTALLATION.md)
 - [CI/CD and releases](docs/CI-CD.md)
 - [Operations and rollback](docs/OPERATIONS.md)
