@@ -257,7 +257,7 @@ def test_detect_endpoint_validation_and_access(env, monkeypatch):
     admin = client()
     body = {"ca": CA, "nodes": [{"name": "pve-amd", "url": "https://192.168.1.98"}, {"name": "pve-new", "url": "https://192.168.1.50"}]}
     result = admin.post("/api/proxmenux/connection/detect", headers=H, json=body).json
-    assert [n["state"] for n in result["nodes"]] == ["ready", "absent"] and "install_proxmenux.sh" in result["installCommand"]
+    assert [n["state"] for n in result["nodes"]] == ["ready", "absent"] and result["installCommands"]["stable"].endswith('/main/install_proxmenux.sh)"') and "/develop/install_proxmenux_beta.sh" in result["installCommands"]["beta"]
     assert admin.post("/api/proxmenux/connection/detect", headers=H, json={"ca": CA, "nodes": []}).status_code == 400
     assert admin.post("/api/proxmenux/connection/detect", headers=H, json={"ca": "x", "nodes": body["nodes"]}).status_code == 400
     assert admin.post("/api/proxmenux/connection/detect", headers=H, json={"ca": CA, "nodes": [{"name": "../x", "url": "https://h"}]}).status_code == 400

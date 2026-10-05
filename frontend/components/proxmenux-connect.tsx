@@ -23,7 +23,7 @@ export function ProxmenuxConnect({ csrfToken, onBack }: { csrfToken: string; onB
   const [rows, setRows] = useState<Row[]>([]);
   const [results, setResults] = useState<Result[] | null>(null);
   const [detected, setDetected] = useState<Detected[] | null>(null);
-  const [installCommand, setInstallCommand] = useState("");
+  const [installCommands, setInstallCommands] = useState<{ stable: string; beta: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -38,8 +38,8 @@ export function ProxmenuxConnect({ csrfToken, onBack }: { csrfToken: string; onB
   const update = (index: number, change: Partial<Row>) => { setRows(rows.map((row, i) => i === index ? { ...row, ...change } : row)); setResults(null); if (change.name !== undefined || change.url !== undefined) setDetected(null); };
   const stateOf = (row: Row) => detected?.find(item => item.name === row.name.trim())?.state;
   const detect = () => run(async () => {
-    const data = await call<{ nodes: Detected[]; installCommand: string }>("/detect", csrfToken, "POST", { ca, nodes: rows.map(row => ({ name: row.name.trim(), url: cleanAddress(row.url) })) });
-    setDetected(data.nodes); setInstallCommand(data.installCommand);
+    const data = await call<{ nodes: Detected[]; installCommands: { stable: string; beta: string } }>("/detect", csrfToken, "POST", { ca, nodes: rows.map(row => ({ name: row.name.trim(), url: cleanAddress(row.url) })) });
+    setDetected(data.nodes); setInstallCommands(data.installCommands);
   });
   const run = async (action: () => Promise<void>) => { setBusy(true); setError(""); try { await action(); } catch (failure) { setError(failure instanceof Error ? failure.message : "Er ging iets mis."); } finally { setBusy(false); } };
 
@@ -63,11 +63,11 @@ export function ProxmenuxConnect({ csrfToken, onBack }: { csrfToken: string; onB
       </div>
         {detected && <div className={`monitor-state ${guidance.level}`}><span className={`task-status ${guidance.level === "unknown" ? "" : guidance.level}`}>{guidance.level === "ok" ? "✓" : guidance.level === "error" ? "✗" : "△"} {guidance.label}</span>
           {guidance.steps.length > 0 && <ol>{guidance.steps.map(step => <li key={step}>{step}</li>)}</ol>}
-          {stateOf(row) === "absent" && installCommand && <pre className="command">{installCommand}</pre>}
+          {stateOf(row) === "absent" && installCommands && <><p><strong>Stabiel</strong> (aanbevolen)</p><pre className="command">{installCommands.stable}</pre><details><summary>Bèta: nieuwste functies, kan fouten bevatten</summary><pre className="command">{installCommands.beta}</pre></details></>}
         </div>}
       </div>; })}
       <div className="wizard-actions"><button type="button" onClick={() => { setRows([...rows, { name: "", url: "", token: "" }]); setDetected(null); }}>+ Node toevoegen</button><button type="button" disabled={busy || rows.some(row => !row.name || !row.url)} onClick={() => void detect()}>{busy ? "Zoeken…" : detected ? "Opnieuw controleren" : "Monitors zoeken"}</button></div>
-      {detected && !rows.every(row => stateOf(row) === "ready") && <p role="status">Voer de stappen uit bij de nodes die nog niet klaar zijn en kies dan Opnieuw controleren. De officiële installer staat op github.com/MacRimi/ProxMenux.</p>}
+      {detected && !rows.every(row => stateOf(row) === "ready") && <p role="status">Voer de stappen uit bij de nodes die nog niet klaar zijn en kies dan Opnieuw controleren. Installatie-instructies: proxmenux.com/en/docs/installation.</p>}
     </fieldset>}
     {step === 4 && results && <section><h4>Controle per node</h4><ul className="pool-list">{results.map(result => <li key={result.name}>
       <span className={`task-status ${result.ok ? "ok" : "error"}`}>{result.ok ? "✓" : "✗"}</span> <strong>{result.name}</strong> — {result.ok ? `verbonden, ProxMenux ${result.version ?? ""}` : result.error}

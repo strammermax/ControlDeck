@@ -43,13 +43,23 @@ Voer de stappen uit en kies **Opnieuw controleren**. **Nodes testen** is pas bes
 
 ### ProxMenux installeren op een node
 
-In een shell op de node, als root (Proxmox-webinterface → node → Shell, of SSH):
+In een shell op de node, als root (Proxmox-webinterface → node → Shell, of SSH). Volgens de [officiële installatiepagina](https://proxmenux.com/en/docs/installation/) zijn er twee kanalen:
+
+**Stabiel** — aanbevolen voor productie:
 
 ```sh
 bash -c "$(wget -qLO - https://raw.githubusercontent.com/MacRimi/ProxMenux/main/install_proxmenux.sh)"
 ```
 
-De Monitor wordt automatisch meegeïnstalleerd als systemd-service `proxmenux-monitor.service` en is daarna bereikbaar op `http://<node-ip>:8008`. Controleer het script vooraf in de [officiële repository](https://github.com/MacRimi/ProxMenux); ControlDeck voert het niet zelf uit (zie [Waarom niet automatisch](#waarom-niet-automatisch)).
+**Bèta** — nieuwste functies vóór de officiële release; kan fouten of onvolledige functies bevatten. Bij een nieuwe stabiele release meldt ProxMenux dat en kan worden overgestapt:
+
+```sh
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/MacRimi/ProxMenux/develop/install_proxmenux_beta.sh)"
+```
+
+De wizard toont beide, met stabiel als standaard. Gebruik binnen één cluster bij voorkeur hetzelfde kanaal op alle nodes.
+
+De Monitor wordt automatisch meegeïnstalleerd als systemd-service `proxmenux-monitor.service` en is daarna bereikbaar op `http://<node-ip>:8008`. Controleer het script vooraf in de [officiële repository](https://github.com/MacRimi/ProxMenux) (`main` voor stabiel, `develop` voor bèta); ControlDeck voert het niet zelf uit (zie [Waarom niet automatisch](#waarom-niet-automatisch)).
 
 ### De monitor inrichten
 

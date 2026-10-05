@@ -81,7 +81,11 @@ def monitor_get(node, ca_path, path):
         raise MonitorError("Monitor gaf een onverwacht antwoord.") from None
 
 
-INSTALL_COMMAND = 'bash -c "$(wget -qLO - https://raw.githubusercontent.com/MacRimi/ProxMenux/main/install_proxmenux.sh)"'
+# Official channels from https://proxmenux.com/en/docs/installation/ (stable is recommended for production).
+INSTALL_COMMANDS = {
+    "stable": 'bash -c "$(wget -qLO - https://raw.githubusercontent.com/MacRimi/ProxMenux/main/install_proxmenux.sh)"',
+    "beta": 'bash -c "$(wget -qLO - https://raw.githubusercontent.com/MacRimi/ProxMenux/develop/install_proxmenux_beta.sh)"',
+}
 
 
 def detect(url, ca_path):
@@ -274,7 +278,7 @@ def setup_proxmenux(app, configuration_path, data_dir):
             return jsonify(error="De detectie kan niet worden uitgevoerd."), 503
         with ThreadPoolExecutor(max_workers=min(4, len(nodes))) as pool:
             found = list(pool.map(lambda node: {**node, **detect(node["url"], ca_path)}, nodes))
-        return jsonify(nodes=found, installCommand=INSTALL_COMMAND)
+        return jsonify(nodes=found, installCommands=INSTALL_COMMANDS)
 
     @app.post("/api/proxmenux/connection/test")
     def monitor_test_connection():
