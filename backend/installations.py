@@ -12,6 +12,12 @@ from flask import g, jsonify, request
 from backend.configuration import ConfigurationError, load_config
 
 
+# Minimum root-worker protocol per action. Workers from before versioning report nothing and count as 1.
+REQUIRED_WORKER = {'install': 1, 'uninstall': 2, 'linkwarden': 3}
+LATEST_WORKER = max(REQUIRED_WORKER.values())
+OUTDATED_WORKER = 'De root-worker is verouderd. Draai als root op de ControlDeck-host: bash scripts/install-wizard.sh'
+
+
 def validate_install_request(value):
     """Install (default) or uninstall Termix; keepData is only meaningful when uninstalling."""
     if not isinstance(value, dict) or not {'module', 'method', 'target'} <= set(value) <= {'module', 'method', 'target', 'action', 'keepData'}:
@@ -19,11 +25,11 @@ def validate_install_request(value):
     action = value.get('action', 'install')
     if action not in ('install', 'uninstall') or ('keepData' in value and (action != 'uninstall' or not isinstance(value['keepData'], bool))):
         raise ValueError('Onbekende actie.')
-    if value['module'] != 'termix' or value['method'] not in ('docker', 'lxc') or value['target'] not in ('local', 'proxmox'):
+    if value['module'] not in ('termix','linkwarden') or value['method'] not in ('docker', 'lxc') or value['target'] not in ('local', 'proxmox'):
         raise ValueError('Onbekende module, methode of bestemming.')
     if value['target'] != ('local' if value['method'] == 'docker' else 'proxmox'):
         raise ValueError('De bestemming past niet bij de installatiemethode.')
-    if action == 'uninstall' and value['method'] != 'docker':
+    if action == 'uninstall' and (value['method'] != 'docker' or value['module'] != 'termix'):
         raise ValueError('Alleen een Docker-installatie kan worden verwijderd.')
     return {**value, 'action': action, **({'keepData': value.get('keepData', True)} if action == 'uninstall' else {})}
 
@@ -37,8 +43,9 @@ def setup_installations(app, configuration_path, data_dir):
         try:
             heartbeat = json.loads((root/'worker.json').read_text())
             worker = isinstance(heartbeat,dict) and type(heartbeat.get('updatedAt')) in (float, int) and 0 <= time.time()-heartbeat['updatedAt'] < 90
+            version = heartbeat.get('version', 1) if worker and type(heartbeat.get('version', 1)) is int else 1
         except (OSError, ValueError, TypeError):
-            worker = False
+            worker, version = False, 0
         try:
             config = load_config(configuration_path)
             configured = any(p['id']=='termix' and p['type']=='termix' and p['enabled'] for p in config['providers'])
@@ -50,7 +57,7 @@ def setup_installations(app, configuration_path, data_dir):
                 online = requests.get('http://127.0.0.1:8090/users/registration-allowed', timeout=2).status_code==200
             except requests.RequestException:
                 pass
-        return {'workerAvailable':bool(worker), 'configured':configured, 'online':online}
+        return {'workerAvailable':bool(worker), 'workerVersion':version, 'workerOutdated':bool(worker) and version < LATEST_WORKER, 'configured':configured, 'online':online}
 
     @app.before_request
     def administrative_access():
@@ -61,13 +68,13 @@ def setup_installations(app, configuration_path, data_dir):
     def catalog():
         try:
             # Installable modules first, then connections; each entry is reviewed metadata only.
-            modules = sorted((json.loads(item.read_text()) for item in catalog_root.glob('*.json')), key=lambda module: (module.get('kind', 'install') != 'install', module['id']))
+            modules = sorted((json.loads(item.read_text()) for item in catalog_root.glob('*.json')), key=lambda module: (module.get('kind', 'install') != 'install', module['id']!='termix', module['id']))
             for module in modules:
                 module.setdefault('kind', 'install')
             state = status()
-            connections = {name: (Path(data_dir) / name / 'connection.json').is_file() for name in ('proxmox', 'proxmenux')}
+            connections = {name: (Path(data_dir) / name / 'connection.json').is_file() for name in ('proxmox', 'proxmenux', 'linkwarden')}
             for module in modules:
-                module['installed'] = connections.get(module['id'], False) if module['kind'] == 'connect' else (state['configured'] if module['id'] == 'termix' else False)
+                module['installed'] = connections.get(module['id'], False) if module['kind'] == 'connect' or module['id']=='linkwarden' else (state['configured'] if module['id'] == 'termix' else False)
             return jsonify(modules=modules, status=state, connections=connections)
         except (OSError, ValueError):
             return jsonify(error='De modulecatalogus is niet beschikbaar.'),503
@@ -80,9 +87,21 @@ def setup_installations(app, configuration_path, data_dir):
             return jsonify(error=str(error)),400
         state=status()
         blockers=[]
+        if selected['module']=='linkwarden':
+            if selected['method']=='lxc':
+                blockers.append('De uitvoerende Proxmox-hostverbinding voor Helper-Scripts is nog niet aangesloten. De bestaande read-only API-koppeling kan geen containers aanmaken.')
+            elif not state['workerAvailable'] or state['workerVersion'] < 3:
+                blockers.append('Werk de installatieservice bij met scripts/install-wizard.sh.')
+            elif not (root/'linkwarden-ready.json').is_file():
+                blockers.append('Bereid op de host minimaal 2 GiB RAM, 3 GiB vrije opslag en de root-only Linkwarden-instellingen voor. De installatieservice controleert dit vooraf.')
+            return jsonify(**selected,canInstall=not blockers,blockers=blockers,alreadyInstalled=(Path(data_dir)/'linkwarden/connection.json').is_file(),
+                resources={'cpu':2,'memoryMb':1024,'diskGb':10},steps=['Installeer Linkwarden en PostgreSQL met blijvende opslag.' if selected['method']=='docker' else 'Maak een nieuwe Linkwarden LXC aan via Proxmox VE Helper-Scripts.', 'Controleer of de Linkwarden-server gereed is.', 'Stel de HTTPS-route in en koppel het adres in ControlDeck.', 'Iedere gebruiker koppelt een eigen API-token; de browserextensie gebruikt dezelfde server.'],
+                installer='docker-compose' if selected['method']=='docker' else 'proxmox-helper-scripts',documentation='https://docs.linkwarden.app/self-hosting/setup',preservesData=True)
         if selected['action']=='uninstall':
             if not state['workerAvailable']:
                 blockers.append('De installatieservice is nog niet beschikbaar op deze ControlDeck-host.')
+            elif state['workerVersion'] < REQUIRED_WORKER['uninstall']:
+                blockers.append(OUTDATED_WORKER)
             if not state['configured']:
                 blockers.append('Termix is niet geïnstalleerd.')
             return jsonify(**selected, canInstall=not blockers, blockers=blockers, alreadyInstalled=state['configured'],
@@ -109,10 +128,14 @@ def setup_installations(app, configuration_path, data_dir):
             return jsonify(error=str(error)),400
         if selected['method']!='docker':
             return jsonify(error='Richt eerst de Proxmox-verbinding in.'),409
+        if selected['module']=='linkwarden' and (status()['workerVersion']<3 or not (root/'linkwarden-ready.json').is_file()):
+            return jsonify(error='Bereid de Linkwarden-installatieservice en hostinstellingen eerst voor.'),409
         if selected['action']=='uninstall' and not status()['configured']:
             return jsonify(error='Termix is niet geïnstalleerd.'),409
         if not status()['workerAvailable']:
             return jsonify(error='Installatieservice niet beschikbaar.'),503
+        if status()['workerVersion'] < REQUIRED_WORKER[selected['action']]:
+            return jsonify(error=OUTDATED_WORKER),409
         try:
             with queue_lock:
                 for queued in (root/'queue').glob('*.json'):

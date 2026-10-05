@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
+    volumes:
+      - linkwarden-db:/var/lib/postgresql/data
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  linkwarden:
+    image: ghcr.io/linkwarden/linkwarden:v2.16.3
+    restart: unless-stopped
+    env_file: /etc/controldeck/linkwarden.env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      DISABLE_BROWSER: "true"
+      MALLOC_ARENA_MAX: "2"
+      NODE_OPTIONS: --max-old-space-size=400
+    ports:
+      - ${LINKWARDEN_BIND_IP:-127.0.0.1}:8092:3000
+    volumes:
+      - linkwarden-data:/data/data
+    mem_limit: 768m
+    cpus: 1.5
+    depends_on:
+      postgres: {condition: service_healthy}
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+volumes:
+  linkwarden-db:
+  linkwarden-data:

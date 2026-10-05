@@ -17,6 +17,8 @@ ROOT = Path('/var/lib/controldeck/installations')
 INSTALLER = Path('/opt/controldeck-integrations/installer/scripts/install-termix.sh')
 UNINSTALLER = Path('/opt/controldeck-integrations/installer/scripts/uninstall-termix.sh')
 BASE_FIELDS = {'id','module','method','target','requestedBy','createdAt'}
+# Raise when the worker gains capabilities; the app compares it with REQUIRED_WORKER in backend/installations.py.
+WORKER_VERSION = 3
 
 
 def validate_job(value,job_id,now):
@@ -25,7 +27,7 @@ def validate_job(value,job_id,now):
         raise ValueError('Invalid job fields')
     if 'action' in value and (value['action']!='uninstall' or not isinstance(value['keepData'],bool)): raise ValueError('Invalid action')
     if value['id']!=job_id or not re.fullmatch('[a-f0-9]{32}',value['id']): raise ValueError('Invalid job id')
-    if (value['module'],value['method'],value['target'])!=('termix','docker','local'): raise ValueError('Unsupported installation')
+    if value['module'] not in ('termix','linkwarden') or (value['method'],value['target'])!=('docker','local') or (value['module']=='linkwarden' and 'action' in value): raise ValueError('Unsupported installation')
     if not isinstance(value['requestedBy'],str) or type(value['createdAt']) not in (float,int): raise ValueError('Invalid requester')
     if not 0<=now-value['createdAt']<600: raise ValueError('Expired installation')
     return value
@@ -66,7 +68,21 @@ def main():
             info=os.fstat(descriptor)
             if info.st_uid!=0 or info.st_mode & 0o022: raise SystemExit('Unsafe worker directory')
             descriptors.append(descriptor)
-        write_result(descriptors[0],'worker.json',{'updatedAt':time.time()})
+        write_result(descriptors[0],'worker.json',{'updatedAt':time.time(),'version':WORKER_VERSION})
+        # Preflight is root-owned; the app cannot forge readiness for this installer.
+        env=Path('/etc/controldeck/linkwarden.env')
+        try:
+            info=env.stat()
+            memory=int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemTotal:')))
+            disk=os.statvfs('/var/lib/docker')
+            prepared=info.st_uid==0 and stat.S_IMODE(info.st_mode)==0o600 and not env.is_symlink() and memory>=2097152 and disk.f_bavail*disk.f_frsize>=3*1024**3
+        except (OSError,ValueError,StopIteration):
+            prepared=False
+        if prepared:
+            write_result(descriptors[0],'linkwarden-ready.json',{'updatedAt':time.time()})
+        else:
+            try:os.unlink('linkwarden-ready.json',dir_fd=descriptors[0])
+            except FileNotFoundError:pass
         for path in sorted((ROOT/'queue').glob('*.json')):
             if not re.fullmatch('[a-f0-9]{32}',path.stem):continue
             try:
@@ -80,7 +96,7 @@ def main():
                 if not any(a['email']==job['requestedBy'] and a['role']=='admin' and a.get('enabled',True) and a.get('ssoType','google')=='google' for a in profiles):
                     raise ValueError('Administrator no longer allowed')
                 uninstall=job.get('action')=='uninstall'
-                script=UNINSTALLER if uninstall else INSTALLER
+                script=(Path('/opt/controldeck-integrations/installer/scripts/install-linkwarden.sh') if job['module']=='linkwarden' else UNINSTALLER if uninstall else INSTALLER)
                 write_result(descriptors[1],path.name,{'id':path.stem,'status':'running','message':'Termix verwijderen…' if uninstall else 'Termix installeren en met ControlDeck koppelen…'})
                 info=script.stat()
                 if info.st_uid!=0 or info.st_mode & 0o022 or script.is_symlink(): raise ValueError('Unsafe installer')
@@ -90,11 +106,11 @@ def main():
                 with open('/var/log/controldeck-install.log','w') as log:
                     os.chmod(log.name,0o600)
                     subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,timeout=480,check=True)
-                result={'id':path.stem,'status':'succeeded','message':('Termix is verwijderd. De gegevens zijn bewaard.' if job['keepData'] else 'Termix en alle Termix-gegevens zijn verwijderd.') if uninstall else 'Termix is geïnstalleerd en gekoppeld. Je kunt Terminal openen.'}
+                result={'id':path.stem,'status':'succeeded','message':('Termix is verwijderd. De gegevens zijn bewaard.' if job['keepData'] else 'Termix en alle Termix-gegevens zijn verwijderd.') if uninstall else ('Linkwarden is geïnstalleerd. Stel HTTPS in en koppel het adres in modulebeheer.' if job['module']=='linkwarden' else 'Termix is geïnstalleerd en gekoppeld. Je kunt Terminal openen.')}
             except (ValueError,OSError,KeyError,TypeError,subprocess.SubprocessError):
                 result={'id':path.stem,'status':'failed','message':'De opdracht is niet afgerond. De beheerder kan het installatielog op de host controleren.'}
             write_result(descriptors[1],path.name,result)
-        write_result(descriptors[0],'worker.json',{'updatedAt':time.time()})
+        write_result(descriptors[0],'worker.json',{'updatedAt':time.time(),'version':WORKER_VERSION})
     finally:
         for descriptor in descriptors:os.close(descriptor)
         lock.close()

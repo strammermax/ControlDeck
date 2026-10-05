@@ -1,0 +1,11 @@
+{
+  "id": "linkwarden",
+  "name": "Linkwarden",
+  "kind": "install",
+  "description": "Bookmarks met je browserextensie, persoonlijke en gedeelde collecties en tags. Koppel een bestaande server of kies Docker/Proxmox LXC.",
+  "version": "2.16.3",
+  "module": "bookmarks",
+  "methods": ["docker", "lxc"],
+  "resources": {"cpu": 2, "memoryMb": 1024},
+  "documentation": "https://docs.linkwarden.app/self-hosting/setup"
+}
