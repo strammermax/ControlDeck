@@ -9,6 +9,7 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [technisch-ontwerp.md](technisch-ontwerp.md) | Architectuur en technische richting |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Werkelijke repository en runtime |
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Ingerichte LXC, netwerk, accounts, services en GitHub-route |
+| [HTTPS.md](HTTPS.md) | Actieve Cloudflare Tunnel-route, HTTPS-verificatie en mogelijke lokale proxyroute |
 | [INSTALLATION.md](INSTALLATION.md) | Docker, LXC en runnerregistratie |
 | [CI-CD.md](CI-CD.md) | Build, release en deployment |
 | [OPERATIONS.md](OPERATIONS.md) | Health, logs, backup en herstel |

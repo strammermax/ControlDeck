@@ -10,6 +10,8 @@ A lightweight, modular entry point for your homelab, designed for Docker and an 
 
 All detailed documentation lives in [`docs/`](docs/README.md).
 
+The maintainer's deployment is available at [controldeck.vanburik.info](https://controldeck.vanburik.info). This is the infrastructure foundation described above.
+
 - [Vision](docs/visie.md)
 - [Functional design](docs/functioneel-ontwerp.md)
 - [Technical design](docs/technisch-ontwerp.md)
@@ -17,6 +19,7 @@ All detailed documentation lives in [`docs/`](docs/README.md).
 - [CI/CD and releases](docs/CI-CD.md)
 - [Operations and rollback](docs/OPERATIONS.md)
 - [Infrastructure](docs/INFRASTRUCTURE.md)
+- [HTTPS and tunnel routing](docs/HTTPS.md)
 - [Architecture and repository layout](docs/ARCHITECTURE.md)
 - [Contributing and third-party code](docs/CONTRIBUTING.md)
 - [Security](docs/SECURITY.md)

@@ -11,6 +11,8 @@ Datum: 5 oktober 2026. Deze controles betreffen de foundation, geen volledige fu
 - Productierunner: online, afzonderlijke onbevoorrechte gebruiker.
 - Eerste automatische deployment via main: geslaagd; `/health` meldde de bedoelde volledige commit.
 - `/ready` en startpagina zijn via het netwerk bereikbaar.
+- HTTPS op `controldeck.vanburik.info`: startpagina, health, readiness en licentieteksten retourneerden HTTP 200; HTTP verwijst met 301 naar HTTPS.
+- Release `v0.1.1`: gedownloade bundle gecontroleerd op checksum, versie, commit en gebundelde licentieteksten; productie meldde dezelfde commit.
 - Een bundle met een onjuiste checksum is door de deployhelper geweigerd; de actieve release en readiness bleven behouden.
 
 ## Eerste resourcewaarneming

@@ -41,6 +41,7 @@ controldeck.service → Flask/Gunicorn → statische frontend
 | Actueel IPv4-adres | `192.168.1.164/24`, gemeten binnen de draaiende container |
 | Gateway | `192.168.1.1` |
 | Webinterface | `http://192.168.1.164:8080` |
+| HTTPS-ingang | `https://controldeck.vanburik.info`, via bestaande Cloudflare Tunnel `remote` |
 | Health/readiness | `/health` en `/ready` op dezelfde host en poort |
 
 De vooraf aangeleverde wizardafbeelding vermeldde `/23`; de draaiende container rapporteerde bij verificatie `/24`. Er is tijdens deze inrichting geen subnetwijziging uitgevoerd. Het gemeten netwerk is in deze tabel leidend.
@@ -108,8 +109,8 @@ De root-owned helper en unit worden bij bootstrap geïnstalleerd. Bij wijziging 
 
 ## 7. Huidige grenzen en vervolg
 
-De inrichting is getest met een startpagina, zonder gekoppelde homelabsystemen. De applicatieservice gebruikte bij een eerste momentopname ongeveer 34 MiB en de runner ongeveer 99 MiB. Zie [VERIFICATION.md](VERIFICATION.md) voor testgrenzen.
+De inrichting is getest met een startpagina, zonder gekoppelde homelabsystemen. De applicatieservice gebruikte bij een eerste momentopname ongeveer 34 MiB en de runner ongeveer 99 MiB. Zie [VERIFICATION.md](VERIFICATION.md) voor testgrenzen. De publieke HTTPS-route, HTTP-redirect en applicatiechecks via Cloudflare zijn eveneens geslaagd; zie [HTTPS.md](HTTPS.md).
 
-Voor verdere functionaliteit volgen authenticatie, rechten en providers. HTTPS, domeinrouting en toegang op afstand moeten worden ingericht voordat een beheeromgeving breed wordt ontsloten. De huidige rechtstreekse HTTP-route is de interne verificatieroute.
+Voor verdere functionaliteit volgen authenticatie, rechten en providers. De HTTPS-ingang is ingericht via een bestaande Cloudflare Tunnel; de laatste verbinding naar de LXC gebruikt HTTP op het LAN. De rechtstreekse HTTP-route blijft de interne verificatieroute. De huidige openbare foundation bevat geen gevoelige infrastructuurintegraties of beheeracties.
 
 Releasecleanup blijft voorlopig handmatig. Automatisch herstel is gericht op code en runtime; toekomstige databasemigraties krijgen een aanvullend backup- en herstelontwerp. Zie [OPERATIONS.md](OPERATIONS.md), [CI-CD.md](CI-CD.md) en [INSTALLATION.md](INSTALLATION.md).
