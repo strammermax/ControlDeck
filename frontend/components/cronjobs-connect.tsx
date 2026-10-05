@@ -38,15 +38,16 @@ export function CronjobsConnect({ csrfToken, onBack }: { csrfToken: string; onBa
       {step === 3 && <section>
         <h4>Nodes koppelen</h4>
         <p>Per node: lees de hostsleutel, vergelijk de vingerafdruk met de node, voer het installatiecommando uit in de shell van de node en test.</p>
+        {rows.length > 0 && <p className={ready === rows.length ? "task-status ok" : "task-status warning"} role="status">{ready === rows.length ? "✓" : "△"} {ready} van {rows.length} {rows.length === 1 ? "node" : "nodes"} klaar</p>}
         {rows.length === 0 && <p>Geen nodes gevonden. Koppel eerst Proxmox VE, dan worden de nodes hier ingevuld.</p>}
         {rows.map(row => <NodeRow key={row.node} row={row} csrfToken={csrfToken} busy={busy} run={run} reload={load}/>)}
       </section>}
-      {step === 4 && <section aria-live="polite"><h4>{ready ? `${ready} ${ready === 1 ? "node is" : "nodes zijn"} klaar` : "Nog geen node klaar"}</h4><p>De cronjobs per node komen onder Proxmox → Nodes (stap 4 van de module, volgt). Je kunt hier later nodes toevoegen of opnieuw testen.</p></section>}
+      {step === 4 && <section aria-live="polite"><h4>{ready ? `${ready} ${ready === 1 ? "node is" : "nodes zijn"} klaar` : "Nog geen node klaar"}</h4><p>{ready ? <>De cronjobs staan onder <a href="#proxmox/nodes">Proxmox → Nodes</a>. </> : null}Nodes toevoegen of opnieuw testen kan via Modulebeheer → Bewerken → Cronjobs.</p></section>}
       <div className="wizard-actions">
         {step < 4 && <button disabled={!!busy} onClick={() => step === 2 ? onBack() : setStep(step - 1)}>Vorige</button>}
         {step === 2 && <button disabled={!overview.keyExists} onClick={() => setStep(3)}>Volgende</button>}
         {step === 3 && <button disabled={!!busy} onClick={() => setStep(4)}>{ready ? "Afronden" : "Later afronden"}</button>}
-        {step === 4 && <button onClick={onBack}>Terug naar modulebeheer</button>}
+        {step === 4 && <><button onClick={() => setStep(3)}>{ready ? "Nodes bekijken" : "Nodes koppelen"}</button><button onClick={onBack}>Terug naar modulebeheer</button></>}
       </div>
     </>}
   </>;

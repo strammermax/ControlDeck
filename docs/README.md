@@ -14,7 +14,8 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [UI.md](UI.md) | Basisinterface, navigatie, status en thema |
 | [PROXMOX.md](PROXMOX.md) | Alleen-lezen Proxmox-koppeling, certificaatpinning en takenoverzicht |
 | [PROXMENUX.md](PROXMENUX.md) | ProxMenux Monitor installeren, inrichten en koppelen; gezondheid per node |
-| [NODE-AGENT.md](NODE-AGENT.md) | Ontwerp: module Cronjobs en ControlDeck-agent op de nodes (nog niet gebouwd) |
+| [CRONJOBS.md](CRONJOBS.md) | Cronjob-manager: clustertijdlijn, cronjobs per node beheren en monitoren |
+| [NODE-AGENT.md](NODE-AGENT.md) | Ontwerp en werking: module Cronjobs, agent-proxy en ControlDeck-agent op de nodes |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Werkelijke repository en runtime |
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Ingerichte LXC, netwerk, accounts, services en GitHub-route |
 | [HTTPS.md](HTTPS.md) | Actieve Cloudflare Tunnel-route, HTTPS-verificatie en mogelijke lokale proxyroute |

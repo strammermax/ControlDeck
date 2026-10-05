@@ -21,3 +21,39 @@ export function agentStateText(state: AgentNodeState | undefined): { label: stri
     default: return { label: "Nog niet gekoppeld", level: "unknown", hint: "Lees de hostsleutel en bevestig de vingerafdruk." };
   }
 }
+
+export type CronRun = { source: "controldeck" | "system" | "proxmox"; node: string; jobId?: string; description?: string; command?: string; runId?: string; start: number; end?: number | null; duration?: number | null; exitCode?: number | null; status: string; message?: string | null; trigger?: string };
+export type RunLevel = "ok" | "error" | "running" | "warning" | "unknown";
+
+/** Text and level per run status; anything unknown is never shown as OK. */
+export function runStatus(run: Pick<CronRun, "status" | "exitCode">): { label: string; level: RunLevel } {
+  switch (run.status) {
+    case "succeeded": return { label: "✓ OK", level: "ok" };
+    case "failed": return { label: run.exitCode != null ? `✗ Fout (exit ${run.exitCode})` : "✗ Fout", level: "error" };
+    case "running": return { label: "◌ Bezig", level: "running" };
+    case "skipped": return { label: "△ Overgeslagen (nog bezig)", level: "warning" };
+    case "started": return { label: "▷ Gestart (geen resultaat)", level: "unknown" };
+    default: return { label: "? Onbekend", level: "unknown" };
+  }
+}
+
+/** Counters for the cluster timeline. */
+export function summarizeRuns(runs: readonly CronRun[]): { total: number; ok: number; failed: number; running: number; started: number } {
+  if (!Array.isArray(runs)) throw new TypeError("Runs must be a list");
+  return {
+    total: runs.length,
+    ok: runs.filter(run => run.status === "succeeded").length,
+    failed: runs.filter(run => run.status === "failed").length,
+    running: runs.filter(run => run.status === "running").length,
+    started: runs.filter(run => run.status === "started").length,
+  };
+}
+
+export const SOURCE_LABELS: Record<CronRun["source"], string> = { controldeck: "ControlDeck", system: "Systeem-cron", proxmox: "Proxmox-backup" };
+
+/** Suggested job name for adopting an existing cron line, e.g. "/usr/bin/vzdump --all" → "vzdump". */
+export function suggestJobId(command: string | undefined): string {
+  const program = (command ?? "").trim().split(/\s+/)[0]?.split("/").pop() ?? "";
+  const slug = program.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  return /^[a-z0-9]/.test(slug) ? slug : "overgenomen-job";
+}

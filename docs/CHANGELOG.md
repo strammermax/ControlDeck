@@ -5,6 +5,8 @@ Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.m
 ## 2026.10.05 — Instellingen, Proxmox, ProxMenux, Modulebeheer en Linkwarden
 
 - Homepage: **Link toevoegen** en **Aanpassen** openen in een popup (`<dialog>`: focus, Escape en achtergrond afgeschermd).
+- Module Cronjobs, stap 4: **Proxmox → Nodes** als cronjob-manager: clustertijdlijn (ControlDeck-jobs, systeem-cron, Proxmox-backups) met tellers en filters; per node aanmaken met schema-kiezer, bewerken, pauzeren, nu uitvoeren met live log, geschiedenis, verwijderen, overnemen/teruggeven. Zie CRONJOBS.md.
+- Koppelwizard Cronjobs: stand "x van y nodes klaar" en knop terug naar de nodes.
 - Modulebeheer meldt verouderde of ontbrekende root-onderdelen (installatieworker, agent-proxy) met het exacte updatecommando voor deze host; `install-wizard.sh` legt de checkout vast in `/var/lib/controldeck/bootstrap.json`.
 - Module Cronjobs, stap 3: koppelwizard in Modulebeheer (sleutel, hostsleutel bevestigen, installatiecommando met SHA-256-controle en `from=`-beperking, verbindingstest per node, verwijderen).
 - Module Cronjobs, stap 2: agent-proxy `controldeck-agent-proxy` (eigen gebruiker zonder root, enige houder van de SSH-sleutel, vastgepinde hostsleutels, auditlog); `install-wizard.sh` installeert hem.

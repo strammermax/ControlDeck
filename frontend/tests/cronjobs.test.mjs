@@ -19,3 +19,23 @@ test('agentStateText / normaal, boundary and faal: every state has text; unknown
   assert.equal(agentStateText(undefined).level,'unknown');
   assert.equal(agentStateText('something').level,'unknown');
 });
+import { runStatus, suggestJobId, summarizeRuns } from '../lib/cronjobs.ts';
+test('runStatus / normaal, boundary and faal', () => {
+  assert.deepEqual(runStatus({status:'succeeded'}),{label:'✓ OK', level:'ok'});
+  assert.equal(runStatus({status:'failed', exitCode:3}).label,'✗ Fout (exit 3)');
+  assert.equal(runStatus({status:'failed', exitCode:0}).label,'✗ Fout (exit 0)');
+  assert.equal(runStatus({status:'started'}).level,'unknown');
+  assert.equal(runStatus({status:'weird'}).level,'unknown');
+});
+test('summarizeRuns / normaal, boundary and faal', () => {
+  const runs = [{status:'succeeded'},{status:'failed'},{status:'failed'},{status:'running'},{status:'started'}];
+  assert.deepEqual(summarizeRuns(runs),{total:5, ok:1, failed:2, running:1, started:1});
+  assert.deepEqual(summarizeRuns([]),{total:0, ok:0, failed:0, running:0, started:0});
+  assert.throws(() => summarizeRuns(null),TypeError);
+});
+test('suggestJobId / normaal, boundary and faal', () => {
+  assert.equal(suggestJobId('/usr/bin/vzdump --all'),'vzdump');
+  assert.equal(suggestJobId('cd / && run-parts --report /etc/cron.hourly'),'cd');
+  assert.equal(suggestJobId(''),'overgenomen-job');
+  assert.equal(suggestJobId('/opt/My_Script.SH'),'my-script-sh');
+});

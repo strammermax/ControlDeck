@@ -1,6 +1,6 @@
 # Ontwerp: module Cronjobs en ControlDeck-agent op Proxmox-nodes
 
-**Status:** ontwerp goedgekeurd (zie §8). Bouw in vier stappen: **1. agent (`scripts/controldeck-agent.py`) — gebouwd**, **2. verbinding via de agent-proxy — gebouwd**, **3. module in Modulebeheer — gebouwd**, 4. pagina Proxmox → Nodes → Cronjobs. Gekozen route: eigen module met eigen agent (niet CronMaster koppelen, omdat de CronMaster-API geen aanmaken, pauzeren en run-geschiedenis biedt). Basis voor [#9 cronjob-manager](https://github.com/strammermax/ControlDeck/issues/9) en [#1 installeren en LXC-updates op nodes](https://github.com/strammermax/ControlDeck/issues/1).
+**Status:** ontwerp goedgekeurd (zie §8). Bouw in vier stappen: **1. agent (`scripts/controldeck-agent.py`) — gebouwd**, **2. verbinding via de agent-proxy — gebouwd**, **3. module in Modulebeheer — gebouwd**, **4. pagina Proxmox → Nodes (cronjob-manager) — gebouwd**. Gebruikershandleiding: [CRONJOBS.md](CRONJOBS.md). Gekozen route: eigen module met eigen agent (niet CronMaster koppelen, omdat de CronMaster-API geen aanmaken, pauzeren en run-geschiedenis biedt). Basis voor [#9 cronjob-manager](https://github.com/strammermax/ControlDeck/issues/9) en [#1 installeren en LXC-updates op nodes](https://github.com/strammermax/ControlDeck/issues/1).
 
 ## 1. Waarom
 
@@ -159,6 +159,13 @@ De functies zijn geïnspireerd op [CronMaster](https://github.com/fccview/cronma
 **Verwijderen** vergeet de hostsleutels in de proxy en toont de commando's voor de node. Het commando om de sleutel uit `authorized_keys` te halen schrijft via `cat … >` door de symlink heen; `sed -i` zou de symlink naar het clusterbestand vervangen.
 
 API (alleen admins, CSRF): `GET /api/cronjobs/agent`, `POST /api/cronjobs/agent/key`, `/scan`, `/trust`, `/install-command`, `/test`, `DELETE /api/cronjobs/connection`.
+
+## 7d. Stand van stap 4
+
+- Pagina **Proxmox → Nodes** (`frontend/components/cronjobs-page.tsx`): tabblad **Hele cluster** (tijdlijn met tellers en filters) en een tabblad per node (ControlDeck-jobs, overige cronjobs, systemd-timers). Bediening: [CRONJOBS.md](CRONJOBS.md).
+- API (`backend/cronjob_api.py`): `GET /api/cronjobs/nodes`, `GET /api/cronjobs/nodes/<node>`, `…/jobs/<id>/history`, `…/jobs/<id>/runs/<runId>/log` (admin), `PUT|DELETE …/jobs/<id>`, `POST …/jobs/<id>/run|pause|release`, `POST …/nodes/<node>/adopt`, `GET /api/cronjobs/runs?hours=1–336` (cache 15 s, nodes parallel, onbereikbare nodes apart gemeld). Lezen: module `proxmox`; commando's, logs en wijzigingen: alleen admins.
+- Eigen cron-bibliotheek (`frontend/lib/cron.ts`, geen extra afhankelijkheden): ontleden, Nederlandse omschrijving, volgende/vorige uitvoering (zoekt vier jaar, zodat 29 februari werkt), gemiste runs, schema-kiezer.
+- Tests: `tests/test_cronjob_api.py` draait de API end-to-end tegen de **echte agent** op een tijdelijk bestandssysteem per node.
 
 ## 8. Besluiten (5 oktober 2026)
 

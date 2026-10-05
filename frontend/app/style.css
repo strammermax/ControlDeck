@@ -221,3 +221,27 @@ footer .release-link:hover {color:var(--blue);text-decoration:underline}
 .agent-node-head {display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
 .agent-node-head .muted {color:var(--muted);font-size:13px}
 .node-block > button {margin:6px 8px 0 0;padding:8px 14px}
+.cronjobs h3 {margin:4px 0 0}
+.cronjobs h4 {margin:24px 0 10px}
+.cron-heading {display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cron-heading h4 {margin:16px 0 8px}
+.cronjobs .primary,.cron-confirm .primary {background:var(--blue);border-color:var(--blue);color:#fff;padding:9px 16px}
+.cron-counts {margin:0;flex:1 1 100%;font-size:14px}
+.cron-actions {display:flex;flex-wrap:wrap;gap:6px;white-space:normal !important;min-width:220px}
+.cron-actions button {padding:5px 10px;font-size:13px}
+.cron-actions .danger-link {color:#f08080}
+.cron-command {display:block;margin-top:4px;font-size:12px;color:var(--muted);overflow-wrap:anywhere;white-space:normal}
+.cronjobs .muted {color:var(--muted);font-size:12px}
+.cron-timers {margin-top:16px}
+.cron-timers summary {cursor:pointer;color:var(--blue)}
+.cron-form fieldset {border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:grid;gap:10px}
+.cron-modes,.cron-days {display:flex;flex-wrap:wrap;gap:6px 14px}
+.cron-modes .checkbox,.cron-days .checkbox,.cron-form > .checkbox {flex-direction:row !important;align-items:center;gap:6px !important}
+.cron-preview {margin:0;font-size:13px;color:var(--muted)}
+.cron-preview strong {color:var(--text)}
+.cron-row {display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cron-confirm dl,.modal dl {display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:14px}
+.cron-confirm dd,.modal dd {margin:0;overflow-wrap:anywhere}
+.cron-log {background:#111;color:#ddd;border-radius:8px;padding:12px;max-height:55vh;overflow:auto;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.fingerprint button,.node-block button {padding:8px 14px;margin-top:6px}
+@media(max-width:600px){.cron-row{grid-template-columns:1fr}}
