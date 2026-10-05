@@ -35,3 +35,7 @@ Klik rechtsboven op je naam: de dropdown bevat Profiel (`#profile`, alleen-lezen
 - **Menuvolgorde:** sleep de hoofdtabbladen in de gewenste volgorde en kies Opslaan. Annuleren zet de laatst opgeslagen volgorde terug, Standaard herstellen de configuratievolgorde. Groepen zoals Proxmox en Admin verplaatsen als geheel. Op touchscherm eerst lang drukken; met het toetsenbord Alt+pijl omhoog/omlaag op de greep.
 
 De server accepteert `language` (`nl`/`en`) en `navOrder` (maximaal 32 unieke menu-id's). Een opgeslagen id geeft nooit toegang: de volgorde wordt alleen toegepast op het menu dat de server voor die gebruiker filtert. Onbekende id's worden genegeerd en nieuwe menu-items komen achteraan.
+
+## Site-iconen
+
+De faviconset uit `docs/images/favicon_io.zip` staat in `frontend/public/`. De pagina verwijst naar ICO, PNG (16/32 pixels), Apple touch-icon en `site.webmanifest`. Het manifest gebruikt de ControlDeck-naam en Android-iconen van 192/512 pixels. Deze statische bestanden zijn ook op de aanmeldpagina beschikbaar.
