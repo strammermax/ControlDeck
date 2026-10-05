@@ -1,6 +1,6 @@
 # Verificatie van de infrastructuur
 
-Datum: 5 oktober 2026. Deze controles betreffen de foundation, geen volledige functionele homelabapplicatie.
+Datum: 5 oktober 2026. Onderstaande controles zijn per versie vastgelegd; oudere secties beschrijven de toenmalige grenzen.
 
 ## Uitgevoerde controles
 
@@ -21,7 +21,7 @@ In een Debian 13-LXC meldde systemd ongeveer 34 MiB voor de applicatieservice en
 
 ## Grenzen
 
-Automatische rollback bij een opstartfout is geïmplementeerd, maar een opzettelijke productie-opstartfout is nog niet gesimuleerd. Databaseherstel en schemamigraties zijn nog niet van toepassing. Authentication, providers en de navigatie-uitbreidingen behoren tot volgende implementatiestappen. De volledige release-uitkomst blijft zichtbaar in GitHub Actions en de releasepagina.
+Automatische rollback bij een opstartfout is geïmplementeerd, maar een opzettelijke productie-opstartfout is nog niet gesimuleerd. De eerste foundation had nog geen gebruikersdatabase, authenticatie of providerintegraties. De latere secties beschrijven de inmiddels toegevoegde functionaliteit; een volledige herstelproef van de gebruikersdatabase is nog niet uitgevoerd. De volledige release-uitkomst blijft zichtbaar in GitHub Actions en de releasepagina.
 
 ## Basisinterface 0.2.0
 
@@ -42,3 +42,16 @@ De main-workflow en LXC-deployment zijn geslaagd. Via het publieke HTTPS-adres g
 De adminpagina is met een lokaal testaccount gecontroleerd: overzicht, alle gevraagde profielvelden, aanmaken en defaults user/enabled=true. De serverzijdige admin/user-grens, wijzigen en laatste-adminbescherming zijn geautomatiseerd getest. Een echte Google-login van de admin is nog niet door de agent doorlopen; de betreffende gebruiker kan dit zelf doen.
 
 Na Google-login gebruikte de appservice in een momentopname 52.948.992 bytes (ongeveer 50,5 MiB), met een piek van 53.977.088 bytes. Dit is één observatie, geen gegarandeerd maximum. De lichte architectuur blijft één Python-service en een statische frontend.
+
+## 0.4.0 — Termix en module-installatiewizard
+
+- CI: 144 Python-tests en 18 frontendtests geslaagd, naast TypeScript, productiebuild, shellcheck en Docker-runtimecontrole. Normal-, boundary- en failure-contracten zijn aangevuld voor autorisatie, Termix-sessies, installatieplanning, opdrachten en de rootworker.
+- Productie: Termix 2.9.1 is gezond en de hoofdapplicatie meldt versie 0.4.0.
+- Een echt ingelogd Google-useraccount opent de ingebedde Termix-interface zonder tweede login.
+- Anonieme Termix-aanvragen worden geweigerd. Publieke accountregistratie is geblokkeerd en het interne gateway-autorisatiepad is extern onbereikbaar.
+- Een Termix-adminsessie gecombineerd met een ander ControlDeck-useraccount wordt geweigerd. Identiteit en rol worden serverzijdig gecontroleerd.
+- Een daadwerkelijke WebSocket via het publieke HTTPS-adres, Cloudflare, Nginx en Termix heeft een sessielijst ontvangen. Een SSH-verbinding naar een homelabhost is nog niet getest; er zijn nog geen hosts in Termix ingericht.
+- De productie-installatie-API heeft met een tijdelijk ondertekende testsessie van een bestaande admin een Docker-opdracht ingediend. De rootworker heeft de installer uitgevoerd en de opdracht als geslaagd afgesloten; de applicatie bleef bereikbaar. Deze verificatie voegt geen testlogin aan het product toe.
+- De vijf wizardstappen, Docker/LXC-keuze en LXC-blokkade zijn in de browser met een afzonderlijk lokaal admin-testprofiel gecontroleerd. Een echte Google-adminlogin is nog niet door de agent doorlopen.
+
+Automatisch aanmaken van een Proxmox LXC is nog niet uitgevoerd of getest: hosttoegang en de uitvoerende Helper-Script-adapter ontbreken. De wizard voorkomt starten van die route. Bestaande WebSocket-verbindingen worden niet voortdurend opnieuw geautoriseerd; nieuwe aanvragen controleren de actuele toegang.

@@ -46,7 +46,7 @@ controldeck.service → Flask/Gunicorn → statische frontend
 
 De vooraf aangeleverde wizardafbeelding vermeldde `/23`; de draaiende container rapporteerde bij verificatie `/24`. Er is tijdens deze inrichting geen subnetwijziging uitgevoerd. Het gemeten netwerk is in deze tabel leidend.
 
-Docker is al op de container aanwezig, maar de huidige ControlDeck-productieservice draait rechtstreeks onder systemd. Docker-in-LXC en nesting zijn niet nodig voor deze route. Er is geen hardwaredoorgifte gebruikt.
+Docker is al op de container aanwezig, maar de huidige ControlDeck-productieservice draait rechtstreeks onder systemd. Voor de optionele Termix-integratie draait wel een afzonderlijke Docker-container in deze LXC; daarvoor is nesting ingeschakeld. Er is geen hardwaredoorgifte gebruikt.
 
 ## 3. Accounts en vertrouwensgrenzen
 
@@ -69,14 +69,14 @@ SSH-gegevens blijven in de bestaande lokale credentialvoorziening. Zij worden ni
 | `/home/controldeck-runner/actions-runner` | Runnerinstallatie en werkmap |
 | `/opt/controldeck/releases/<commit>` | Releasecode, statische frontend en eigen Python-venv |
 | `/opt/controldeck/current` | Symlink naar de actieve release |
-| `/var/lib/controldeck` | Gereserveerd voor toekomstige persistente applicatiedata |
+| `/var/lib/controldeck` | Persistente configuratie, accounts, sessiesleutel en SQLite-gebruikersvoorkeuren |
 | `/usr/local/sbin/controldeck-deploy` | Geïnstalleerde deployhelper |
 | `/etc/systemd/system/controldeck.service` | Productieserviceconfiguratie |
 | `/etc/sudoers.d/controldeck-ci` | Begrensde runner-sudo-regel |
 | `/run/lock/controldeck-deploy.lock` | Voorkomt gelijktijdige releasewisselingen |
 | `/home/llmuser/controldeck-bootstrap` | Checkout voor beheer van unit en deployhelper |
 
-Gunicorn gebruikt één worker, twee threads en poort 8080. Node.js draait niet als onderdeel van de applicatieruntime. Er is nog geen database of providercollector.
+Gunicorn gebruikt één worker en twee threads op `127.0.0.1:8081`. Nginx luistert op poort 8080 en verzorgt de applicatie en de beveiligde `/termix/`-route. ControlDeck gebruikt een statische frontend en Python-runtime, met SQLite voor gebruikersvoorkeuren. De afzonderlijke Termix-container heeft zijn eigen Node.js-runtime en luistert uitsluitend op `127.0.0.1:8090`. Er zijn nog geen algemene providercollectors.
 
 ## 5. GitHub en distributie
 
@@ -103,15 +103,15 @@ curl -f http://127.0.0.1:8080/ready
 systemctl show controldeck -p MemoryCurrent
 ```
 
-`/health` vermeldt de versie en volledige commit. Vergelijk deze commit met de geslaagde GitHub-deployment. `/ready` bevestigt dat de gebouwde startpagina aanwezig is.
+`/health` vermeldt de versie en volledige commit. Vergelijk deze commit met de geslaagde GitHub-deployment. `/ready` controleert de gebouwde startpagina en de applicatieconfiguratie.
 
 De root-owned helper en unit worden bij bootstrap geïnstalleerd. Bij wijziging daarvan: werk de bootstrapcheckout bij en voer `scripts/install-lxc.sh` opnieuw uit. De runner voert die beheerwijziging niet zelf uit.
 
 ## 7. Huidige grenzen en vervolg
 
-De inrichting is getest met een startpagina, zonder gekoppelde homelabsystemen. De applicatieservice gebruikte bij een eerste momentopname ongeveer 34 MiB en de runner ongeveer 99 MiB. Zie [VERIFICATION.md](VERIFICATION.md) voor testgrenzen. De publieke HTTPS-route, HTTP-redirect en applicatiechecks via Cloudflare zijn eveneens geslaagd; zie [HTTPS.md](HTTPS.md).
+De actuele inrichting omvat verplichte Google-login, gebruikersbeheer, opgeslagen voorkeuren en de Termix-integratie. Bij verificatie van 0.4.0 gebruikte ControlDeck circa 50 MiB en Termix circa 204 MiB; dit zijn momentopnamen zonder representatieve belasting. Zie [VERIFICATION.md](VERIFICATION.md) voor testgrenzen. De publieke HTTPS-route, HTTP-redirect en applicatiechecks via Cloudflare zijn eveneens geslaagd; zie [HTTPS.md](HTTPS.md).
 
-Voor verdere functionaliteit volgen authenticatie, rechten en providers. De HTTPS-ingang is ingericht via een bestaande Cloudflare Tunnel; de laatste verbinding naar de LXC gebruikt HTTP op het LAN. De rechtstreekse HTTP-route blijft de interne verificatieroute. De huidige openbare foundation bevat geen gevoelige infrastructuurintegraties of beheeracties.
+Authenticatie en de rollen admin/user zijn ingericht. Alleen admins kunnen accounts beheren en module-installaties starten. De HTTPS-ingang is ingericht via een bestaande Cloudflare Tunnel; de laatste verbinding naar de LXC gebruikt HTTP op het LAN. De rechtstreekse HTTP-route blijft de interne verificatieroute. De Terminal-integratie en installatiewizard vereisen serverzijdige autorisatie; publieke probes geven uitsluitend gezondheid en versiegegevens weer.
 
 Releasecleanup blijft voorlopig handmatig. Automatisch herstel is gericht op code en runtime; toekomstige databasemigraties krijgen een aanvullend backup- en herstelontwerp. Zie [OPERATIONS.md](OPERATIONS.md), [CI-CD.md](CI-CD.md) en [INSTALLATION.md](INSTALLATION.md).
 
@@ -126,3 +126,20 @@ De accountlijst is niet onderdeel van de publieke repository. Configuratie, acco
 De optionele Terminal-integratie gebruikt een afzonderlijke Docker-container, de bestaande Google-login en een beveiligde Nginx-gateway. Zie [Termix-installatie en beheer](TERMIX.md).
 
 De admin-installatiewizard biedt Docker en Proxmox LXC als keuzes, met voorafgaande controle en voortgang. Zie [module-installatiewizard](MODULE-WIZARD.md). Docker is aangesloten; de Proxmox-uitvoering vereist nog de hostverbinding en Helper-Script-adapter.
+
+## 0.4.0 — Terminal en installatiebeheer
+
+| Onderdeel | Productie-inrichting |
+| --- | --- |
+| Termix | Versie 2.9.1, Docker-image vastgezet op digest; limiet 1 CPU en 512 MiB |
+| Applicatie | Gunicorn op loopback 8081, systemd-drop-in `termix.conf` |
+| Gateway | Nginx op 8080; uitsluitend geautoriseerde aanvragen naar Termix |
+| Termix-data | Docker-volume `controldeck-integrations_termix-data` |
+| Installaties | `/var/lib/controldeck/installations`, afzonderlijke queue en root-owned resultaten |
+| Installatieworker | `/usr/local/sbin/controldeck-install-worker`; `controldeck-install.timer` controleert iedere 15 seconden |
+| Installatiebestanden | Root-owned allowlist onder `/opt/controldeck-integrations/installer` |
+| Privé-installatielog | `/var/log/controldeck-install.log`, uitsluitend root |
+
+De webservice heeft geen Docker-socket of algemene rootrechten. De aparte installatieworker controleert opdrachten en de actuele adminrechten voordat hij de toegestane installer uitvoert. De bootstrap `scripts/install-wizard.sh` installeert deze worker; wijzigingen aan de root-owned installatiebestanden vereisen opnieuw uitvoeren van die bootstrap na review. Een normale apprelease vervangt deze bestanden niet.
+
+De Docker-installatie vanuit de wizard is op productie uitgevoerd en voltooid, met behoud van het bestaande Termix-volume. De keuze Proxmox LXC is zichtbaar, maar uitvoering is geblokkeerd totdat de Proxmox-hostverbinding en Helper-Script-adapter zijn aangesloten. Er is nog geen nieuwe LXC vanuit ControlDeck aangemaakt.
