@@ -85,3 +85,15 @@ test('diskLevel / faal: SMART failure or pending sectors are errors; unknown SMA
   assert.equal(diskLevel(disk({pending:2})),'error');
   assert.equal(diskLevel(disk({smart:'unknown',health:'unknown'})),'unknown');
 });
+import { monitorGuidance } from '../lib/proxmox.ts';
+test('monitorGuidance / normaal: ready needs no steps', () => {
+  assert.deepEqual(monitorGuidance('ready'),{label:'Klaar om te koppelen', level:'ok', steps:[]});
+});
+test('monitorGuidance / boundary: every not-ready state has concrete steps', () => {
+  for (const state of ['auth_disabled','untrusted_tls','http_only','absent']) assert.ok(monitorGuidance(state).steps.length > 0, state);
+  assert.equal(monitorGuidance('absent').level,'error');
+});
+test('monitorGuidance / faal: unknown or missing state is never ready', () => {
+  assert.equal(monitorGuidance(undefined).level,'unknown');
+  assert.equal(monitorGuidance('something').level,'unknown');
+});

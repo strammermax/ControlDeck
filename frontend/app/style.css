@@ -130,3 +130,7 @@ tr.task-error {background:#f0808010}
 .node-row label {margin:0 !important}
 .node-row button {padding:10px 12px}
 @media(max-width:900px){.widget-grid.two{grid-template-columns:1fr}.node-row{grid-template-columns:1fr}.health-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.node-block {border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:12px}
+.monitor-state {font-size:13px;margin-top:4px}
+.monitor-state ol {margin:8px 0 0;padding-left:20px;color:var(--muted)}
+.monitor-state .command {margin-top:8px}

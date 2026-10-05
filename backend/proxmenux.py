@@ -81,6 +81,32 @@ def monitor_get(node, ca_path, path):
         raise MonitorError("Monitor gaf een onverwacht antwoord.") from None
 
 
+INSTALL_COMMAND = 'bash -c "$(wget -qLO - https://raw.githubusercontent.com/MacRimi/ProxMenux/main/install_proxmenux.sh)"'
+
+
+def detect(url, ca_path):
+    """Read-only probe without token: absent, http_only, untrusted_tls, auth_disabled or ready."""
+    try:
+        response = requests.get(f"{url}/api/auth/status", timeout=6, verify=str(ca_path), allow_redirects=False)
+        status = response.json() if response.status_code == 200 else None
+    except requests.exceptions.SSLError:
+        return {"state": "untrusted_tls"}
+    except ValueError:
+        return {"state": "absent"}  # Something answers over https, but it is not ProxMenux Monitor.
+    except requests.RequestException:
+        try:
+            # Only a public health probe; no token is ever sent over http.
+            plain = requests.get(url.replace("https://", "http://", 1) + "/api/health", timeout=4, allow_redirects=False)
+            if plain.status_code == 200:
+                return {"state": "http_only"}
+        except requests.RequestException:
+            pass
+        return {"state": "absent"}
+    if not isinstance(status, dict):
+        return {"state": "absent"}
+    return {"state": "ready" if status.get("auth_enabled") is True else "auth_disabled"}
+
+
 def number(value):
     return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
@@ -227,6 +253,28 @@ def setup_proxmenux(app, configuration_path, data_dir):
         except OSError:
             return jsonify(error="De koppeling kan niet worden opgeslagen."), 503
         return jsonify(connected=True, nodes=results)
+
+    @app.post("/api/proxmenux/connection/detect")
+    def monitor_detect():
+        """Wizard step: finds per node whether the monitor is installed and ready to connect."""
+        body = request.get_json(silent=True)
+        try:
+            if not isinstance(body, dict) or not set(body) <= {"ca", "nodes"} or not isinstance(body.get("nodes"), list) or not 1 <= len(body["nodes"]) <= MAX_NODES:
+                raise ValueError("Ongeldige nodegegevens.")
+            ca = validate_ca(body.get("ca"))
+            nodes = []
+            for node in body["nodes"]:
+                if not isinstance(node, dict) or not isinstance(node.get("name"), str) or not NODE.fullmatch(node["name"]):
+                    raise ValueError("Ongeldige nodenaam.")
+                nodes.append({"name": node["name"], "url": normalize_url(node.get("url"), 8008)})
+            ensure_ca(ca)
+        except ValueError as error:
+            return jsonify(error=str(error)), 400
+        except OSError:
+            return jsonify(error="De detectie kan niet worden uitgevoerd."), 503
+        with ThreadPoolExecutor(max_workers=min(4, len(nodes))) as pool:
+            found = list(pool.map(lambda node: {**node, **detect(node["url"], ca_path)}, nodes))
+        return jsonify(nodes=found, installCommand=INSTALL_COMMAND)
 
     @app.post("/api/proxmenux/connection/test")
     def monitor_test_connection():

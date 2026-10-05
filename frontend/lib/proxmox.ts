@@ -102,3 +102,16 @@ export function diskLevel(disk: NonNullable<MonitorNode["disks"]>[number]): Heal
   if (smart === "passed" || health === "healthy" || health === "ok") return "ok";
   return "unknown";
 }
+
+export type MonitorState = "absent" | "http_only" | "untrusted_tls" | "auth_disabled" | "ready";
+/** Wizard guidance per detected monitor state; only "ready" may be connected. */
+export function monitorGuidance(state: MonitorState | undefined): { label: string; level: HealthLevel; steps: string[] } {
+  switch (state) {
+    case "ready": return { label: "Klaar om te koppelen", level: "ok", steps: [] };
+    case "auth_disabled": return { label: "Login staat uit", level: "warning", steps: ["Open de monitor → Settings → Security en zet de login aan.", "Maak daarna een API-token (Settings → Security → API tokens)."] };
+    case "untrusted_tls": return { label: "Certificaat past niet bij de cluster-CA", level: "warning", steps: ["Open de monitor → Settings → SSL / HTTPS en kies het Proxmox-hostcertificaat.", "Controleer of het adres het IP of de hostname van deze node is."] };
+    case "http_only": return { label: "Alleen http", level: "warning", steps: ["Open de monitor op http://…:8008 → Settings → SSL / HTTPS en zet HTTPS aan met het Proxmox-hostcertificaat.", "Zet daarna de login aan en maak een API-token."] };
+    case "absent": return { label: "Niet gevonden", level: "error", steps: ["Installeer ProxMenux in een shell op deze node (als root). De Monitor wordt automatisch meegeïnstalleerd.", "Open daarna http://<node-ip>:8008, zet HTTPS (Proxmox-hostcertificaat) en de login aan en maak een API-token."] };
+    default: return { label: "Nog niet gecontroleerd", level: "unknown", steps: [] };
+  }
+}

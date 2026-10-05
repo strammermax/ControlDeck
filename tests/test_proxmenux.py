@@ -205,3 +205,61 @@ def test_summary(env, case):
             assert node["stale"] is True and node["temperature"] == 48.5 and "bereikbaar" in node["error"]
         finally:
             proxmenux.CACHE_SECONDS = original
+
+
+class FakeResponse:
+    def __init__(self, status, body=None):
+        self.status_code, self.body = status, body
+    def json(self):
+        if self.body is None:
+            raise ValueError
+        return self.body
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_detect_states(monkeypatch, tmp_path, case):
+    calls = []
+    def fake(url, **kwargs):
+        calls.append((url, kwargs))
+        return responder(url)
+    monkeypatch.setattr(proxmenux.requests, "get", fake)
+    url = "https://192.168.1.98:8008"
+    if case == "normaal":
+        responder = lambda u: FakeResponse(200, {"auth_enabled": True})
+        assert proxmenux.detect(url, tmp_path / "ca.pem") == {"state": "ready"}
+        assert calls[0][1]["verify"] == str(tmp_path / "ca.pem") and "headers" not in calls[0][1]
+    elif case == "boundary":
+        responder = lambda u: FakeResponse(200, {"auth_enabled": False})
+        assert proxmenux.detect(url, tmp_path / "ca.pem") == {"state": "auth_disabled"}
+        def http_only(u):
+            if u.startswith("https://"):
+                raise requests.ConnectionError()
+            return FakeResponse(200, {"status": "healthy"})
+        responder = http_only
+        assert proxmenux.detect(url, tmp_path / "ca.pem") == {"state": "http_only"}
+        assert calls[-1][0] == "http://192.168.1.98:8008/api/health" and "headers" not in calls[-1][1]
+    else:
+        def untrusted(u):
+            raise requests.exceptions.SSLError()
+        responder = untrusted
+        assert proxmenux.detect(url, tmp_path / "ca.pem") == {"state": "untrusted_tls"}
+        def absent(u):
+            raise requests.ConnectionError()
+        responder = absent
+        assert proxmenux.detect(url, tmp_path / "ca.pem") == {"state": "absent"}
+        responder = lambda u: FakeResponse(200, None)
+        assert proxmenux.detect(url, tmp_path / "ca.pem")["state"] == "absent"
+
+
+def test_detect_endpoint_validation_and_access(env, monkeypatch):
+    client, hosts, failing, stored = env
+    monkeypatch.setattr(proxmenux, "detect", lambda url, ca_path: {"state": "ready" if url.endswith(".98:8008") else "absent"})
+    admin = client()
+    body = {"ca": CA, "nodes": [{"name": "pve-amd", "url": "https://192.168.1.98"}, {"name": "pve-new", "url": "https://192.168.1.50"}]}
+    result = admin.post("/api/proxmenux/connection/detect", headers=H, json=body).json
+    assert [n["state"] for n in result["nodes"]] == ["ready", "absent"] and "install_proxmenux.sh" in result["installCommand"]
+    assert admin.post("/api/proxmenux/connection/detect", headers=H, json={"ca": CA, "nodes": []}).status_code == 400
+    assert admin.post("/api/proxmenux/connection/detect", headers=H, json={"ca": "x", "nodes": body["nodes"]}).status_code == 400
+    assert admin.post("/api/proxmenux/connection/detect", headers=H, json={"ca": CA, "nodes": [{"name": "../x", "url": "https://h"}]}).status_code == 400
+    assert client("viewer@example.test").post("/api/proxmenux/connection/detect", headers=H, json=body).status_code == 403
+    assert admin.post("/api/proxmenux/connection/detect", json=body).status_code == 403
