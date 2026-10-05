@@ -139,7 +139,10 @@ De admin-installatiewizard biedt Docker en Proxmox LXC als keuzes, met voorafgaa
 | Installatieworker | `/usr/local/sbin/controldeck-install-worker`; `controldeck-install.timer` controleert iedere 15 seconden |
 | Installatiebestanden | Root-owned allowlist onder `/opt/controldeck-integrations/installer` |
 | Privé-installatielog | `/var/log/controldeck-install.log`, uitsluitend root |
+| Agent-proxy | `/usr/local/sbin/controldeck-agent-proxy`, dienst `controldeck-agent-proxy` als gebruiker `controldeck-ssh` (geen root); socket `/run/controldeck-agent/agent.sock` (groep `controldeck-ssh`, `0660`) |
+| SSH-sleutel naar de nodes | `/var/lib/controldeck-ssh/id_ed25519` (`0600`, map `0700`, eigenaar `controldeck-ssh`), met `known_hosts`, gekoppelde nodes en auditlog in dezelfde map |
+| Node-agent (voor verspreiding) | `/opt/controldeck-integrations/agent/controldeck-agent` |
 
-De webservice heeft geen Docker-socket of algemene rootrechten. De aparte installatieworker controleert opdrachten en de actuele adminrechten voordat hij de toegestane installer uitvoert. De bootstrap `scripts/install-wizard.sh` installeert deze worker en wordt door `scripts/install-lxc.sh` automatisch uitgevoerd; wijzigingen aan de root-owned installatiebestanden vereisen opnieuw uitvoeren van die bootstrap na review. Een normale apprelease vervangt deze bestanden niet.
+De webservice heeft geen Docker-socket of algemene rootrechten. De aparte installatieworker controleert opdrachten en de actuele adminrechten voordat hij de toegestane installer uitvoert. De bootstrap `scripts/install-wizard.sh` installeert deze worker en de agent-proxy (zie [NODE-AGENT.md](NODE-AGENT.md)) en wordt door `scripts/install-lxc.sh` automatisch uitgevoerd. De webservice is lid van de groep `controldeck-ssh` om het socket van de proxy te gebruiken, maar kan de SSH-sleutel niet lezen; wijzigingen aan de root-owned installatiebestanden vereisen opnieuw uitvoeren van die bootstrap na review. Een normale apprelease vervangt deze bestanden niet.
 
 De Docker-installatie vanuit de wizard is op productie uitgevoerd en voltooid, met behoud van het bestaande Termix-volume. De keuze Proxmox LXC is zichtbaar, maar uitvoering is geblokkeerd totdat de Proxmox-hostverbinding en Helper-Script-adapter zijn aangesloten. Er is nog geen nieuwe LXC vanuit ControlDeck aangemaakt.

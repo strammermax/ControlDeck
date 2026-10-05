@@ -1,0 +1,28 @@
+[Unit]
+Description=ControlDeck agent proxy (SSH to Proxmox nodes, no root)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=controldeck-ssh
+Group=controldeck-ssh
+ExecStart=/usr/bin/python3 /usr/local/sbin/controldeck-agent-proxy
+Environment=CONTROLDECK_PROXY_SOCKET=/run/controldeck-agent/agent.sock
+Environment=CONTROLDECK_PROXY_STATE=/var/lib/controldeck-ssh
+RuntimeDirectory=controldeck-agent
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/controldeck-ssh
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,6 @@
 # Ontwerp: module Cronjobs en ControlDeck-agent op Proxmox-nodes
 
-**Status:** ontwerp goedgekeurd (zie §8). Bouw in vier stappen: **1. agent (`scripts/controldeck-agent.py`) — gebouwd**, 2. verbinding via de root-worker, 3. module in Modulebeheer, 4. pagina Proxmox → Nodes → Cronjobs. Gekozen route: eigen module met eigen agent (niet CronMaster koppelen, omdat de CronMaster-API geen aanmaken, pauzeren en run-geschiedenis biedt). Basis voor [#9 cronjob-manager](https://github.com/strammermax/ControlDeck/issues/9) en [#1 installeren en LXC-updates op nodes](https://github.com/strammermax/ControlDeck/issues/1).
+**Status:** ontwerp goedgekeurd (zie §8). Bouw in vier stappen: **1. agent (`scripts/controldeck-agent.py`) — gebouwd**, **2. verbinding via de agent-proxy — gebouwd**, 3. module in Modulebeheer, 4. pagina Proxmox → Nodes → Cronjobs. Gekozen route: eigen module met eigen agent (niet CronMaster koppelen, omdat de CronMaster-API geen aanmaken, pauzeren en run-geschiedenis biedt). Basis voor [#9 cronjob-manager](https://github.com/strammermax/ControlDeck/issues/9) en [#1 installeren en LXC-updates op nodes](https://github.com/strammermax/ControlDeck/issues/1).
 
 ## 1. Waarom
 
@@ -16,10 +16,10 @@ De Proxmox-API kan dat niet: het alleen-lezen token kan geen commando's uitvoere
 
 ```text
 Browser ──HTTPS──> ControlDeck-webapp (gebruiker controldeck, geen root, geen sleutel)
-                        │ opdracht in wachtrij (vaste velden, admin + CSRF)
+                        │ lokaal Unix-socket /run/controldeck-agent/agent.sock (groep controldeck-ssh, 0660)
                         v
-                   Root-worker op de ControlDeck-host (bestaat al voor Modulebeheer)
-                        │ SSH met eigen sleutel, vastgepinde hostsleutel per node
+                   controldeck-agent-proxy (gebruiker controldeck-ssh, geen root; enige houder van de sleutel)
+                        │ SSH met eigen sleutel, vastgepinde hostsleutel per node, time-out 60 s
                         v
    Proxmox-node:  authorized_keys  →  restrict,command="/usr/local/sbin/controldeck-agent"
                         │ alleen dit ene script, nooit een shell
@@ -29,7 +29,8 @@ Browser ──HTTPS──> ControlDeck-webapp (gebruiker controldeck, geen root,
 
 - **Geen shell:** de SSH-sleutel van ControlDeck staat in `authorized_keys` met `restrict` en een vast `command=`. Wat de verbinding ook vraagt, er start alleen `controldeck-agent`. Port forwarding, pty en X11 zijn uit.
 - **Vaste acties:** de gevraagde actie komt binnen als naam (`SSH_ORIGINAL_COMMAND`), de gegevens als JSON op stdin (maximaal 64 KiB). Onbekende acties en extra velden worden geweigerd.
-- **Sleutel alleen bij de root-worker:** de privésleutel staat in `/etc/controldeck/agent/id_ed25519` (root, `0600`). Het webproces kan hem niet lezen; het kan alleen een opdracht in de bestaande wachtrij zetten, die de worker opnieuw controleert (geldige admin, toegestane actie, vaste velden, niet verlopen).
+- **Sleutel alleen bij de agent-proxy:** de privésleutel staat in `/var/lib/controldeck-ssh/id_ed25519` (eigenaar `controldeck-ssh`, `0600`, map `0700`). De proxy is een kleine dienst (`controldeck-agent-proxy`) die als eigen systeemgebruiker **zonder rootrechten** draait; SSH heeft geen root nodig. Het webproces is lid van de groep `controldeck-ssh` en mag alleen het socket gebruiken, nooit de sleutel lezen. De proxy controleert per verzoek: bewerking, gekoppelde node, agent-actie uit de vaste lijst en grootte.
+- **Waarom geen root-worker:** de bestaande root-worker draait via een timer (eens per 15 s). Dat is goed voor installaties, maar te traag voor een interactieve pagina, en SSH heeft geen root nodig. De proxy reageert direct en heeft minder rechten.
 - **Hostsleutel vastgepind:** bij het koppelen wordt de SSH-hostsleutel van elke node vastgelegd na bevestiging van de vingerafdruk (zoals bij het Proxmox-certificaat). Een andere hostsleutel blokkeert de verbinding.
 - **Alleen vanaf ControlDeck:** de sleutelregel krijgt `from="<IP van de ControlDeck-LXC>"`.
 
@@ -105,9 +106,9 @@ In Admin → Modulebeheer → **Node-agent**:
 | Scenario | Gevolg | Maatregel |
 | --- | --- | --- |
 | Iemand neemt een gewoon gebruikersaccount over | Geen acties | Alle schrijfacties zijn admin-only; de worker controleert de admin opnieuw |
-| Iemand neemt de ControlDeck-webapp over (geen root) | Kan opdrachten in de wachtrij zetten, niet de sleutel lezen | Worker valideert alles; alleen vaste acties; auditlog bij ControlDeck én op de node |
+| Iemand neemt de ControlDeck-webapp over (geen root) | Kan via het socket agent-acties laten uitvoeren, niet de sleutel lezen of meenemen | Proxy en agent accepteren alleen vaste acties; auditlog in de proxy (`/var/lib/controldeck-ssh/audit.log`) én op de node. Na herstel blijft de sleutel geldig: hij heeft het systeem nooit verlaten |
 | Iemand neemt een **admin-sessie** over | Kan via `cron.put` een commando als root laten draaien | **Restrisico, inherent aan een cronjob-manager.** Beperkt door: alleen admins, samenvatting en expliciete bevestiging, auditlog bij ControlDeck én op de node, zichtbare wijzigingsgeschiedenis. Een verplichte hernieuwde login is bewust (nog) niet gekozen |
-| Iemand neemt de ControlDeck-LXC als root over | Heeft de sleutel: alle acties op alle nodes | Sleutel werkt alleen vanaf het ControlDeck-IP, alleen voor de agent; intrekken = één regel verwijderen per node |
+| Iemand neemt de ControlDeck-LXC als root over (of de gebruiker `controldeck-ssh`) | Heeft de sleutel: alle agent-acties op alle nodes | Sleutel werkt alleen vanaf het ControlDeck-IP, alleen voor de agent; intrekken = één regel verwijderen per node |
 | Netwerk-aanvaller tussen ControlDeck en node | Geen | SSH met vastgepinde hostsleutel |
 | Kwaadwillende of foute invoer | Geweigerd | Strikte validatie, geen shell-interpretatie van velden behalve het bewust ingevoerde `command` |
 
@@ -129,6 +130,15 @@ De functies zijn geïnspireerd op [CronMaster](https://github.com/fccview/cronma
 ## 7a. Stand van stap 1
 
 `scripts/controldeck-agent.py` (Python 3, alleen standaardbibliotheek) bevat alle acties uit §3, de log-wrapper (`run <id>`), rotatie (20 runs / 14 dagen), lock tegen dubbel draaien, uitvoer tot 256 KiB per run, overnemen/teruggeven met back-up en het auditlog `/var/log/controldeck-agent.log`. De ControlDeck-cronregels bevatten alleen `controldeck-agent run <id>`; het commando zelf staat in de root-only jobdefinitie. Tests: `tests/test_agent.py` (op Windows draaien alleen de onderdelen zonder `/bin/sh`; CI draait alles op Linux). Nog niet verbonden met ControlDeck.
+
+## 7b. Stand van stap 2
+
+- `scripts/controldeck-agent-proxy.py` → `/usr/local/sbin/controldeck-agent-proxy`, systemd-dienst `deploy/controldeck-agent-proxy.service` (eigen gebruiker, `NoNewPrivileges`, `ProtectSystem=strict`, alleen `/var/lib/controldeck-ssh` schrijfbaar).
+- Bewerkingen via het socket (één JSON-regel per verzoek): `status`, `keygen` (eenmalig ed25519-sleutelpaar), `scan` (hostsleutel en SHA-256-vingerafdruk van een node, nog niet vertrouwd), `trust` (opnieuw scannen; alleen als de vingerafdruk gelijk is aan wat de admin bevestigde, wordt de sleutel vastgelegd), `forget`, `call` (agent-actie uitvoeren).
+- SSH-opties: `IdentitiesOnly`, eigen `known_hosts`, `StrictHostKeyChecking=yes`, `BatchMode=yes`, verbindings-time-out 5 s, totale time-out 60 s. Foutmeldingen voor de gebruiker noemen de oorzaak (hostsleutel veranderd, sleutel niet toegestaan, onbereikbaar) zonder technische details; die staan in het auditlog.
+- `backend/agent_client.py`: de webapp-kant van het socket.
+- `scripts/install-wizard.sh` installeert de proxy (inclusief `openssh-client`, gebruiker, rechten) en zet de agent klaar in `/opt/controldeck-integrations/agent/` voor verspreiding naar de nodes (stap 3).
+- Tests: `tests/test_agent_proxy.py` (vingerafdruk vergeleken met `ssh-keygen`, gepinde hostsleutel, afgewezen vervalste hostsleutel, foutvertaling, socket-rechten `0660`).
 
 ## 8. Besluiten (5 oktober 2026)
 
