@@ -12,6 +12,7 @@ import requests
 from flask import g, jsonify, request
 from backend.auth import filter_configuration
 from backend.configuration import load_config
+from backend.proxmox import Client as ProxmoxClient, ProxmoxError
 
 
 class LinkwardenError(Exception):
@@ -21,6 +22,17 @@ class LinkwardenError(Exception):
 def base_url(value):
     if not isinstance(value, str) or len(value) > 2048 or any(c.isspace() or ord(c) < 32 for c in value):
         raise ValueError('Ongeldig Linkwarden-adres.')
+    if '://' not in value:
+        candidate = urlsplit('http://' + value)
+        try:
+            address = ipaddress.ip_address(candidate.hostname or '')
+            if not address.is_private or candidate.username or candidate.password or candidate.query or candidate.fragment:
+                raise ValueError('Gebruik HTTPS voor publieke adressen.')
+            port = candidate.port or 3000
+            host = f'[{address}]' if address.version == 6 else str(address)
+            value = f'http://{host}:{port}' + candidate.path
+        except ValueError:
+            raise ValueError('Gebruik een HTTPS-adres of een intern IP-adres met optionele poort.') from None
     parts = urlsplit(value)
     try:
         _ = parts.port
@@ -132,12 +144,26 @@ def setup_linkwarden(app, configuration_path, data_dir):
         if request.path.startswith('/api/linkwarden') and g.account is not None:
             if not any(module['id'] == 'bookmarks' for module in filter_configuration(load_config(configuration_path), g.account)['modules']):
                 return jsonify(error='Geen toegang tot Bookmarks.'), 403
-            if request.path.startswith('/api/linkwarden/connection') and g.account['role'] != 'admin':
+            if request.path.startswith(('/api/linkwarden/connection', '/api/linkwarden/installation-nodes')) and g.account['role'] != 'admin':
                 return jsonify(error='Beheerrechten vereist.'), 403
 
     @app.errorhandler(LinkwardenError)
     def linkwarden_error(error):
         return jsonify(error=str(error)), 502
+
+    @app.get('/api/linkwarden/installation-nodes')
+    def installation_nodes():
+        try:
+            stored = json.loads((Path(data_dir) / 'proxmox/connection.json').read_text())
+            value = ProxmoxClient(stored).get('/cluster/status')
+            if not isinstance(value, list):
+                raise ValueError('Invalid nodes')
+            nodes = sorted([{'name': item['name'], 'online': bool(item.get('online'))}
+                for item in value if isinstance(item, dict) and item.get('type') == 'node'
+                and isinstance(item.get('name'), str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.-]{0,62}', item['name'])], key=lambda item: item['name'])
+            return jsonify(nodes=nodes)
+        except (OSError, ValueError, KeyError, TypeError, ProxmoxError):
+            return jsonify(error='De Proxmox-nodes konden niet worden opgehaald. Koppel Proxmox of vul de node handmatig in.'), 503
 
     @app.route('/api/linkwarden/connection', methods=['GET', 'PUT', 'DELETE'])
     def manage_connection():

@@ -190,3 +190,27 @@ def test_explicit_local_account_mapping(env,case):
     else:
         for invalid in (None,True,'7',-1):
             with pytest.raises(linkwarden.LinkwardenError):linkwarden.verify_identity('https://example.com',TOKEN,'admin@example.test',invalid)
+
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_installation_nodes(env,monkeypatch,case):
+    client,responses,calls,data=env
+    path=data/'proxmox/connection.json';path.parent.mkdir(parents=True);path.write_text('{}')
+    nodes=[{'type':'node','name':'pve-amd','online':1},{'type':'node','name':'pve-nas','online':0}]
+    if case=='boundary':nodes=[]
+    elif case=='faal':nodes={'invalid':'nodes'}
+    monkeypatch.setattr(linkwarden,'ProxmoxClient',Mock(return_value=Mock(get=Mock(return_value=nodes))))
+    result=client('admin@example.test').get('/api/linkwarden/installation-nodes')
+    assert result.status_code==(503 if case=='faal' else 200)
+    if case=='normaal':assert result.json['nodes']==[{'name':'pve-amd','online':True},{'name':'pve-nas','online':False}]
+    elif case=='boundary':assert result.json['nodes']==[]
+    assert client().get('/api/linkwarden/installation-nodes').status_code==403
+
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_ip_address_input(case):
+    if case=='normaal':assert linkwarden.base_url('192.168.1.119')=='http://192.168.1.119:3000'
+    elif case=='boundary':
+        assert linkwarden.base_url('192.168.1.119:8080')=='http://192.168.1.119:8080'
+        assert linkwarden.base_url('[fd00::119]:3000')=='http://[fd00::119]:3000'
+    else:
+        for value in ('8.8.8.8','192.168.1.119:99999','192.168.1.119?token=secret','192.168.1.119;echo'):
+            with pytest.raises(ValueError):linkwarden.base_url(value)

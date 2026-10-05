@@ -9,7 +9,7 @@ De Linkwarden-browserextensie gebruikt dezelfde server. Een daarmee opgeslagen b
 ## Bestaande installatie koppelen
 
 1. Open als admin **Admin → Modulebeheer → Linkwarden**.
-2. Kies **Bestaande Linkwarden koppelen**, vul het HTTPS-basisadres in en eventueel meteen jouw persoonlijke API-token. Een `/dashboard`-adres wordt omgezet naar het basisadres. Alleen admins mogen de bestemming veranderen.
+2. Kies **Bestaande Linkwarden koppelen**, vul het HTTPS-basisadres of een intern IP-adres in en eventueel meteen jouw persoonlijke API-token. Alleen een intern IP krijgt standaard HTTP en poort 3000; een expliciete poort blijft behouden. Een `/dashboard`-adres wordt omgezet naar het basisadres. Alleen admins mogen de bestemming veranderen.
 3. Open **Bookmarks → Mijn koppeling** en vul een persoonlijke Linkwarden-API-token in.
 4. De server controleert `/api/v1/users/me`: de e-mail moet overeenkomen met het huidige ControlDeck-account. Daarna kunnen bookmarks worden opgehaald.
 
@@ -46,7 +46,9 @@ Deze Docker-route is voorbereid en geautomatiseerd getest met fixtures. Er is vo
 
 ## Proxmox LXC
 
-De wizard biedt ook **Nieuwe Proxmox LXC** en verwijst naar het officiële Proxmox VE Helper-Script. De huidige Proxmox-koppeling in ControlDeck is read-only. De uitvoerende hostverbinding en Helper-Script-adapter zijn nog niet aangesloten; starten is daarom serverzijdig geblokkeerd. Er is nog geen nieuwe Linkwarden-LXC vanuit ControlDeck aangemaakt. Het tonen van de keuze betekent niet dat deze route al uitvoerbaar is.
+De wizard biedt **Nieuwe Proxmox LXC** met een begeleide installatie. Kies eerst een online node uit de gekoppelde Proxmox-cluster. Als de nodegegevens niet beschikbaar zijn, kun je de nodenaam handmatig invullen. Daarna toont de wizard het officiële Helper-Script en de stappen om het als root in de Shell van die Proxmox-host uit te voeren. Container-ID, opslag, netwerk en resources kies je in het Helper-Script. Offline nodes uit de opgehaalde lijst zijn niet selecteerbaar.
+
+Nadat de gebruiker bevestigt dat de installatie gereed is, gaat de wizard verder naar het adres/IP-adres en de persoonlijke API-token. De bevestiging is een gebruikersverklaring, geen automatische healthcheck; de API-tokencontrole verifieert de toegang. De huidige Proxmox-koppeling blijft read-only. Automatisch starten en volgen op de host is nog niet aangesloten, en ControlDeck claimt geen voortgang van een handmatig gestart script. Er wordt geen SSH-toegang gevraagd om deze begeleide route te gebruiken.
 
 ## Verificatie en grenzen
 
