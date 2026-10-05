@@ -1,6 +1,6 @@
 # Ontwerp: module Cronjobs en ControlDeck-agent op Proxmox-nodes
 
-**Status:** ontwerp goedgekeurd op hoofdlijnen (zie §8), nog niet gebouwd. Gekozen route: eigen module met eigen agent (niet CronMaster koppelen, omdat de CronMaster-API geen aanmaken, pauzeren en run-geschiedenis biedt). Basis voor [#9 cronjob-manager](https://github.com/strammermax/ControlDeck/issues/9) en [#1 installeren en LXC-updates op nodes](https://github.com/strammermax/ControlDeck/issues/1).
+**Status:** ontwerp goedgekeurd (zie §8). Bouw in vier stappen: **1. agent (`scripts/controldeck-agent.py`) — gebouwd**, 2. verbinding via de root-worker, 3. module in Modulebeheer, 4. pagina Proxmox → Nodes → Cronjobs. Gekozen route: eigen module met eigen agent (niet CronMaster koppelen, omdat de CronMaster-API geen aanmaken, pauzeren en run-geschiedenis biedt). Basis voor [#9 cronjob-manager](https://github.com/strammermax/ControlDeck/issues/9) en [#1 installeren en LXC-updates op nodes](https://github.com/strammermax/ControlDeck/issues/1).
 
 ## 1. Waarom
 
@@ -125,6 +125,10 @@ De functies zijn geïnspireerd op [CronMaster](https://github.com/fccview/cronma
 | Eigen HTTPS-dienst (agent) op elke node | Extra open poort en dienst die altijd draait; SSH staat al op elke node |
 | Ansible | Zwaar voor de lichte runtime; vraagt toch volledige SSH-toegang |
 | CronMaster koppelen | Extra root-webdienst (Node.js, http, poort 3000) op elke node; de REST-API kan geen jobs aanmaken of pauzeren en geeft geen run-geschiedenis |
+
+## 7a. Stand van stap 1
+
+`scripts/controldeck-agent.py` (Python 3, alleen standaardbibliotheek) bevat alle acties uit §3, de log-wrapper (`run <id>`), rotatie (20 runs / 14 dagen), lock tegen dubbel draaien, uitvoer tot 256 KiB per run, overnemen/teruggeven met back-up en het auditlog `/var/log/controldeck-agent.log`. De ControlDeck-cronregels bevatten alleen `controldeck-agent run <id>`; het commando zelf staat in de root-only jobdefinitie. Tests: `tests/test_agent.py` (op Windows draaien alleen de onderdelen zonder `/bin/sh`; CI draait alles op Linux). Nog niet verbonden met ControlDeck.
 
 ## 8. Besluiten (5 oktober 2026)
 
