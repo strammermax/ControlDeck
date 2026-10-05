@@ -1,0 +1,10 @@
+[Unit]
+Description=ControlDeck approved module installation worker
+After=docker.service controldeck.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/controldeck/current/venv/bin/python /usr/local/sbin/controldeck-install-worker
+TimeoutStartSec=600
+UMask=0027

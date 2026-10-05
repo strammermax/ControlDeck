@@ -58,3 +58,5 @@ GPL-3.0. See [LICENSE](LICENSE). ProxMenux Monitor is a design and technology re
 ## Termix
 
 De optionele Terminal-integratie gebruikt een afzonderlijke Docker-container, de bestaande Google-login en een beveiligde Nginx-gateway. Zie [Termix-installatie en beheer](docs/TERMIX.md).
+
+De admin-installatiewizard biedt Docker en Proxmox LXC als keuzes, met voorafgaande controle en voortgang. Zie [module-installatiewizard](docs/MODULE-WIZARD.md). Docker is aangesloten; de Proxmox-uitvoering vereist nog de hostverbinding en Helper-Script-adapter.

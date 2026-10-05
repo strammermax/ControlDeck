@@ -1,0 +1,11 @@
+[Unit]
+Description=Check the ControlDeck module installation queue
+
+[Timer]
+OnBootSec=10s
+OnUnitInactiveSec=15s
+AccuracySec=1s
+Unit=controldeck-install.service
+
+[Install]
+WantedBy=timers.target

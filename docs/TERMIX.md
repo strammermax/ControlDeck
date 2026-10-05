@@ -10,7 +10,7 @@ Installeer eerst ControlDeck, Google SSO en minstens één actief Google-adminpr
 bash scripts/install-termix.sh
 ```
 
-Het script installeert Docker Compose en Nginx, start de vastgepinde officiële Termix 2.9.1-image, maakt het eerste adminprofiel en activeert de runtime-provider. Het installeert geen extra Proxmox-container en wijzigt de Cloudflare Tunnel niet. Voor een losse LXC kan dezelfde Docker-container worden gebruikt, maar de huidige bridge verwacht Termix op loopback en moet dan eerst worden aangepast.
+Het script gebruikt bestaande Docker/Compose-installaties of installeert deze indien nodig, installeert Nginx, start de vastgepinde officiële Termix 2.9.1-image, maakt het eerste adminprofiel en activeert de runtime-provider. Het installeert geen extra Proxmox-container en wijzigt de Cloudflare Tunnel niet. Voor een losse LXC kan dezelfde Docker-container worden gebruikt, maar de huidige bridge verwacht Termix op loopback en moet dan eerst worden aangepast.
 
 ## Verkeer en opslag
 

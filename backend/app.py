@@ -1,4 +1,4 @@
-"""Minimal deployment foundation; integrations and login are not implemented yet."""
+"""Authenticated ControlDeck runtime with configuration and module integrations."""
 
 import json
 import os
@@ -9,6 +9,7 @@ from flask import Flask, g, jsonify, send_from_directory
 from backend.configuration import ConfigurationError, DEFAULT_PATH, load_config
 from backend.auth import filter_configuration, setup_auth
 from backend.termix import setup_termix
+from backend.installations import setup_installations
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -20,6 +21,7 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     configuration_path = config_path or os.environ.get("CONTROLDECK_CONFIG") or DEFAULT_PATH
     setup_auth(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data", accounts_path or os.environ.get("CONTROLDECK_ACCOUNTS") or ROOT / "config/accounts.json")
     setup_termix(app, configuration_path)
+    setup_installations(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     metadata_path = ROOT / "build-info.json"
     metadata = (
         json.loads(metadata_path.read_text(encoding="utf-8"))

@@ -1,0 +1,10 @@
+{
+  "id": "termix",
+  "name": "Termix",
+  "description": "SSH-terminals en bestandsbeheer binnen ControlDeck, met je bestaande login.",
+  "version": "2.9.1",
+  "module": "terminal",
+  "methods": ["docker", "lxc"],
+  "resources": {"cpu": 1, "memoryMb": 512},
+  "documentation": "https://docs.termix.site/install/server/docker/"
+}

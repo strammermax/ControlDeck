@@ -14,7 +14,7 @@ test('terminal normaal: uses protected endpoint and CSRF token', async () => {
     assert.equal(await startTerminal('csrf'), true);
   } finally {globalThis.fetch=previous;}
 });
-test('terminal boundary: abort signal propagates and empty token is rejected', async () => {
+test('terminal boundary: abort signal propagates and unready session is rejected', async () => {
   const previous=globalThis.fetch;
   try {
     const signal=new AbortController().signal;

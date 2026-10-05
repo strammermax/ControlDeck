@@ -12,3 +12,18 @@
 
 .terminal-toolbar {display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:12px;color:var(--muted)}
 .terminal-frame {width:100%;height:max(580px, calc(100dvh - 300px));border:1px solid #333;border-radius:10px;background:#171717;}
+
+.module-wizard {max-width:940px;border:1px solid var(--border);border-radius:12px;padding:24px;background:var(--card)}
+.wizard-progress {display:flex;flex-wrap:wrap;gap:10px;list-style:none;padding:0;margin:24px 0}
+.wizard-progress li {padding:10px 12px;border-radius:8px;background:var(--bg);color:var(--muted)}
+.wizard-progress li[aria-current] {background:#347ff3;color:white}
+.module-wizard fieldset {border:0;padding:12px 0;margin:0}
+.module-wizard legend {font-weight:600;font-size:18px}
+.wizard-choice {display:flex;gap:14px;align-items:flex-start;padding:20px;margin:12px 0;border:1px solid var(--border);border-radius:10px;cursor:pointer}
+.wizard-choice input {margin-top:5px;accent-color:#347ff3}
+.wizard-actions {display:flex;gap:12px;margin-top:24px}
+.wizard-actions button {padding:10px 20px}
+.wizard-actions button:last-child {background:#347ff3;color:white}
+.module-wizard select {display:block;padding:10px;margin-top:8px;max-width:100%;background:var(--bg);color:inherit;border:1px solid var(--border);border-radius:6px}
+.module-wizard dl {display:grid;grid-template-columns:140px 1fr;gap:10px}
+.module-wizard dd {margin:0}

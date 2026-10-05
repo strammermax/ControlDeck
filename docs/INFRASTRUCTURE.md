@@ -124,3 +124,5 @@ De accountlijst is niet onderdeel van de publieke repository. Configuratie, acco
 ## Termix
 
 De optionele Terminal-integratie gebruikt een afzonderlijke Docker-container, de bestaande Google-login en een beveiligde Nginx-gateway. Zie [Termix-installatie en beheer](TERMIX.md).
+
+De admin-installatiewizard biedt Docker en Proxmox LXC als keuzes, met voorafgaande controle en voortgang. Zie [module-installatiewizard](MODULE-WIZARD.md). Docker is aangesloten; de Proxmox-uitvoering vereist nog de hostverbinding en Helper-Script-adapter.

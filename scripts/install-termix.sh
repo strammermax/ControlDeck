@@ -31,17 +31,39 @@ try:
 except urllib.error.HTTPError as error:
     if error.code != 409: raise SystemExit('Termix bootstrap rejected')
 PY
+backup=$(mktemp -d /tmp/controldeck-termix-rollback-XXXXXX)
+targets=(/etc/systemd/system/controldeck.service.d/termix.conf /etc/nginx/conf.d/controldeck-termix.conf /var/lib/controldeck/config/modules/core.json /var/lib/controldeck/config/providers/termix.json)
+for i in "${!targets[@]}"; do
+    if [[ -f ${targets[$i]} ]]; then cp -p -- "${targets[$i]}" "$backup/$i"; fi
+done
+rollback() {
+    result=$?
+    trap - ERR
+    for i in "${!targets[@]}"; do
+        if [[ -f $backup/$i ]]; then cp -p -- "$backup/$i" "${targets[$i]}";
+        else rm -f -- "${targets[$i]}"; fi
+    done
+    systemctl reload nginx || true
+    systemctl daemon-reload
+    systemctl restart controldeck || true
+    echo 'Integration setup failed; previous gateway and configuration restored.' >&2
+    exit "$result"
+}
+trap rollback ERR
+trap 'rm -rf -- "$backup"' EXIT
+runtime_changed=true
+if cmp -s "$source_root/deploy/termix-app.conf" /etc/systemd/system/controldeck.service.d/termix.conf; then runtime_changed=false; fi
 install -d -m 0755 /etc/systemd/system/controldeck.service.d
 install -m 0644 "$source_root/deploy/termix-app.conf" /etc/systemd/system/controldeck.service.d/termix.conf
 install -m 0644 "$source_root/deploy/termix-gateway.conf" /etc/nginx/conf.d/controldeck-termix.conf
 nginx -t
 systemctl daemon-reload
-systemctl restart controldeck
+if [[ $runtime_changed == true ]] || ! systemctl is-active --quiet controldeck; then systemctl restart controldeck; fi
 systemctl enable --now nginx
 systemctl reload nginx
 # Preserve all other private module/provider settings.
 python3 - <<'PY'
-import json, os
+import json, os, shlex
 from pathlib import Path
 root = Path('/var/lib/controldeck/config')
 modules = root / 'modules/core.json'
@@ -49,7 +71,10 @@ data = json.loads(modules.read_text())
 next(m for m in data if m['id'] == 'terminal')['view'] = 'terminal'
 modules.write_text(json.dumps(data, indent=2) + '\n')
 provider = root / 'providers/termix.json'
-provider.write_text(json.dumps({'id':'termix','type':'termix','label':'Termix','enabled':True,'url':'https://controldeck.vanburik.info/termix/'}, indent=2) + '\n')
+env = Path('/etc/controldeck/controldeck.env').read_text()
+base = next(shlex.split(line.split('=', 1)[1])[0] for line in env.splitlines() if line.startswith('CONTROLDECK_BASE_URL='))
+if not base.startswith('https://'): raise SystemExit('Configure the HTTPS base URL first')
+provider.write_text(json.dumps({'id':'termix','type':'termix','label':'Termix','enabled':True,'url':base.rstrip('/')+'/termix/'}, indent=2) + '\n')
 os.chmod(provider, 0o640)
 import grp
 os.chown(provider, 0, grp.getgrnam('controldeck').gr_gid)

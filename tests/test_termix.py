@@ -1,4 +1,3 @@
-import copy
 import json
 from unittest.mock import Mock
 
@@ -128,3 +127,24 @@ def test_write_origin(bridge,case):
     if case=='boundary': headers['X-Original-Method']='OPTIONS';headers.pop('Origin')
     elif case=='faal': headers.pop('Origin')
     assert client.get('/api/termix/authorize',headers=headers).status_code==(403 if case=='faal' else 204)
+
+
+@pytest.mark.parametrize('problem',['missing-cookie','malformed','wrong-user','wrong-role','provision-failed'])
+def test_bridge_rejects_invalid_upstream_sessions(bridge,monkeypatch,problem):
+    client,_,_=bridge
+    signed=response(success=True,username='user@example.test',is_admin=False)
+    created=response(409)
+    if problem=='missing-cookie': signed.cookies={}
+    elif problem=='malformed': signed.json=lambda:[]
+    elif problem=='wrong-user': signed.json=lambda:{'success':True,'username':'admin@example.test','is_admin':False}
+    elif problem=='wrong-role': signed.json=lambda:{'success':True,'username':'user@example.test','is_admin':True}
+    elif problem=='provision-failed': created=response(500)
+    monkeypatch.setattr('backend.termix.requests.post',Mock(side_effect=[created,signed]))
+    result=client.post('/api/termix/session',headers={'X-CSRF-Token':'csrf'})
+    assert result.status_code==503
+    assert 'Set-Cookie' not in result.headers
+
+
+def test_gateway_rejects_foreign_websocket_origin(bridge):
+    client,_,_=bridge
+    assert client.get('/api/termix/authorize',headers={'X-Original-URI':'/termix/plugin-ws/ssh-terminal/terminal','X-Original-Upgrade':'websocket','Origin':'https://foreign.example.test'}).status_code==403
