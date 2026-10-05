@@ -34,7 +34,7 @@ Tags publiceren een release maar voeren geen tweede LXC-deployment uit. Producti
 - Variabele: `LXC_DEPLOY_ENABLED=true` zodra de runner en servicebootstrap klaar zijn.
 - Runnerlabels: `self-hosted`, `linux`, `controldeck-production`.
 - Het workflowtoken krijgt alleen per job benodigde rechten; geen extra PAT nodig voor builds en releases.
-- Een nieuw GHCR-package kan standaard privé zijn, ook bij een publieke repository. Controleer pakketvisibility voordat je communitygebruik zonder login belooft.
+- Het ControlDeck-image is na publicatie zonder login opgehaald via de registry-manifestcontrole. Bij een eigen fork: controleer pakketvisibility; een nieuw package kan standaard privé zijn.
 
 De self-hosted runner voert alleen jobs van vertrouwde main-pushes uit. Gebruik geen `pull_request_target`-job om code uit forks op de LXC uit te voeren. Het productieartifact bevat uitvoerbare code en dependencies: schrijf- en workflowrechten op de repository zijn daarom ook deploymentrechten. Configureer bij meerdere bijdragers branchbescherming en reviewbeleid.
 

@@ -11,7 +11,7 @@ curl -f http://127.0.0.1:8080/ready
 
 Compose bindt standaard alleen op localhost. Gebruik een reverse proxy voor toegang vanaf andere apparaten. De applicatie draait zonder root, met een alleen-lezen filesystem en een tijdelijke `/tmp`. De build vraagt meer resources dan de uiteindelijke runtime.
 
-Voor een gepubliceerd image gebruik je een bestaande releasetag, bijvoorbeeld `ghcr.io/strammermax/controldeck:v0.1.0`. Controleer eerst of de package publiek beschikbaar is; zo niet, is registry-login nodig. Docker-in-LXC is niet vereist voor de volgende route.
+Voor een gepubliceerd image gebruik je een bestaande releasetag, bijvoorbeeld `ghcr.io/strammermax/controldeck:v0.1.0`. Het ControlDeck-package is zonder login beschikbaar. Bij een eigen fork moet je packagevisibility controleren; bij een privépackage is registry-login nodig. Docker-in-LXC is niet vereist voor de volgende route.
 
 ## Debian LXC
 

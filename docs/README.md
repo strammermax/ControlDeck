@@ -15,6 +15,7 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [SECURITY.md](SECURITY.md) | Toegangsgrenzen en meldprocedure |
 | [THIRD-PARTY.md](THIRD-PARTY.md) | Bronnen en afhankelijkheden |
 | [CHANGELOG.md](CHANGELOG.md) | Wijzigingen per versie |
+| [VERIFICATION.md](VERIFICATION.md) | Uitgevoerde controles en meetgrenzen |
 
 ## Documentatiebeleid
 
