@@ -1,6 +1,6 @@
 # Ontwerp: module Cronjobs en ControlDeck-agent op Proxmox-nodes
 
-**Status:** ontwerp goedgekeurd (zie §8). Bouw in vier stappen: **1. agent (`scripts/controldeck-agent.py`) — gebouwd**, **2. verbinding via de agent-proxy — gebouwd**, 3. module in Modulebeheer, 4. pagina Proxmox → Nodes → Cronjobs. Gekozen route: eigen module met eigen agent (niet CronMaster koppelen, omdat de CronMaster-API geen aanmaken, pauzeren en run-geschiedenis biedt). Basis voor [#9 cronjob-manager](https://github.com/strammermax/ControlDeck/issues/9) en [#1 installeren en LXC-updates op nodes](https://github.com/strammermax/ControlDeck/issues/1).
+**Status:** ontwerp goedgekeurd (zie §8). Bouw in vier stappen: **1. agent (`scripts/controldeck-agent.py`) — gebouwd**, **2. verbinding via de agent-proxy — gebouwd**, **3. module in Modulebeheer — gebouwd**, 4. pagina Proxmox → Nodes → Cronjobs. Gekozen route: eigen module met eigen agent (niet CronMaster koppelen, omdat de CronMaster-API geen aanmaken, pauzeren en run-geschiedenis biedt). Basis voor [#9 cronjob-manager](https://github.com/strammermax/ControlDeck/issues/9) en [#1 installeren en LXC-updates op nodes](https://github.com/strammermax/ControlDeck/issues/1).
 
 ## 1. Waarom
 
@@ -139,6 +139,26 @@ De functies zijn geïnspireerd op [CronMaster](https://github.com/fccview/cronma
 - `backend/agent_client.py`: de webapp-kant van het socket.
 - `scripts/install-wizard.sh` installeert de proxy (inclusief `openssh-client`, gebruiker, rechten) en zet de agent klaar in `/opt/controldeck-integrations/agent/` voor verspreiding naar de nodes (stap 3).
 - Tests: `tests/test_agent_proxy.py` (vingerafdruk vergeleken met `ssh-keygen`, gepinde hostsleutel, afgewezen vervalste hostsleutel, foutvertaling, socket-rechten `0660`).
+
+## 7c. Stand van stap 3: module Cronjobs in Modulebeheer
+
+**Admin → Modulebeheer → Installeren → Cronjobs** (bestand `config/catalog/cronjobs.json`, backend `backend/cronjobs.py`, frontend `frontend/components/cronjobs-connect.tsx`):
+
+1. **Sleutel:** ControlDeck laat de agent-proxy eenmalig een ed25519-sleutelpaar maken en toont de publieke sleutel. Draait de proxy nog niet, dan toont de wizard het commando `bash scripts/install-wizard.sh`.
+2. **Nodes:** de nodes en hun IP-adressen komen uit de Proxmox-koppeling. Per node:
+   - **Hostsleutel lezen** → vergelijk de vingerafdruk met `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` op de node → **Node koppelen**. De proxy scant opnieuw en legt de sleutel alleen vast als de vingerafdruk gelijk is.
+   - **Installatiecommando tonen** → plakken in de shell van de node. Het commando:
+     - controleert dat `python3` aanwezig is;
+     - downloadt `scripts/controldeck-agent.py` van GitHub **op de exacte commit die ControlDeck draait** en controleert de **SHA-256** vóór installatie (de checksum komt uit het bestand in de release-bundel);
+     - installeert `/usr/local/sbin/controldeck-agent`;
+     - voegt de sleutelregel `restrict,from="<IP van ControlDeck>",command="/usr/local/sbin/controldeck-agent" …` toe, maar alleen als die er nog niet staat. Op Proxmox is `/root/.ssh/authorized_keys` een symlink naar het clustergedeelde `/etc/pve/priv/authorized_keys`; het commando schrijft daar met `>>` doorheen, dus één keer toevoegen geldt voor het hele cluster.
+     - Het IP-adres van ControlDeck bepaalt ControlDeck zelf per node (de route naar die node).
+   - **Verbinding testen** → agent-actie `info`. Status per node: Klaar, Agent verouderd, Agent nog niet geïnstalleerd, Hostsleutel veranderd, Niet bereikbaar, Nog niet gekoppeld (onbekend is nooit "Klaar").
+3. **Geïnstalleerd** zodra minstens één node "Klaar" is (`<datamap>/cronjobs/connection.json`).
+
+**Verwijderen** vergeet de hostsleutels in de proxy en toont de commando's voor de node. Het commando om de sleutel uit `authorized_keys` te halen schrijft via `cat … >` door de symlink heen; `sed -i` zou de symlink naar het clusterbestand vervangen.
+
+API (alleen admins, CSRF): `GET /api/cronjobs/agent`, `POST /api/cronjobs/agent/key`, `/scan`, `/trust`, `/install-command`, `/test`, `DELETE /api/cronjobs/connection`.
 
 ## 8. Besluiten (5 oktober 2026)
 

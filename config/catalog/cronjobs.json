@@ -1,0 +1,9 @@
+{
+  "id": "cronjobs",
+  "name": "Cronjobs",
+  "kind": "connect",
+  "description": "Cronjobs per node beheren en monitoren via de ControlDeck-agent (SSH, vaste acties, geen extra webdienst).",
+  "version": "agent 1",
+  "module": "proxmox",
+  "documentation": "https://github.com/strammermax/ControlDeck/blob/main/docs/NODE-AGENT.md"
+}

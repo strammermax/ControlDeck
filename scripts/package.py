@@ -26,7 +26,7 @@ def main():
     (ROOT / "build-info.json").write_text(json.dumps(metadata) + "\n")
     archive = dist / "controldeck-linux.tar.gz"
     with tarfile.open(archive, "w:gz") as bundle:
-        for relative in ("backend", "config", "frontend/out", "requirements.txt", "VERSION", "build-info.json", "LICENSE"):
+        for relative in ("backend", "config", "frontend/out", "requirements.txt", "VERSION", "build-info.json", "LICENSE", "scripts/controldeck-agent.py"):
             bundle.add(ROOT / relative, arcname=relative, filter=clean_member)
     checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
     (dist / "SHA256SUMS").write_text(f"{checksum}  {archive.name}\n")

@@ -4,6 +4,7 @@ import {installationRequest,modulesFor,type CatalogModule,type InstallPlan,type 
 import {ProxmoxConnect} from "./proxmox-connect";
 import {ProxmenuxConnect} from "./proxmenux-connect";
 import {LinkwardenConnect} from "./linkwarden-connect";
+import {CronjobsConnect} from "./cronjobs-connect";
 import {ModuleRemove} from "./module-remove";
 import {useJob,type Job} from "./use-job";
 
@@ -37,6 +38,7 @@ export function ModuleWizard({csrfToken}:{csrfToken:string}) {
     : current ? (current.id==="linkwarden" ? <LinkwardenConnect csrfToken={csrfToken} onBack={back} remove={tab==="remove"}/> : tab==="remove" ? <ModuleRemove module={current} csrfToken={csrfToken} onDone={back}/>
       : current.id==="proxmox" ? <ProxmoxConnect csrfToken={csrfToken} onBack={back}/>
       : current.id==="proxmenux" ? <ProxmenuxConnect csrfToken={csrfToken} onBack={back}/>
+      : current.id==="cronjobs" ? <CronjobsConnect csrfToken={csrfToken} onBack={back}/>
       : <TermixFlow csrfToken={csrfToken} repair={tab==="edit"} onBack={back}/>)
     : <>
       <p>{info.intro}</p>

@@ -15,6 +15,7 @@ from backend.proxmenux import setup_proxmenux
 from backend.linkwarden import setup_linkwarden
 from backend.homepage import setup_homepage
 from backend.homepage_integrations import setup_homepage_integrations
+from backend.cronjobs import setup_cronjobs
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -25,6 +26,12 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     started_at = time.monotonic()
     configuration_path = config_path or os.environ.get("CONTROLDECK_CONFIG") or DEFAULT_PATH
     setup_auth(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data", accounts_path or os.environ.get("CONTROLDECK_ACCOUNTS") or ROOT / "config/accounts.json")
+    metadata_path = ROOT / "build-info.json"
+    metadata = (
+        json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata_path.exists()
+        else {"version": (ROOT / "VERSION").read_text().strip(), "commit": "development"}
+    )
     setup_termix(app, configuration_path)
     setup_installations(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_proxmox(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
@@ -32,12 +39,7 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     setup_linkwarden(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_homepage(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_homepage_integrations(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
-    metadata_path = ROOT / "build-info.json"
-    metadata = (
-        json.loads(metadata_path.read_text(encoding="utf-8"))
-        if metadata_path.exists()
-        else {"version": (ROOT / "VERSION").read_text().strip(), "commit": "development"}
-    )
+    setup_cronjobs(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data", metadata.get("commit"))
 
     @app.get("/health")
     def health():

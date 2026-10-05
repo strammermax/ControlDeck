@@ -41,6 +41,7 @@ Voorbeelden uit dit project:
 | Detectie: niet-JSON-antwoord via https viel terug op http | `test_detect_states[faal]` |
 | Installatie-API: ontbrekende worker gaf "verouderd" (409) in plaats van "niet beschikbaar" (503) | `test_queue_installation[faal]` |
 | Proxmox-client: query-parameter `path=` botste met de argumentnaam | `test_connect_flow` (gebruikt `/access/permissions?path=/`) |
+| Cronjobs: verwijdercommando met `sed -i` zou de symlink `/root/.ssh/authorized_keys` → clusterbestand vervangen | `tests/test_cronjobs.py::test_removal_command_keeps_the_cluster_authorized_keys_symlink` |
 | Agent-proxy: `serve()` zette de umask van het hele proces, waardoor in CI 217 andere tests faalden met "Permission denied" | `tests/test_agent_proxy.py::test_socket_server_and_client` |
 
 ## Normaal, boundary, faal

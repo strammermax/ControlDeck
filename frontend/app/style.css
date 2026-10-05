@@ -218,3 +218,6 @@ footer .release-link:hover {color:var(--blue);text-decoration:underline}
 .modal-close:hover {color:var(--text)}
 .modal .bookmark-form.in-modal,.modal .homepage-app-picker {margin:0;padding:0;border:0;max-width:none;background:none}
 @media(max-width:540px){.modal-content{padding:16px}}
+.agent-node-head {display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
+.agent-node-head .muted {color:var(--muted);font-size:13px}
+.node-block > button {margin:6px 8px 0 0;padding:8px 14px}

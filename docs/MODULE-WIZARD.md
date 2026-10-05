@@ -16,6 +16,7 @@ De admin opent **Admin → Modulebeheer** en kiest een tabblad:
 | --- | --- | --- |
 | Proxmox VE | Verbinding en token van de server verwijderen (`DELETE /api/proxmox/connection`) | `pveum user token remove controldeck@pve controldeck` (en optioneel de gebruiker) |
 | ProxMenux Monitor | Tokens en cluster-CA van de server verwijderen | Tokens intrekken in elke monitor; ProxMenux blijft op de nodes |
+| Cronjobs | Hostsleutels van alle nodes vergeten in de agent-proxy | Sleutelregel uit `authorized_keys` halen (commando getoond, veilig voor de clustersymlink); optioneel agent en `/etc/cron.d/controldeck` verwijderen. Zie [NODE-AGENT.md](NODE-AGENT.md) |
 | Termix | Root-worker voert `uninstall-termix.sh` uit: provider uit, Nginx-gateway en runtime-drop-in weg, ControlDeck terug op poort 8080, container verwijderd | — |
 
 Bij Termix kiest de admin **Gegevens bewaren** (standaard; het Docker-volume blijft, opnieuw installeren brengt alles terug) of **Alles verwijderen** (`--delete-data`: verbindingen, sleutels en opnamen definitief weg). Docker en Nginx blijven geïnstalleerd. De verwijderopdracht bevat naast de vaste velden alleen `action: "uninstall"` en de boolean `keepData`; de worker zet dat om in een vaste argumentenlijst.

@@ -20,6 +20,8 @@ COPY backend/ backend/
 COPY config/ config/
 COPY VERSION LICENSE ./
 COPY scripts/version.py scripts/version.py
+# The node agent is offered to Proxmox nodes (module Cronjobs); its checksum must match this exact file.
+COPY scripts/controldeck-agent.py scripts/controldeck-agent.py
 RUN python scripts/version.py --check "${APP_VERSION}" && python -c "import json,pathlib; pathlib.Path('build-info.json').write_text(json.dumps({'version':'${APP_VERSION}','commit':'${APP_COMMIT}'}))"
 COPY --from=ui /build/out/ frontend/out/
 COPY scripts/python_licenses.py scripts/python_licenses.py

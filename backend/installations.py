@@ -72,7 +72,7 @@ def setup_installations(app, configuration_path, data_dir):
             for module in modules:
                 module.setdefault('kind', 'install')
             state = status()
-            connections = {name: (Path(data_dir) / name / 'connection.json').is_file() for name in ('proxmox', 'proxmenux', 'linkwarden')}
+            connections = {name: (Path(data_dir) / name / 'connection.json').is_file() for name in ('proxmox', 'proxmenux', 'linkwarden', 'cronjobs')}
             for module in modules:
                 module['installed'] = connections.get(module['id'], False) if module['kind'] == 'connect' or module['id']=='linkwarden' else (state['configured'] if module['id'] == 'termix' else False)
             return jsonify(modules=modules, status=state, connections=connections)
