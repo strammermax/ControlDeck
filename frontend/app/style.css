@@ -28,8 +28,15 @@
 .module-wizard dl {display:grid;grid-template-columns:140px 1fr;gap:10px}
 .module-wizard dd {margin:0}
 
-.settings-link {height:44px;width:44px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:9px;background:var(--card)}
-.settings-link.active,.settings-link:hover {color:var(--blue);border-color:var(--blue)}
+.user-menu {position:relative}
+.user-menu summary {list-style:none;cursor:pointer;padding:8px 12px;border:1px solid transparent;border-radius:9px}
+.user-menu summary::-webkit-details-marker {display:none}
+.user-menu summary:hover,.user-menu[open] summary {border-color:var(--border);background:color-mix(in srgb,var(--text) 6%,transparent)}
+.user-menu[open] .chevron {transform:rotate(180deg)}
+.user-dropdown {position:absolute;z-index:20;top:calc(100% + 8px);right:0;min-width:220px;padding:6px;background:var(--card);border:1px solid var(--border);border-radius:9px;box-shadow:0 12px 30px #0004;display:grid;gap:2px}
+.user-dropdown a,.user-dropdown button {display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;border-radius:6px;background:none;color:var(--muted);font-size:14px;text-align:left}
+.user-dropdown a:hover,.user-dropdown button:hover {background:color-mix(in srgb,var(--text) 6%,transparent);color:var(--text)}
+.user-dropdown a[aria-current=page] {color:var(--blue);background:#3782f615}
 .settings {display:grid;gap:28px;max-width:1780px;padding-bottom:24px}
 .module .settings-intro {margin:-4px 0 0;font-size:16px}
 .settings-card {border:1px solid var(--border);border-radius:12px;background:var(--card);padding:28px 34px}
@@ -52,3 +59,9 @@
 .settings-footer button {color:var(--muted);background:transparent}
 .module .settings-message {min-height:1em;margin:8px 0 0}
 @media(max-width:800px){.settings-card{padding:20px}.settings-heading{margin:-20px -20px 0;padding:20px;flex-direction:column}.nav-order,.settings-footer{margin:0 -20px;padding-left:20px;padding-right:20px}.settings-row{flex-direction:column;align-items:stretch}}
+.user-dropdown .separated {border-top:1px solid var(--border);border-radius:0 0 6px 6px;margin-top:4px;padding-top:12px}
+.profile {max-width:720px}
+.profile dl {display:grid;grid-template-columns:180px 1fr;gap:14px;margin:24px 0 0;font-size:15px}
+.profile dt {color:var(--muted)}
+.profile dd {margin:0;overflow-wrap:anywhere}
+@media(max-width:540px){.profile dl{grid-template-columns:1fr;gap:4px}.profile dd{margin-bottom:10px}}

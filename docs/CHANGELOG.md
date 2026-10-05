@@ -2,6 +2,7 @@
 
 ## Unreleased — Personal settings
 
+- Gebruikersdropdown rechtsboven met Profiel, Instellingen en Uitloggen.
 - Persoonlijke Instellingen-pagina per gebruiker: interfacetaal (Nederlands/English) en volgorde van de hoofdnavigatie met slepen, Annuleren, Opslaan en Standaard herstellen.
 
 ## 0.3.0 — Configuration, SSO and users

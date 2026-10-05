@@ -29,7 +29,7 @@ Bij deze wijziging worden TypeScript, productie-export en Python-tests uitgevoer
 
 ## Persoonlijke instellingen
 
-Het tandwiel rechtsboven opent `#settings`. Elke aangemelde gebruiker ziet deze pagina, los van de modulerechten. De instellingen gelden per gebruiker en worden via `/api/preferences` in SQLite opgeslagen, dus ook op andere apparaten gebruikt.
+Klik rechtsboven op je naam: de dropdown bevat Profiel (`#profile`, alleen-lezen: naam, e-mail, rol en aanmeldmethode), Instellingen (`#settings`) en Uitloggen. Escape of klikken buiten de dropdown sluit hem. Elke aangemelde gebruiker ziet deze pagina, los van de modulerechten. De instellingen gelden per gebruiker en worden via `/api/preferences` in SQLite opgeslagen, dus ook op andere apparaten gebruikt.
 
 - **Interfacetaal:** Nederlands (standaard) of English. De keuze wordt direct opgeslagen. Voorlopig vertalen de Instellingen-pagina en de bediening rechtsboven; menulabels komen uit de configuratie.
 - **Menuvolgorde:** sleep de hoofdtabbladen in de gewenste volgorde en kies Opslaan. Annuleren zet de laatst opgeslagen volgorde terug, Standaard herstellen de configuratievolgorde. Groepen zoals Proxmox en Admin verplaatsen als geheel. Op touchscherm eerst lang drukken; met het toetsenbord Alt+pijl omhoog/omlaag op de greep.

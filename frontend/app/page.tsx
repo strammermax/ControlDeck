@@ -10,10 +10,11 @@ import { ModuleWizard } from "../components/module-wizard";
 import { Terminal } from "../components/terminal";
 import { Accounts } from "../components/accounts";
 
-type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string } | null; csrfToken: string | null };
+type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string; ssoType?: string } | null; csrfToken: string | null };
 type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string; language?: "nl" | "en"; navOrder?: string[] };
 /** Personal settings page; available to every signed-in user, independent of module grants. */
 const SETTINGS_ROUTE = "settings";
+const PROFILE_ROUTE = "profile";
 
 type Health = { status: string; version: string; uptime_seconds: number };
 function uptime(seconds: number) {
@@ -41,7 +42,8 @@ export default function Home() {
   const nav = useRef<HTMLElement>(null);
   const request = useRef<AbortController | null>(null);
   const hamburger = useRef<HTMLButtonElement>(null);
-  const closeMenus = useCallback(() => { nav.current?.querySelectorAll("details[open]").forEach(item => item.removeAttribute("open")); }, []);
+  const userMenu = useRef<HTMLDetailsElement>(null);
+  const closeMenus = useCallback(() => { nav.current?.querySelectorAll("details[open]").forEach(item => item.removeAttribute("open")); userMenu.current?.removeAttribute("open"); }, []);
   const destinations = useMemo(() => config ? getDestinations(config) : [], [config]);
   const refresh = useCallback(async () => {
     request.current?.abort();
@@ -94,7 +96,7 @@ export default function Home() {
   useEffect(() => {
     const route = () => {
       const id = window.location.hash.slice(1) || preferences.current.lastRoute || "";
-      setActive(id === SETTINGS_ROUTE || destinations.some(item => item.id === id) ? id : (config ? firstRoute(config.menu) ?? destinations[0]?.id ?? "" : ""));
+      setActive(id === SETTINGS_ROUTE || id === PROFILE_ROUTE || destinations.some(item => item.id === id) ? id : (config ? firstRoute(config.menu) ?? destinations[0]?.id ?? "" : ""));
       setMobile(false); closeMenus();
     };
     route(); window.addEventListener("hashchange", route);
@@ -140,11 +142,16 @@ export default function Home() {
     if (config) document.title = config.site.title;
   }, [config]);
   useEffect(() => {
-    const outside = (event: PointerEvent) => { if (!nav.current?.contains(event.target as Node)) closeMenus(); };
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!nav.current?.contains(target)) nav.current?.querySelectorAll("details[open]").forEach(item => item.removeAttribute("open"));
+      if (!userMenu.current?.contains(target)) userMenu.current?.removeAttribute("open");
+    };
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       const open = nav.current?.querySelector<HTMLDetailsElement>("details[open]");
-      if (open) { open.querySelector("summary")?.focus(); closeMenus(); }
+      if (userMenu.current?.open) { userMenu.current.querySelector("summary")?.focus(); closeMenus(); }
+      else if (open) { open.querySelector("summary")?.focus(); closeMenus(); }
       else if (mobile) { setMobile(false); hamburger.current?.focus(); }
     };
     document.addEventListener("pointerdown", outside); document.addEventListener("keydown", escape);
@@ -158,8 +165,8 @@ export default function Home() {
   if (!config) return <main className="configuration-loading"><h1>ControlDeck</h1><p role="status">{configError ? "De configuratie kan niet worden geladen. Controleer de instellingen." : "Configuratie laden…"}</p>{configError && <button onClick={() => void refresh()} disabled={refreshing}>Opnieuw proberen</button>}</main>;
   if (!destinations.length) return <main className="configuration-loading"><h1>ControlDeck</h1><p>Er zijn nog geen onderdelen aan je account toegewezen. Neem contact op met je beheerder.</p><button onClick={async () => {await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); void refresh();}}>Uitloggen</button></main>;
   const site = config.site;
-  const onSettings = active === SETTINGS_ROUTE;
-  const destination = onSettings ? {id:SETTINGS_ROUTE, label:translate(personal.language, "settings"), view:"settings", description:undefined} : destinations.find(item => item.id === active) ?? destinations[0];
+  const onSettings = active === SETTINGS_ROUTE, onProfile = active === PROFILE_ROUTE;
+  const destination = onSettings ? {id:SETTINGS_ROUTE, label:translate(personal.language, "settings"), view:"settings", description:undefined} : onProfile ? {id:PROFILE_ROUTE, label:translate(personal.language, "profile"), view:"profile", description:undefined} : destinations.find(item => item.id === active) ?? destinations[0];
   const menu = orderMenu(config.menu, personal.navOrder);
   const provider = config.providers.find(item => item.id === destination?.provider);
   const navigate = (route?: string) => { if (route) setActive(route); setMobile(false); closeMenus(); };
@@ -168,11 +175,17 @@ export default function Home() {
     <header className="topbar">
       <a className="brand" href={`#${firstRoute(config.menu) ?? destinations[0]?.id}`}><img src={site.logo} alt="" className="logo" /><span><h1>{site.title}</h1><span className="subtitle">{site.subtitle}</span></span></a>
       <div className="tools">
-        <span className="user">▱ <span>{`${auth.user?.firstName ?? ""} ${auth.user?.lastName ?? ""}`.trim() || auth.user?.email}</span></span><button className="logout" onClick={async () => { const response = await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); if (response.ok) {setAuth(null); setConfig(null); void refresh();} }}>{translate(personal.language, "logout")}</button>
+        <details ref={userMenu} className="user-menu">
+          <summary className="user" aria-label={translate(personal.language, "userMenu")}><span aria-hidden="true">▱</span> <span>{`${auth.user?.firstName ?? ""} ${auth.user?.lastName ?? ""}`.trim() || auth.user?.email}</span><span className="chevron" aria-hidden="true">⌄</span></summary>
+          <div className="user-dropdown">
+            <a href={`#${PROFILE_ROUTE}`} aria-current={onProfile ? "page" : undefined} onClick={closeMenus}><Icon name="profile"/>{translate(personal.language, "profile")}</a>
+            <a href={`#${SETTINGS_ROUTE}`} aria-current={onSettings ? "page" : undefined} onClick={closeMenus}><Icon name="settings"/>{translate(personal.language, "settings")}</a>
+            <button type="button" className="separated" onClick={async () => { closeMenus(); const response = await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); if (response.ok) {setAuth(null); setConfig(null); void refresh();} }}><Icon name="logout"/>{translate(personal.language, "logout")}</button>
+          </div>
+        </details>
         <span className={`status ${status.toLowerCase()}`} role="status" title="Bereikbaarheid van de ControlDeck-service">{status === "Online" ? "●" : "△"} {status}</span>
         <span className="uptime" title="Uptime van het ControlDeck-proces">Uptime: {status === "Online" && health ? uptime(health.uptime_seconds) : "—"}</span>
         <button className="refresh" onClick={() => void refresh()} disabled={refreshing} aria-label="Status vernieuwen"><span className={refreshing ? "spin" : ""} aria-hidden="true">⟳</span><span>Refresh</span></button>
-        <a className={onSettings ? "settings-link active" : "settings-link"} href={`#${SETTINGS_ROUTE}`} aria-current={onSettings ? "page" : undefined} title={translate(personal.language, "settings")}><Icon name="settings"/><span className="sr-only">{translate(personal.language, "settings")}</span></a>
         <button className="theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={theme === "dark" ? "Licht thema inschakelen" : "Donker thema inschakelen"}>{theme === "dark" ? "☾" : "☀"}</button>
       </div>
     </header>
@@ -192,7 +205,12 @@ export default function Home() {
       <main id="workspace" tabIndex={-1} className={destination?.view === "empty" ? "workspace" : "workspace module"}>
         {destination?.view === "empty" ? <h2 className="sr-only">{destination.label}</h2> : <>
           <h2>{destination?.label}</h2>
-          {onSettings ? <Settings menu={config.menu} settings={personal} csrfToken={auth.csrfToken!} onSaved={values => { setPersonal(values); preferences.current = {...preferences.current, ...values}; }}/> : active === "admin/modules" && auth.user?.role === "admin" ? <ModuleWizard csrfToken={auth.csrfToken!}/> : destination?.view === "terminal" ? <Terminal key={auth.user?.email} enabled={config.providers.some(p => p.id === "termix" && p.enabled)} csrfToken={auth.csrfToken!}/> : active === "admin/users" && auth.user?.role === "admin" ? <Accounts csrfToken={auth.csrfToken!}/> : active === "admin/providers" ? <div className="provider-list">{config.providers.length ? config.providers.map(item => <section key={item.id} className="provider-card"><h3>{item.label}</h3><p>{item.enabled ? "Ingeschakeld" : "Niet ingericht"}</p>{item.url ? <a href={item.url}>{item.url}</a> : <p>Nog geen adres ingesteld.</p>}</section>) : <p>Er zijn nog geen koppelingen ingesteld.</p>}</div> : <>
+          {onProfile ? <section className="settings-card profile"><p>{translate(personal.language, "profileIntro")}</p><dl>
+            <dt>{translate(personal.language, "name")}</dt><dd>{`${auth.user?.firstName ?? ""} ${auth.user?.lastName ?? ""}`.trim() || "—"}</dd>
+            <dt>{translate(personal.language, "email")}</dt><dd>{auth.user?.email}</dd>
+            <dt>{translate(personal.language, "role")}</dt><dd>{auth.user?.role}</dd>
+            <dt>{translate(personal.language, "signIn")}</dt><dd>{auth.user?.ssoType === "google" ? "Google" : auth.user?.ssoType ?? "—"}</dd>
+          </dl></section> : onSettings ? <Settings menu={config.menu} settings={personal} csrfToken={auth.csrfToken!} onSaved={values => { setPersonal(values); preferences.current = {...preferences.current, ...values}; }}/> : active === "admin/modules" && auth.user?.role === "admin" ? <ModuleWizard csrfToken={auth.csrfToken!}/> : destination?.view === "terminal" ? <Terminal key={auth.user?.email} enabled={config.providers.some(p => p.id === "termix" && p.enabled)} csrfToken={auth.csrfToken!}/> : active === "admin/users" && auth.user?.role === "admin" ? <Accounts csrfToken={auth.csrfToken!}/> : active === "admin/providers" ? <div className="provider-list">{config.providers.length ? config.providers.map(item => <section key={item.id} className="provider-card"><h3>{item.label}</h3><p>{item.enabled ? "Ingeschakeld" : "Niet ingericht"}</p>{item.url ? <a href={item.url}>{item.url}</a> : <p>Nog geen adres ingesteld.</p>}</section>) : <p>Er zijn nog geen koppelingen ingesteld.</p>}</div> : <>
             <p>{destination?.description ?? "Dit onderdeel is nog niet ingericht."}</p>
             {provider?.url && <><p>Adres: <a href={provider.url}>{provider.url}</a></p><a className="provider-open" href={provider.url} target="_blank" rel="noopener noreferrer">Open {provider.label} ↗</a><p>Deze koppeling opent de toepassing. Gegevens uit de toepassing volgen later.</p></>}
           </>}

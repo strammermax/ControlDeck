@@ -40,3 +40,6 @@ test('translate / boundary + faal: missing or unsupported language falls back to
   assert.equal(translate(undefined,'save'),'Opslaan');
   assert.equal(translate('de','save'),'Opslaan');
 });
+test('translate / normaal: user menu labels exist in both languages', () => {
+  for (const key of ['profile','settings','logout']) assert.notEqual(translate('en',key),translate('nl',key));
+});
