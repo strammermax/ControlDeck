@@ -50,3 +50,7 @@ De tests behandelen normale provisioning, reeds bestaande profielen, storingen, 
 ## Bronnen en licentie
 
 Termix blijft een afzonderlijke upstream-app met Apache-2.0-licentie; ControlDeck distribueert de upstream-broncode niet. De Compose-installatie gebruikt het officiële image. Bronnen: [Docker-installatie](https://docs.termix.site/install/server/docker/), [Trusted Proxy Authentication](https://docs.termix.site/features/authentication/trusted-proxy/), [Reverse proxy](https://docs.termix.site/setup/reverse-proxy/) en [Termix 2.9.1-broncode](https://github.com/Termix-SSH/Termix/tree/release-2.9.1-tag).
+
+## Thema van de ingebedde interface
+
+De ingebedde Termix 2.9.1-interface volgt het lichte of donkere ControlDeck-thema direct, zonder herladen van het iframe. Open terminals blijven daardoor behouden. De koppeling past de door Termix gebruikte rootklassen en lokale themavoorkeur toe; eventuele andere Termix-interfacekleuren volgen binnen ControlDeck de hoofdkeuze. Een eigen kleurenschema van een SSH-terminal blijft een afzonderlijke Termix-instelling. De ControlDeck-voorkeur blijft per gebruiker opgeslagen. Deze koppeling is versiegebonden en moet bij een Termix-upgrade opnieuw worden gecontroleerd.

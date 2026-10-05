@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {startTerminal} from '../lib/terminal.ts';
+import {startTerminal, syncTerminalTheme} from '../lib/terminal.ts';
 
 test('terminal normaal: uses protected endpoint and CSRF token', async () => {
   const previous = globalThis.fetch;
@@ -30,4 +30,32 @@ test('terminal faal: unavailable service and malformed session fail closed', asy
     globalThis.fetch=async()=>({ok:true,json:async()=>({ready:'yes'})});
     await assert.rejects(startTerminal('csrf'), /Invalid/);
   } finally {globalThis.fetch=previous;}
+});
+
+function themeWindow(initial = ['dark']) {
+  const classes = new Set(initial);
+  const storage = new Map();
+  return {classes, storage, document:{documentElement:{classList:{contains:name=>classes.has(name),remove:name=>classes.delete(name),add:name=>classes.add(name)}}},localStorage:{setItem:(key,value)=>storage.set(key,value)}};
+}
+test('terminal theme normaal: switches dark to light and persists Termix preference', () => {
+  const target=themeWindow();
+  assert.equal(syncTerminalTheme(target,'light'),true);
+  assert.deepEqual([...target.classes],['light']);
+  assert.equal(target.storage.get('vite-ui-theme'),'light');
+  assert.equal(syncTerminalTheme(target,'dark'),true);
+  assert.deepEqual([...target.classes],['dark']);
+});
+test('terminal theme boundary: repeated updates preserve other classes and work without storage', () => {
+  const target=themeWindow(['nord','layout']);
+  target.localStorage.setItem=()=>{throw new Error('Storage denied');};
+  assert.equal(syncTerminalTheme(target,'light'),true);
+  assert.equal(syncTerminalTheme(target,'light'),true);
+  assert.deepEqual([...target.classes],['layout','light']);
+});
+test('terminal theme faal: absent, cross-origin and invalid targets fail without mutation', () => {
+  assert.equal(syncTerminalTheme(null,'light'),false);
+  const target=themeWindow();
+  assert.equal(syncTerminalTheme(target,'invalid'),false);
+  assert.deepEqual([...target.classes],['dark']);
+  assert.equal(syncTerminalTheme({get document(){throw new Error('Cross origin');}},'light'),false);
 });
