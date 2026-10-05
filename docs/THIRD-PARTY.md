@@ -11,3 +11,7 @@ De frontendbuild verzamelt licentieteksten uit de geïnstalleerde dependencyboom
 React, Next.js, TypeScript, Flask, Gunicorn en pytest worden als externe packages gebruikt. De exacte versies staan in package.json, package-lock.json en requirementsbestanden. npm bevat de volledige frontenddependencyboom. Ook transitieve Python-runtimepackages worden in requirements.txt vastgelegd. Ontwikkeldependencies zijn nog niet volledig gelockt.
 
 Docker-baselagen en GitHub Actions zijn eveneens externe dependencies. GitHub Actions worden op gecontroleerde commits vastgezet. Docker-baselagen gebruiken nog versie-tags; digestpinning en geautomatiseerde updates zijn een verdere verbetering. Een releaseclaim over volledig reproduceerbare dependencies is daarom nog niet van toepassing.
+
+## Basisinterface 0.2.0
+
+De door de gebruiker aangeleverde mockup vormt de visuele referentie voor de nieuwe shell. Kleuren, indeling en navigatie zijn opnieuw opgebouwd in de eigen React-broncode. De opgeslagen ProxMenux-bundles en het ProxMenux-logo zijn niet opgenomen in de runtime. Het eigen ControlDeck-logo wordt gebruikt. De projectlicentie blijft GPL-3.0.

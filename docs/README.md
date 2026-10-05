@@ -7,6 +7,7 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [visie.md](visie.md) | Doel, principes en toekomstbeeld |
 | [functioneel-ontwerp.md](functioneel-ontwerp.md) | Modules, gebruikersprocessen en navigatie |
 | [technisch-ontwerp.md](technisch-ontwerp.md) | Architectuur en technische richting |
+| [UI.md](UI.md) | Basisinterface, navigatie, status en thema |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Werkelijke repository en runtime |
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Ingerichte LXC, netwerk, accounts, services en GitHub-route |
 | [HTTPS.md](HTTPS.md) | Actieve Cloudflare Tunnel-route, HTTPS-verificatie en mogelijke lokale proxyroute |

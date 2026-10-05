@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 from pathlib import Path
 
 from flask import Flask, jsonify, send_from_directory
@@ -12,6 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def create_app(static_directory=None):
     static_root = Path(static_directory or ROOT / "frontend" / "out")
     app = Flask(__name__, static_folder=None)
+    started_at = time.monotonic()
     metadata_path = ROOT / "build-info.json"
     metadata = (
         json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -21,7 +23,7 @@ def create_app(static_directory=None):
 
     @app.get("/health")
     def health():
-        return jsonify(status="ok", **metadata)
+        return jsonify(status="ok", uptime_seconds=int(time.monotonic() - started_at), **metadata)
 
     @app.get("/ready")
     def ready():

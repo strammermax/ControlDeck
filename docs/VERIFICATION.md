@@ -22,3 +22,7 @@ In een Debian 13-LXC meldde systemd ongeveer 34 MiB voor de applicatieservice en
 ## Grenzen
 
 Automatische rollback bij een opstartfout is geïmplementeerd, maar een opzettelijke productie-opstartfout is nog niet gesimuleerd. Databaseherstel en schemamigraties zijn nog niet van toepassing. Authentication, providers en de navigatie-uitbreidingen behoren tot volgende implementatiestappen. De volledige release-uitkomst blijft zichtbaar in GitHub Actions en de releasepagina.
+
+## Basisinterface 0.2.0
+
+De productie-export en TypeScript-controle slagen; beide Python-tests slagen, inclusief de nieuwe uptimecontrole. In de browser zijn Proxmox- en Admin-dropdowns, selectie van subpagina's, behoud van directe hashlinks na herladen, terugnavigatie, lichte/donkere themaopslag, refresh en de mobiele hamburgernavigatie gecontroleerd. Op het mobiele testformaat is geen horizontale overflow gemeten. Het eigen logo en de desktopindeling zijn visueel beoordeeld. De modulepagina's blijven placeholders en er is nog geen authenticatie.

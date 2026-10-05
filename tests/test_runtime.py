@@ -7,6 +7,8 @@ def test_health_and_readiness(tmp_path):
     assert health.status_code == 200
     assert health.json["status"] == "ok"
     assert health.json["version"]
+    assert isinstance(health.json["uptime_seconds"], int)
+    assert health.json["uptime_seconds"] >= 0
     assert client.get("/ready").status_code == 503
     (tmp_path / "index.html").write_text("<h1>ControlDeck</h1>")
     assert client.get("/ready").status_code == 200

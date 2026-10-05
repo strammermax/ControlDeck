@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — Dashboard shell
+
+- Basisinterface volgens de aangeleverde mockup, met eigen ControlDeck-logo.
+- Horizontaal menu, Proxmox/Admin-dropdowns en mobiele hamburgernavigatie.
+- Deelbare modulelinks, licht/donker thema, refresh en werkelijke procesuptime.
+- Documentatie van huidige bediening en grenzen in UI.md.
+
 ## 0.1.1 — Distribution notices
 
 - Automatisch verzamelde frontendlicentieteksten in de statische export, Linux-bundle en het Docker-image.
