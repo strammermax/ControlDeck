@@ -58,7 +58,7 @@ def setup_installations(app, configuration_path, data_dir):
             modules = sorted((json.loads(item.read_text()) for item in catalog_root.glob('*.json')), key=lambda module: (module.get('kind', 'install') != 'install', module['id']))
             for module in modules:
                 module.setdefault('kind', 'install')
-            return jsonify(modules=modules, status=status(), connections={'proxmox': (Path(data_dir) / 'proxmox/connection.json').is_file()})
+            return jsonify(modules=modules, status=status(), connections={name: (Path(data_dir) / name / 'connection.json').is_file() for name in ('proxmox', 'proxmenux')})
         except (OSError, ValueError):
             return jsonify(error='De modulecatalogus is niet beschikbaar.'),503
 

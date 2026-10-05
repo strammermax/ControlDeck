@@ -59,3 +59,29 @@ test('bytes / normaal, boundary and faal', () => {
   assert.equal(bytes(-1),'—');
   assert.equal(bytes(null),'—');
 });
+import { diskLevel, healthProblems } from '../lib/proxmox.ts';
+test('healthProblems / normaal: problems first, healthy only counted', () => {
+  const result = healthProblems([{id:'cpu',status:'ok',reason:null},{id:'remote_mounts',status:'warning',reason:'x'},{id:'lxc_mounts',status:'error',reason:'y'}]);
+  assert.deepEqual(result.problems.map(p => p.id),['lxc_mounts','remote_mounts']);
+  assert.equal(result.healthy,1);
+});
+test('healthProblems / boundary: missing or all-healthy categories', () => {
+  assert.deepEqual(healthProblems(undefined),{problems:[],healthy:0});
+  assert.equal(healthProblems([{id:'cpu',status:'ok',reason:null}]).problems.length,0);
+});
+test('healthProblems / faal: unknown stays a problem; malformed input is rejected', () => {
+  assert.equal(healthProblems([{id:'x',status:'unknown',reason:null}]).problems.length,1);
+  assert.throws(() => healthProblems('x'),TypeError);
+});
+const disk = extra => ({name:'sda',model:null,health:'healthy',smart:'passed',temperature:30,wear:5,reallocated:0,pending:0,standby:false,size:null,...extra});
+test('diskLevel / normaal: healthy disk', () => { assert.equal(diskLevel(disk()),'ok'); });
+test('diskLevel / boundary: 89 vs 90 % wear and one reallocated sector', () => {
+  assert.equal(diskLevel(disk({wear:89})),'ok');
+  assert.equal(diskLevel(disk({wear:90})),'warning');
+  assert.equal(diskLevel(disk({reallocated:1})),'warning');
+});
+test('diskLevel / faal: SMART failure or pending sectors are errors; unknown SMART is not healthy', () => {
+  assert.equal(diskLevel(disk({smart:'FAILED'})),'error');
+  assert.equal(diskLevel(disk({pending:2})),'error');
+  assert.equal(diskLevel(disk({smart:'unknown',health:'unknown'})),'unknown');
+});

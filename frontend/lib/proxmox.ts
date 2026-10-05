@@ -68,3 +68,37 @@ export function bytes(value: number | null | undefined): string {
   while (size >= 1024 && index < units.length - 1) { size /= 1024; index++; }
   return `${size >= 10 || index === 0 ? Math.round(size) : size.toFixed(1)} ${units[index]}`;
 }
+
+export type HealthLevel = "ok" | "warning" | "error" | "unknown";
+export type MonitorNode = {
+  name: string; overall: HealthLevel; stale: boolean; error?: string; updatedAt?: number; summary?: string | null;
+  categories?: { id: string; status: HealthLevel; reason: string | null }[];
+  temperature?: number | null; load?: number | null; hostUpdates?: number | null; powerWatts?: number | null;
+  disks?: { name: string | null; model: string | null; health: string | null; smart: string | null; temperature: number | null; wear: number | null; reallocated: number | null; pending: number | null; standby: boolean; size: string | null }[];
+  zfsPools?: { name: string | null; health: string | null; size: string | null; free: string | null }[];
+  lxcUpdates?: { id: number | null; name: string | null; count: number | null; security: number | null; latest: string | null }[];
+};
+
+export const healthLabels: Record<string, string> = {
+  cpu: "CPU", memory: "Geheugen", disks: "Schijven", storage: "Opslag", zfs_pool_capacity: "ZFS-capaciteit", pve_storage_capacity: "Proxmox-opslag",
+  lxc_disk: "LXC-schijven", vm_disk: "VM-schijven", lxc_mounts: "LXC-mounts", remote_mounts: "Netwerkmounts", network: "Netwerk",
+  services: "Services", vms: "Gasten", updates: "Updates", security: "Beveiliging", logs: "Logs",
+};
+export const healthText: Record<HealthLevel, string> = { ok: "✓ Gezond", warning: "△ Waarschuwing", error: "✗ Kritiek", unknown: "? Onbekend" };
+
+/** Problems first (error, warning, unknown); healthy categories are only counted. */
+export function healthProblems(categories: MonitorNode["categories"]): { problems: NonNullable<MonitorNode["categories"]>; healthy: number } {
+  if (categories !== undefined && !Array.isArray(categories)) throw new TypeError("Categories must be a list");
+  const rank: Record<HealthLevel, number> = { error: 0, warning: 1, unknown: 2, ok: 3 };
+  const list = [...(categories ?? [])].sort((a, b) => rank[a.status] - rank[b.status] || a.id.localeCompare(b.id));
+  return { problems: list.filter(item => item.status !== "ok"), healthy: list.filter(item => item.status === "ok").length };
+}
+
+/** Disk state: SMART failure, reallocated/pending sectors or ≥ 90 % wear are problems; unknown is never healthy. */
+export function diskLevel(disk: NonNullable<MonitorNode["disks"]>[number]): HealthLevel {
+  const smart = (disk.smart ?? "").toLowerCase(), health = (disk.health ?? "").toLowerCase();
+  if (smart === "failed" || health === "critical" || health === "failed" || (disk.pending ?? 0) > 0) return "error";
+  if ((disk.reallocated ?? 0) > 0 || (disk.wear ?? 0) >= 90 || health === "warning") return "warning";
+  if (smart === "passed" || health === "healthy" || health === "ok") return "ok";
+  return "unknown";
+}

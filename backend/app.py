@@ -11,6 +11,7 @@ from backend.auth import filter_configuration, setup_auth
 from backend.termix import setup_termix
 from backend.installations import setup_installations
 from backend.proxmox import setup_proxmox
+from backend.proxmenux import setup_proxmenux
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -24,6 +25,7 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     setup_termix(app, configuration_path)
     setup_installations(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_proxmox(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_proxmenux(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     metadata_path = ROOT / "build-info.json"
     metadata = (
         json.loads(metadata_path.read_text(encoding="utf-8"))

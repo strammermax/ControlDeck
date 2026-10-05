@@ -1,0 +1,9 @@
+{
+  "id": "proxmenux",
+  "name": "ProxMenux Monitor",
+  "kind": "connect",
+  "description": "Gezondheid, temperatuur, schijven, ZFS en LXC-updates per node, met je ControlDeck-login.",
+  "version": "API 1.2",
+  "module": "proxmox",
+  "documentation": "https://github.com/MacRimi/ProxMenux"
+}

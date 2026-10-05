@@ -49,6 +49,24 @@ De backend haalt de gegevens hooguit eens per 30 seconden op (time-out 5 s). Is 
 | `GET/PUT/DELETE /api/proxmox/connection`, `POST …/certificate`, `POST …/test` | Alleen admins, met CSRF-token |
 | `GET /api/proxmox/tasks` | Gebruikers met toegang tot de module `proxmox` |
 
+## ProxMenux Monitor
+
+ProxMenux Monitor (poort 8008 op elke node) levert gegevens die de Proxmox-API niet heeft. ControlDeck haalt ze op de server op; de browser praat nooit met de monitor en gebruikers zien geen tweede login.
+
+**Koppelen:** Admin → Modules → ProxMenux Monitor.
+
+1. **Cluster-CA** — plak de inhoud van `/etc/pve/pve-root-ca.pem` (openbaar certificaat). Zet in elke monitor HTTPS aan met het Proxmox-hostcertificaat (`/etc/pve/local/pve-ssl.pem`). ControlDeck controleert certificaat én hostnaam tegen deze CA; vernieuwde node-certificaten blijven werken. Http wordt niet geaccepteerd.
+2. **Nodes** — vooraf ingevuld vanuit de Proxmox-koppeling (`https://<node-ip>:8008`). Maak per monitor een API-token (Settings → Security → API tokens) en vul het in.
+3. **Controleren** — per node: certificaat, token en of de hostname van de monitor gelijk is aan de nodenaam. Een verwisseld adres of token wordt zo geweigerd. Er wordt pas gekoppeld als alle nodes slagen.
+
+De tokens staan in `<datamap>/proxmenux/connection.json` (`0600`), de CA in `cluster-ca.pem`. Tokens worden nooit teruggegeven; bij opnieuw opslaan met dezelfde node en hetzelfde adres mag het token leeg blijven.
+
+**Overzicht:** bovenaan per node een gezondheidskaart (totaalstatus, temperatuur, stroomverbruik, load, host-updates en alleen de afwijkende controles met reden), daaronder **Schijven** (SMART, temperatuur, slijtage; onbekende SMART is nooit "gezond") met ZFS-pools, en **LXC-updates** (beveiligingsupdates eerst).
+
+`GET /api/proxmenux/summary` (module `proxmox`) haalt per node vijf monitor-endpoints parallel op (time-out 15 s). Bekende gegevens worden direct teruggegeven en op de achtergrond ververst (30 s); een onbereikbare node blokkeert de andere niet en toont "Onbekend" of "verouderd". Alleen een whitelist van velden wordt doorgegeven: geen serienummers, IP-adressen of logs.
+
+**Volledige monitor openen:** de webinterface van de monitor bewaart zijn login in de browser. Inloggen met de ControlDeck-sessie (SSO) kan daar niet betrouwbaar op aansluiten; de monitor zelf houdt zijn eigen login.
+
 ## Volgende stappen
 
-Nodes, Virtual Machines, Containers en Storage gebruiken dezelfde koppeling. Daarna: een clusterdashboard dat de ProxMenux Monitor per node (bijvoorbeeld `mon.pve-amd.home`) samenvoegt.
+Nodes, Virtual Machines, Containers en Storage gebruiken dezelfde koppeling. Daarna: netwerkverkeer per node en historie van temperatuur/verbruik uit de monitor.

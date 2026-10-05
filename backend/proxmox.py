@@ -31,13 +31,13 @@ class ProxmoxError(Exception):
     """Message is safe to show; it never contains the token or upstream response bodies."""
 
 
-def normalize_url(value):
+def normalize_url(value, default_port=8006):
     """Accepts a pasted address such as https://192.168.1.98:8006/# and returns https://host:port."""
     if not isinstance(value, str) or len(value) > 300:
         raise ValueError("Ongeldig adres.")
     parts = urlsplit(value.strip())
     try:
-        port = parts.port or 8006
+        port = parts.port or default_port
     except ValueError:
         raise ValueError("Ongeldige poort.") from None
     if parts.scheme != "https" or not parts.hostname or parts.username or parts.password or parts.query or parts.path not in ("", "/") or not HOST.fullmatch(parts.hostname):

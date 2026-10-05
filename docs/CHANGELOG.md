@@ -4,6 +4,7 @@
 
 - Proxmox VE-koppeling via Admin → Modules (alleen-lezen API-token, certificaatpinning, verbindingstest). Zie PROXMOX.md.
 - Proxmox → Overzicht toont clusterwidgets (CPU/geheugen van gasten en nodes, taken per categorie en node over 48 uur, SDN-zones) en de laatste taken van het hele cluster met filters en verouderd-melding.
+- ProxMenux Monitor-koppeling via Admin → Modules (cluster-CA, API-token per node, hostnamecontrole); Overzicht toont gezondheid per node, schijven/ZFS en LXC-updates.
 - Modulecatalogus ondersteunt meerdere modules en koppelingen naast installaties.
 - Gebruikersdropdown rechtsboven met Profiel, Instellingen en Uitloggen.
 - Persoonlijke Instellingen-pagina per gebruiker: interfacetaal (Nederlands/English) en volgorde van de hoofdnavigatie met slepen, Annuleren, Opslaan en Standaard herstellen.
