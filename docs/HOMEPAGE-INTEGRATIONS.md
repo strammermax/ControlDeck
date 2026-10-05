@@ -1,6 +1,6 @@
 # Native Homepage-integraties
 
-ControlDeck bevat eigen Homepage-code: geen installatie van Homepage of Homarr nodig. Via **Bookmarks → Homepage → Link toevoegen** kies je uit 88 apps uit de gepinde Homarr-catalogus of maak je een eigen link. Naam en icoon worden ingevuld; vul zelf het adres en de groep in. Zoeken filtert op naam/categorie. Alle catalogus-apps kunnen als link worden toegevoegd; alleen Seerr en Jellyfin hebben in deze versie een nieuwe native API-adapter. Voor deze apps kun je vanuit hetzelfde formulier **Link met API-koppeling instellen** kiezen. Andere apps vragen nog geen geheimen zolang hun adapter ontbreekt.
+ControlDeck bevat eigen Homepage-code: geen installatie van Homepage of Homarr nodig. Via **Bookmarks → Homepage → Link toevoegen** opent een popup waarin je uit 88 apps uit de gepinde Homarr-catalogus of maak je een eigen link. Naam en icoon worden ingevuld; vul zelf het adres en de groep in. Zoeken filtert op naam/categorie. Alle catalogus-apps kunnen als link worden toegevoegd; alleen Seerr en Jellyfin hebben in deze versie een nieuwe native API-adapter. Voor deze apps kun je vanuit hetzelfde formulier **Link met API-koppeling instellen** kiezen. Andere apps vragen nog geen geheimen zolang hun adapter ontbreekt. Ook **Aanpassen** opent in dezelfde popup; sluiten kan met ✕, Escape of een klik naast de popup.
 
 Onder **Bookmarks → Homepage → Integraties** kan een beheerder een koppeling toevoegen, aanpassen en verwijderen. Gebruikers met toegang tot Bookmarks zien de gedeelde tegels en kunnen aantallen vernieuwen.
 

@@ -209,3 +209,12 @@ footer .release-link:hover {color:var(--blue);text-decoration:underline}
 .integration-checkbox input {width:auto}
 .integration-submit {background:var(--blue);color:white;font-weight:600}
 .integration-editor .form-actions {justify-content:flex-end}
+.modal {padding:0;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 48px);box-shadow:0 24px 60px #0008}
+.modal::backdrop {background:#0009}
+.modal-content {padding:20px 24px 24px;max-height:calc(100dvh - 50px);overflow:auto}
+.modal-header {display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:8px}
+.modal-header h3 {margin:0;font-size:20px}
+.modal-close {border:0;background:none;font-size:18px;padding:6px 10px;color:var(--muted)}
+.modal-close:hover {color:var(--text)}
+.modal .bookmark-form.in-modal,.modal .homepage-app-picker {margin:0;padding:0;border:0;max-width:none;background:none}
+@media(max-width:540px){.modal-content{padding:16px}}
