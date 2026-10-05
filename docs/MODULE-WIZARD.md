@@ -23,6 +23,14 @@ Bij Termix kiest de admin **Gegevens bewaren** (standaard; het Docker-volume bli
 
 **Nieuwe installatie:** `scripts/install-lxc.sh` installeert de root-worker automatisch (het roept `install-wizard.sh` aan).
 
+**Root-onderdelen bijwerken:** de installatieworker en de agent-proxy draaien als root (of met eigen systeemrechten) en worden bewust **niet** door een CI-uitrol vervangen: wie de pipeline of de repository overneemt, mag geen root-code op de host kunnen plaatsen. Daarom toont **Modulebeheer** een melding **Root-onderdelen bijwerken** zodra een van beide ouder is dan de app nodig heeft (of de agent-proxy ontbreekt), met het **exacte commando voor deze host**. `install-wizard.sh` legt daarvoor in `/var/lib/controldeck/bootstrap.json` vast waar de checkout staat, van wie die is en welke commit is geïnstalleerd. Is de checkout van een andere gebruiker dan root, dan doet het commando de `git pull` als die gebruiker (git weigert root op andermans repository) en draait daarna de bootstrap als root, bijvoorbeeld:
+
+```sh
+sudo -u llmuser git -C /home/llmuser/controldeck-bootstrap pull && bash /home/llmuser/controldeck-bootstrap/scripts/install-wizard.sh
+```
+
+Dit is alleen nodig als root-onderdelen veranderen; gewone functies komen met elke push mee. Een nieuwe installatie (`install-lxc.sh`) voert de bootstrap zelf uit.
+
 **Na een update:** de root-worker en de scripts onder `/opt/controldeck-integrations/installer` worden bewust niet door een CI-uitrol bijgewerkt; een overgenomen pipeline mag geen root-code kunnen plaatsen. Draai na deze versie eenmalig opnieuw `bash scripts/install-wizard.sh` (of `bash scripts/install-lxc.sh`) als root vanuit een bijgewerkte checkout, De worker meldt een protocolversie in zijn heartbeat (`worker.json`). Is die lager dan de app nodig heeft (`REQUIRED_WORKER` in `backend/installations.py`), dan toont Modulebeheer een melding en worden acties die een nieuwere worker vereisen vooraf geblokkeerd in plaats van halverwege te mislukken. Installatieopdrachten behouden hun oude vorm en blijven ook met een oudere worker werken.
 
 ## Installeren

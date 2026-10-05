@@ -5,10 +5,11 @@ import {ProxmoxConnect} from "./proxmox-connect";
 import {ProxmenuxConnect} from "./proxmenux-connect";
 import {LinkwardenConnect} from "./linkwarden-connect";
 import {CronjobsConnect} from "./cronjobs-connect";
+import {rootComponentsNotice,type RootComponents} from "../lib/root-components";
 import {ModuleRemove} from "./module-remove";
 import {useJob,type Job} from "./use-job";
 
-type Catalog={modules:CatalogModule[];status:{workerAvailable:boolean;workerOutdated?:boolean;configured:boolean;online:boolean}};
+type Catalog={modules:CatalogModule[];status:{workerAvailable:boolean;workerOutdated?:boolean;configured:boolean;online:boolean};rootComponents?:RootComponents};
 const TABS:{id:ManageTab;label:string;intro:string;empty:string}[]=[
   {id:"install",label:"Installeren",intro:"Voeg een toepassing toe aan ControlDeck. Alleen modules die nog niet zijn geïnstalleerd of gekoppeld staan hier.",empty:"Alle beschikbare modules zijn geïnstalleerd."},
   {id:"edit",label:"Bewerken",intro:"Pas de instellingen van een geïnstalleerde module aan.",empty:"Er zijn nog geen modules geïnstalleerd."},
@@ -33,7 +34,7 @@ export function ModuleWizard({csrfToken}:{csrfToken:string}) {
     <h3>Modulebeheer</h3>
     <div className="manage-tabs" role="tablist" aria-label="Modulebeheer">{TABS.map(item=><button key={item.id} role="tab" aria-selected={tab===item.id} className={tab===item.id ? "active" : undefined} onClick={()=>{setTab(item.id);setChosen(null);}}>{item.label}</button>)}</div>
     {error && <p role="alert">{error}</p>}
-    {catalog?.status.workerOutdated && <div className="config-error" role="alert"><strong>Root-worker verouderd.</strong> Installeren werkt, maar nieuwere acties zoals Termix verwijderen zijn geblokkeerd. Werk de checkout bij en draai als root op de ControlDeck-host: <code>bash scripts/install-wizard.sh</code></div>}
+    {(() => { const notice = rootComponentsNotice(catalog?.rootComponents); return notice && <div className="config-error" role="alert"><strong>{notice.title}:</strong> {notice.parts}. Deze onderdelen draaien als root en worden bewust niet door een gewone update vervangen. Voer op de ControlDeck-host als root uit:<pre className="command">{notice.command}</pre></div>; })()}
     {!catalog ? <><p role="status">{error ? "De modulecatalogus kan niet worden geladen." : "Modulecatalogus laden…"}</p>{error && <button onClick={()=>setReload(reload+1)}>Opnieuw proberen</button>}</>
     : current ? (current.id==="linkwarden" ? <LinkwardenConnect csrfToken={csrfToken} onBack={back} remove={tab==="remove"}/> : tab==="remove" ? <ModuleRemove module={current} csrfToken={csrfToken} onDone={back}/>
       : current.id==="proxmox" ? <ProxmoxConnect csrfToken={csrfToken} onBack={back}/>

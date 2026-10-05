@@ -1,6 +1,6 @@
 export type AgentNodeState = "ready" | "outdated" | "not_installed" | "not_enrolled" | "hostkey_changed" | "unreachable";
 export type AgentNode = { node: string; address: string; fingerprint?: string; state?: AgentNodeState };
-export type AgentOverview = { proxy: boolean; error?: string; keyExists?: boolean; publicKey?: string | null; nodes: AgentNode[]; suggestions: { node: string; address: string }[]; agentVersion?: number };
+export type AgentOverview = { proxy: boolean; error?: string; updateCommand?: string; keyExists?: boolean; publicKey?: string | null; nodes: AgentNode[]; suggestions: { node: string; address: string }[]; agentVersion?: number };
 
 /** Per node row in the wizard: enrolled state if known, otherwise "not enrolled"; suggestions from Proxmox fill the gaps. */
 export function agentRows(overview: AgentOverview): AgentNode[] {

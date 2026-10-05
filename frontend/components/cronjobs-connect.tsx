@@ -28,7 +28,7 @@ export function CronjobsConnect({ csrfToken, onBack }: { csrfToken: string; onBa
     <ol className="wizard-progress" aria-label="Koppelstappen">{STEPS.map((label, index) => <li key={label} aria-current={step === index + 1 ? "step" : undefined}>{index + 1}. {label}</li>)}</ol>
     {error && <p role="alert">{error}</p>}
     {!overview ? <p role="status">Laden…</p> : !overview.proxy ? <div className="config-error" role="alert">
-      <strong>De agent-proxy draait nog niet op de ControlDeck-host.</strong> Voer eenmalig als root uit, vanuit een bijgewerkte checkout: <code>bash scripts/install-wizard.sh</code>. Daarna <button type="button" onClick={() => void load()}>Opnieuw controleren</button>
+      <strong>De agent-proxy draait nog niet op de ControlDeck-host.</strong> Voer eenmalig als root uit op de ControlDeck-host:<pre className="command">{overview.updateCommand ?? "bash scripts/install-wizard.sh"}</pre>Daarna <button type="button" onClick={() => void load()}>Opnieuw controleren</button>
     </div> : <>
       {step === 2 && <section>
         <h4>SSH-sleutel van ControlDeck</h4>

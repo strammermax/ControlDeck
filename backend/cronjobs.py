@@ -15,6 +15,7 @@ from flask import g, jsonify, request
 
 from backend.agent_client import AgentUnavailable, proxy_request
 from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError
+from backend.root_components import bootstrap_info, update_command
 
 ROOT = Path(__file__).resolve().parent.parent
 AGENT_FILE = ROOT / "scripts/controldeck-agent.py"
@@ -112,7 +113,7 @@ def setup_cronjobs(app, data_dir, commit):
         try:
             status = proxy({"op": "status"})
         except (AgentUnavailable, ValueError) as error:
-            return jsonify(proxy=False, error=str(error), suggestions=suggestions(), nodes=[])
+            return jsonify(proxy=False, error=str(error), suggestions=suggestions(), nodes=[], updateCommand=update_command(bootstrap_info(data_dir)))
         def check(node):
             try:
                 return {**node, "state": node_state(proxy_request({"op": "call", "node": node["node"], "action": "info"}))}

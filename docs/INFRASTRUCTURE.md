@@ -142,6 +142,7 @@ De admin-installatiewizard biedt Docker en Proxmox LXC als keuzes, met voorafgaa
 | Agent-proxy | `/usr/local/sbin/controldeck-agent-proxy`, dienst `controldeck-agent-proxy` als gebruiker `controldeck-ssh` (geen root); socket `/run/controldeck-agent/agent.sock` (groep `controldeck-ssh`, `0660`) |
 | SSH-sleutel naar de nodes | `/var/lib/controldeck-ssh/id_ed25519` (`0600`, map `0700`, eigenaar `controldeck-ssh`), met `known_hosts`, gekoppelde nodes en auditlog in dezelfde map |
 | Node-agent (voor verspreiding) | `/opt/controldeck-integrations/agent/controldeck-agent` |
+| Bootstrapgegevens | `/var/lib/controldeck/bootstrap.json` (root:controldeck, `0640`): checkout, eigenaar en commit van de laatste `install-wizard.sh`; ControlDeck toont hiermee het juiste updatecommando |
 
 De webservice heeft geen Docker-socket of algemene rootrechten. De aparte installatieworker controleert opdrachten en de actuele adminrechten voordat hij de toegestane installer uitvoert. De bootstrap `scripts/install-wizard.sh` installeert deze worker en de agent-proxy (zie [NODE-AGENT.md](NODE-AGENT.md)) en wordt door `scripts/install-lxc.sh` automatisch uitgevoerd. De webservice is lid van de groep `controldeck-ssh` om het socket van de proxy te gebruiken, maar kan de SSH-sleutel niet lezen; wijzigingen aan de root-owned installatiebestanden vereisen opnieuw uitvoeren van die bootstrap na review. Een normale apprelease vervangt deze bestanden niet.
 

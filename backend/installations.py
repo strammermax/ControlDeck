@@ -9,6 +9,7 @@ from pathlib import Path
 
 import requests
 from flask import g, jsonify, request
+from backend.root_components import root_components
 from backend.configuration import ConfigurationError, load_config
 
 
@@ -75,7 +76,7 @@ def setup_installations(app, configuration_path, data_dir):
             connections = {name: (Path(data_dir) / name / 'connection.json').is_file() for name in ('proxmox', 'proxmenux', 'linkwarden', 'cronjobs')}
             for module in modules:
                 module['installed'] = connections.get(module['id'], False) if module['kind'] == 'connect' or module['id']=='linkwarden' else (state['configured'] if module['id'] == 'termix' else False)
-            return jsonify(modules=modules, status=state, connections=connections)
+            return jsonify(modules=modules, status=state, connections=connections, rootComponents=root_components(data_dir, state))
         except (OSError, ValueError):
             return jsonify(error='De modulecatalogus is niet beschikbaar.'),503
 

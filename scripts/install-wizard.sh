@@ -39,6 +39,17 @@ systemctl enable --now controldeck-install.timer
 systemctl start controldeck-install.service
 systemctl enable controldeck-agent-proxy.service
 systemctl restart controldeck-agent-proxy.service
+# Remember where this checkout is, so ControlDeck can show the exact update command (backend/root_components.py).
+checkout_owner=$(stat -c %U "$source_root")
+checkout_commit=$(git -C "$source_root" rev-parse HEAD 2>/dev/null || git -c safe.directory="$source_root" -C "$source_root" rev-parse HEAD 2>/dev/null || echo "")
+python3 - "$source_root" "$checkout_owner" "$checkout_commit" <<'PY'
+import json, sys, time
+from pathlib import Path
+target = Path("/var/lib/controldeck/bootstrap.json")
+target.write_text(json.dumps({"checkout": sys.argv[1], "owner": sys.argv[2], "commit": sys.argv[3] or None, "installedAt": int(time.time())}) + "\n")
+PY
+chown root:controldeck /var/lib/controldeck/bootstrap.json
+chmod 0640 /var/lib/controldeck/bootstrap.json
 # New group membership only applies to new processes.
 if systemctl is-active --quiet controldeck; then systemctl restart controldeck; fi
 echo 'Administrative module installation wizard and agent proxy are ready.'

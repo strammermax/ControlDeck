@@ -28,7 +28,7 @@ def proxy_request(request, timeout=75):
                 if len(data) > 1024 * 1024:
                     raise AgentUnavailable("Antwoord van de agent-proxy is te groot.")
     except (FileNotFoundError, ConnectionRefusedError):
-        raise AgentUnavailable("De agent-proxy draait niet. Voer als root bash scripts/install-wizard.sh uit.") from None
+        raise AgentUnavailable("De agent-proxy draait niet.") from None
     except PermissionError:
         raise AgentUnavailable("ControlDeck heeft geen toegang tot de agent-proxy (herstart ControlDeck na install-wizard.sh).") from None
     except (OSError, socket.timeout):

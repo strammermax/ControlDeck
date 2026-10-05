@@ -22,6 +22,8 @@ import threading
 import time
 from pathlib import Path
 
+# Raise when the proxy gains operations; ControlDeck compares it with REQUIRED_PROXY in backend/root_components.py.
+PROXY_VERSION = 1
 MAX_REQUEST = 80 * 1024
 CALL_TIMEOUT = 60
 NODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,62}")
@@ -140,7 +142,7 @@ def handle(request):
 def op_status(request):
     files = state()
     public = files["pub"].read_text(encoding="utf-8").strip() if files["pub"].is_file() else None
-    return {"keyExists": files["key"].is_file(), "publicKey": public,
+    return {"proxyVersion": PROXY_VERSION, "keyExists": files["key"].is_file(), "publicKey": public,
             "nodes": [{"node": name, **{k: v for k, v in info.items() if k in ("address", "fingerprint", "enrolledAt")}} for name, info in sorted(load_nodes().items())]}
 
 
