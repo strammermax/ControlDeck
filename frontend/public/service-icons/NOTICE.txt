@@ -1,0 +1,5 @@
+Dashboard Icons by Homarr Labs
+Source: https://github.com/homarr-labs/dashboard-icons
+Revision: adca944175c9a3eb0471f78a4da87f237476d585
+Unmodified PNG assets, Apache-2.0; see LICENSE.txt.
+Product names and logos belong to their respective owners.

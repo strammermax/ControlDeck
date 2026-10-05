@@ -1,5 +1,15 @@
 # Linkwarden — Bookmarks in ControlDeck
 
+## Homepage en Linkwarden
+
+De Bookmarks-pagina heeft twee zelfstandige secties. **Homepage** is eigen ControlDeck-code met gedeelde groepen en links in privé-JSON (`<data-dir>/homepage/links.json`). Er is geen Homepage-server, Docker-container of LXC nodig. Bij een nieuwe installatie is deze sectie leeg; een admin kan via **Link toevoegen** een groep en link maken. Via **Aanpassen** kunnen titel, adres, groep, beschrijving en icoon worden gewijzigd of kan de link worden verwijderd. De vorige JSON-versie blijft privé bewaard als `links.previous.json` voor handmatig herstel. Alleen admins mogen deze gedeelde links beheren; gewone gebruikers met Bookmarks-rechten kunnen ze openen en zoeken. Schrijfverzoeken vereisen CSRF en wijzigingen worden tussen meerdere workers geserialiseerd.
+
+**Linkwarden** blijft de persoonlijke, aparte API-sectie. De bestaande token, browserextensie, collecties en zoekfuncties blijven werken. Een storing of ontbrekende token in Linkwarden blokkeert de eigen Homepage-sectie niet. Beide gebruiken de ControlDeck-login en het opgeslagen lichte/donkere thema.
+
+De oorspronkelijke Homepage-groepen en links zijn eenmalig als privéconfiguratie overgenomen. Er is geen voortdurende synchronisatie of afhankelijkheid van die installatie. Widgetcredentials en automatische statusmetingen zijn niet geïmporteerd: dit onderdeel toont links; infrastructuurmetingen blijven in hun eigen modules. Er wordt geen Homepage-broncode gebundeld.
+
+Beide secties tonen automatisch lokaal meegeleverde iconen, afkomstig uit Dashboard Icons van Homarr Labs. Een expliciet icoon zoals `plex.png` heeft voorrang; anders worden bekende applicatienamen en hostnamen herkend. Onbekende of ontbrekende iconen krijgen een lettericoon. Er worden geen bookmarkadressen naar een faviconservice gestuurd en geen onbekende externe iconen geladen. De 36 iconen en hun Apache-2.0-licentie staan onder `frontend/public/service-icons/`; extra iconen kunnen met dezelfde licentiecontrole worden toegevoegd aan `frontend/lib/service-icons.json`.
+
 ## Werking
 
 Linkwarden is de centrale opslag voor bookmarks, collecties en tags. De eigen Bookmarks-pagina in ControlDeck haalt deze gegevens op via de Linkwarden-API; er wordt geen tweede bookmarkdatabase opgebouwd. De pagina ondersteunt zoeken, collectiefilters, paginering, verversen en een nieuwe bookmark opslaan. Persoonlijke en gedeelde collecties volgen de toegangsrechten van Linkwarden. Collecties beheren en uitgebreid bewerken blijven beschikbaar via **Open Linkwarden**.

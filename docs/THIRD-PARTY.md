@@ -19,3 +19,7 @@ De door de gebruiker aangeleverde mockup vormt de visuele referentie voor de nie
 ## Python OAuth-dependencies
 
 Authlib en joserfc gebruiken BSD-3-Clause. Cryptography gebruikt Apache-2.0 of BSD-3-Clause; overige notices staan in [PYTHON-LICENSES.txt](PYTHON-LICENSES.txt). De snapshot is uit de lokale ontwikkelomgeving verzameld. Linux-bundles en Docker-images genereren het bestand opnieuw uit de daadwerkelijk geïnstalleerde Python-distributies, inclusief Gunicorn. Het runtimebestand is `PYTHON-LICENSES.txt` naast de frontend-notices.
+
+## Dashboard Icons
+
+De eigen Homepage- en Linkwarden-kaarten gebruiken 36 ongewijzigde PNG-iconen uit [Homarr Labs Dashboard Icons](https://github.com/homarr-labs/dashboard-icons), vastgezet op commit `adca944175c9a3eb0471f78a4da87f237476d585`. De Apache-2.0-licentie en bronvermelding worden meegeleverd in `frontend/public/service-icons/LICENSE.txt` en `NOTICE.txt`, en zijn daardoor ook aanwezig in de statische export. Productnamen en logo's blijven eigendom van hun respectieve rechthebbenden. De kaartcomponenten zijn eigen ControlDeck-code; Homepage- en Homarr-appcode zijn niet gekopieerd.
