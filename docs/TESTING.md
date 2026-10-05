@@ -78,3 +78,7 @@ Browserinteractie vult deze unit/contract-tests aan; hiervoor worden geen produc
 De optionele Terminal-integratie gebruikt een afzonderlijke Docker-container, de bestaande Google-login en een beveiligde Nginx-gateway. Zie [Termix-installatie en beheer](TERMIX.md).
 
 De admin-installatiewizard biedt Docker en Proxmox LXC als keuzes, met voorafgaande controle en voortgang. Zie [module-installatiewizard](MODULE-WIZARD.md). Docker is aangesloten; de Proxmox-uitvoering vereist nog de hostverbinding en Helper-Script-adapter.
+
+## Homepage-apps en integraties
+
+`tests/test_homepage_integrations.py` toetst de Seerr/Jellyfin-adapters, normale/grens/foutgevallen, versleuteling, herstart, toegang, CSRF, gelijktijdige updates en de 50-koppelingenlimiet. `frontend/tests/homepage-apps.test.mjs` en `homepage-integrations.test.mjs` toetsen cataloguskeuze, tegelprojectie en API-aanroepen. Benoemde regressies bewaken Flask-endpointnamen, veilige icoonnamen en appnamen die niet door authenticatieheaders mogen worden vervangen. Browsercontrole: Link toevoegen → zoek Jellyfin → naam/icoon ingevuld → API-koppeling → gebruikersnaam/wachtwoord → geslaagde test → tegel met aantallen. Gebruik daarvoor synthetische API-antwoorden in een private lokale testomgeving; echte endpoints hebben eigen credentials nodig.

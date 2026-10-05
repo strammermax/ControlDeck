@@ -1,0 +1,907 @@
+{
+  "source": "https://github.com/homarr-labs/homarr/blob/4df4ee05998b1777b072770632a6427efbc09149/packages/definitions/src/integration.ts",
+  "apps": [
+    {
+      "id": "adGuardHome",
+      "name": "AdGuard Home",
+      "icon": "adguard-home",
+      "port": 3000,
+      "categories": [
+        "dnsHole"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "anchor",
+      "name": "Anchor",
+      "icon": "anchor",
+      "port": 8080,
+      "categories": [
+        "notes"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "archiveTeamWarrior",
+      "name": "ArchiveTeam Warrior",
+      "icon": "archiveteam-warrior",
+      "port": 8001,
+      "categories": [
+        "archiving"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "aria2",
+      "name": "Aria2",
+      "icon": "aria2",
+      "port": 6800,
+      "categories": [
+        "downloadClient",
+        "torrent",
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "audiobookshelf",
+      "name": "Audiobookshelf",
+      "icon": "audiobookshelf",
+      "port": 13378,
+      "categories": [
+        "mediaLibrary"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "autobrr",
+      "name": "Autobrr",
+      "icon": "autobrr",
+      "port": 7474,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "bazarr",
+      "name": "Bazarr",
+      "icon": "bazarr",
+      "port": 6767,
+      "categories": [
+        "subtitleManager"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "beszel",
+      "name": "Beszel",
+      "icon": "beszel",
+      "port": 8090,
+      "categories": [
+        "beszel"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "bindery",
+      "name": "Bindery",
+      "icon": "bindery",
+      "port": 8787,
+      "categories": [
+        "mediaOrganizer"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "caddy",
+      "name": "Caddy",
+      "icon": "caddy",
+      "port": 2019,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "changedetection",
+      "name": "Changedetection.io",
+      "icon": "changedetection",
+      "port": 5000,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "coolify",
+      "name": "Coolify",
+      "icon": "coolify",
+      "port": 8000,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "dashDot",
+      "name": "Dash.",
+      "icon": "dashdot",
+      "port": 3001,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "deluge",
+      "name": "Deluge",
+      "icon": "deluge",
+      "port": 8112,
+      "categories": [
+        "downloadClient",
+        "torrent"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "emby",
+      "name": "Emby",
+      "icon": "emby",
+      "port": 8096,
+      "categories": [
+        "mediaService",
+        "mediaRelease"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "fileflows",
+      "name": "FileFlows",
+      "icon": "fileflows",
+      "port": 19200,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "frigate",
+      "name": "Frigate",
+      "icon": "frigate",
+      "port": 8971,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "gatus",
+      "name": "Gatus",
+      "icon": "gatus",
+      "port": 8080,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "glances",
+      "name": "Glances",
+      "icon": "glances",
+      "port": 61208,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "gluetun",
+      "name": "Gluetun",
+      "icon": "gluetun",
+      "port": 8000,
+      "categories": [
+        "vpn"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "gotify",
+      "name": "Gotify",
+      "icon": "gotify",
+      "port": 80,
+      "categories": [
+        "notifications"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "healthchecks",
+      "name": "Healthchecks",
+      "icon": "healthchecks",
+      "port": 8000,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "homeAssistant",
+      "name": "Home Assistant",
+      "icon": "home-assistant",
+      "port": 8123,
+      "categories": [
+        "smartHomeServer",
+        "calendar"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "homebox",
+      "name": "Homebox",
+      "icon": "homebox",
+      "port": 7745,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "ical",
+      "name": "iCal",
+      "icon": "ical",
+      "port": null,
+      "categories": [
+        "calendar"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "immich",
+      "name": "Immich",
+      "icon": "immich",
+      "port": 2283,
+      "categories": [
+        "photoService"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "jackett",
+      "name": "Jackett",
+      "icon": "jackett",
+      "port": 9117,
+      "categories": [
+        "indexerManager"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "jellyfin",
+      "name": "Jellyfin",
+      "icon": "jellyfin",
+      "port": 8096,
+      "categories": [
+        "mediaService",
+        "mediaRelease"
+      ],
+      "apiSupported": true
+    },
+    {
+      "id": "jellyseerr",
+      "name": "Jellyseerr",
+      "icon": "jellyseerr",
+      "port": 5055,
+      "categories": [
+        "mediaSearch",
+        "mediaRequest",
+        "search"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "jellystat",
+      "name": "Jellystat",
+      "icon": "jellystat",
+      "port": 3000,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "karakeep",
+      "name": "Karakeep",
+      "icon": "karakeep",
+      "port": 3000,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "komga",
+      "name": "Komga",
+      "icon": "komga",
+      "port": 25600,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "lidarr",
+      "name": "Lidarr",
+      "icon": "lidarr",
+      "port": 8686,
+      "categories": [
+        "calendar"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "linkwarden",
+      "name": "Linkwarden",
+      "icon": "linkwarden",
+      "port": 3000,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "llamacpp",
+      "name": "llama.cpp",
+      "icon": "llama-cpp",
+      "port": 8080,
+      "categories": [
+        "systemMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "maintainerr",
+      "name": "Maintainerr",
+      "icon": "maintainerr",
+      "port": 6246,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "mealie",
+      "name": "Mealie",
+      "icon": "mealie",
+      "port": 9000,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "miniflux",
+      "name": "Miniflux",
+      "icon": "miniflux",
+      "port": 8080,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "navidrome",
+      "name": "Navidrome",
+      "icon": "navidrome",
+      "port": 4533,
+      "categories": [
+        "mediaLibrary",
+        "mediaService"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "netalertx",
+      "name": "NetAlertX",
+      "icon": "netalertx",
+      "port": 20212,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "netdata",
+      "name": "Netdata",
+      "icon": "netdata",
+      "port": 19999,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "nextcloud",
+      "name": "Nextcloud",
+      "icon": "nextcloud",
+      "port": 443,
+      "categories": [
+        "calendar",
+        "notifications"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "ntfy",
+      "name": "ntfy",
+      "icon": "ntfy",
+      "port": 80,
+      "categories": [
+        "notifications"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "nzbGet",
+      "name": "NZBGet",
+      "icon": "nzbget",
+      "port": 6789,
+      "categories": [
+        "downloadClient",
+        "usenet"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "openmediavault",
+      "name": "OpenMediaVault",
+      "icon": "openmediavault",
+      "port": 80,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "opnsense",
+      "name": "OPNsense",
+      "icon": "opnsense",
+      "port": 443,
+      "categories": [
+        "firewall"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "overseerr",
+      "name": "Overseerr",
+      "icon": "overseerr",
+      "port": 5055,
+      "categories": [
+        "mediaSearch",
+        "mediaRequest",
+        "search"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "paperlessNgx",
+      "name": "Paperless-ngx",
+      "icon": "paperless-ngx",
+      "port": 8000,
+      "categories": [
+        "documents"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "patchmon",
+      "name": "PatchMon",
+      "icon": "patchmon",
+      "port": 3413,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "peaNut",
+      "name": "PeaNUT",
+      "icon": "peanut",
+      "port": 8080,
+      "categories": [
+        "ups"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "piHole",
+      "name": "Pi-hole",
+      "icon": "pi-hole",
+      "port": 80,
+      "categories": [
+        "dnsHole"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "plantit",
+      "name": "Plant-it",
+      "icon": "plant-it",
+      "port": 8080,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "plex",
+      "name": "Plex",
+      "icon": "plex",
+      "port": 32400,
+      "categories": [
+        "mediaService",
+        "mediaRelease"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "prometheus",
+      "name": "Prometheus",
+      "icon": "prometheus",
+      "port": 9090,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "prowlarr",
+      "name": "Prowlarr",
+      "icon": "prowlarr",
+      "port": 9696,
+      "categories": [
+        "indexerManager"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "proxmox",
+      "name": "Proxmox",
+      "icon": "proxmox",
+      "port": 8006,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "qBittorrent",
+      "name": "qBittorrent",
+      "icon": "qbittorrent",
+      "port": 8080,
+      "categories": [
+        "downloadClient",
+        "torrent"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "radarr",
+      "name": "Radarr",
+      "icon": "radarr",
+      "port": 7878,
+      "categories": [
+        "calendar",
+        "mediaOrganizer"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "readarr",
+      "name": "Readarr",
+      "icon": "readarr",
+      "port": 8787,
+      "categories": [
+        "calendar"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "romm",
+      "name": "RomM",
+      "icon": "romm",
+      "port": 8080,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "sabNzbd",
+      "name": "SABnzbd",
+      "icon": "sabnzbd",
+      "port": 8080,
+      "categories": [
+        "downloadClient",
+        "usenet"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "scrutiny",
+      "name": "Scrutiny",
+      "icon": "scrutiny",
+      "port": 8080,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "seerr",
+      "name": "Seerr",
+      "icon": "seerr",
+      "port": 5055,
+      "categories": [
+        "mediaSearch",
+        "mediaRequest",
+        "search"
+      ],
+      "apiSupported": true
+    },
+    {
+      "id": "slskd",
+      "name": "Slskd",
+      "icon": "slskd",
+      "port": 5030,
+      "categories": [
+        "downloadClient",
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "sonarr",
+      "name": "Sonarr",
+      "icon": "sonarr",
+      "port": 8989,
+      "categories": [
+        "calendar",
+        "mediaOrganizer"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "speedtestTracker",
+      "name": "Speedtest Tracker",
+      "icon": "speedtest-tracker",
+      "port": 80,
+      "categories": [
+        "speedtest"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "spoolman",
+      "name": "Spoolman",
+      "icon": "spoolman",
+      "port": 7912,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "stash",
+      "name": "Stash",
+      "icon": "stash",
+      "port": 9999,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "syncthingRelay",
+      "name": "Syncthing Relay",
+      "icon": "syncthing",
+      "port": 22070,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "synology",
+      "name": "Synology DiskStation",
+      "icon": "synology",
+      "port": 5000,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "tandoor",
+      "name": "Tandoor",
+      "icon": "tandoor-recipes",
+      "port": 8080,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "tdarr",
+      "name": "Tdarr",
+      "icon": "tdarr",
+      "port": 8265,
+      "categories": [
+        "mediaTranscoding"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "technitiumDns",
+      "name": "Technitium DNS",
+      "icon": "technitium",
+      "port": 5380,
+      "categories": [
+        "dnsHole"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "tracearr",
+      "name": "Tracearr",
+      "icon": "tracearr",
+      "port": 7040,
+      "categories": [
+        "mediaMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "traefik",
+      "name": "Traefik",
+      "icon": "traefik",
+      "port": 8080,
+      "categories": [
+        "reverseProxy"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "transmission",
+      "name": "Transmission",
+      "icon": "transmission",
+      "port": 9091,
+      "categories": [
+        "downloadClient",
+        "torrent"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "trilium",
+      "name": "Trilium",
+      "icon": "trilium",
+      "port": 8080,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "truenas",
+      "name": "TrueNAS",
+      "icon": "truenas",
+      "port": 80,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "tubearchivist",
+      "name": "Tube Archivist",
+      "icon": "tube-archivist",
+      "port": 8000,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "umami",
+      "name": "Umami",
+      "icon": "umami",
+      "port": 3000,
+      "categories": [
+        "analytics"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "unifiController",
+      "name": "Unifi Controller",
+      "icon": "unifi",
+      "port": 8443,
+      "categories": [
+        "networkController"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "unmanic",
+      "name": "Unmanic",
+      "icon": "unmanic",
+      "port": 8888,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "unraid",
+      "name": "Unraid",
+      "icon": "unraid",
+      "port": 80,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "uptimeKuma",
+      "name": "Uptime Kuma",
+      "icon": "uptime-kuma",
+      "port": 3001,
+      "categories": [
+        "uptimeMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "wazuh",
+      "name": "Wazuh",
+      "icon": "wazuh",
+      "port": 55000,
+      "categories": [
+        "security"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "wud",
+      "name": "What's Up Docker",
+      "icon": "whats-up-docker",
+      "port": 3000,
+      "categories": [
+        "healthMonitoring"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "xteve",
+      "name": "xTeVe",
+      "icon": "xteve",
+      "port": 34400,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    },
+    {
+      "id": "yourSpotify",
+      "name": "Your Spotify",
+      "icon": "your-spotify",
+      "port": 8080,
+      "categories": [
+        "miscellaneous"
+      ],
+      "apiSupported": false
+    }
+  ]
+}

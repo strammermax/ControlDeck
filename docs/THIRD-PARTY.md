@@ -23,3 +23,9 @@ Authlib en joserfc gebruiken BSD-3-Clause. Cryptography gebruikt Apache-2.0 of B
 ## Dashboard Icons
 
 De eigen Homepage- en Linkwarden-kaarten gebruiken 36 ongewijzigde PNG-iconen uit [Homarr Labs Dashboard Icons](https://github.com/homarr-labs/dashboard-icons), vastgezet op commit `adca944175c9a3eb0471f78a4da87f237476d585`. De Apache-2.0-licentie en bronvermelding worden meegeleverd in `frontend/public/service-icons/LICENSE.txt` en `NOTICE.txt`, en zijn daardoor ook aanwezig in de statische export. Productnamen en logo's blijven eigendom van hun respectieve rechthebbenden. De kaartcomponenten zijn eigen ControlDeck-code; Homepage- en Homarr-appcode zijn niet gekopieerd.
+
+## Homepage app-catalogus
+
+De namen, standaardpoorten, categorieën en icoonnamen van 88 apps zijn afgeleid van [Homarr integration definitions](https://github.com/homarr-labs/homarr/blob/4df4ee05998b1777b072770632a6427efbc09149/packages/definitions/src/integration.ts), Apache-2.0. De catalogus verwijst naar die bron in `frontend/lib/app-catalog.json`. Aanvullende iconen komen uit dezelfde eerder gedocumenteerde gepinde Dashboard Icons-bron en vallen onder de bestaande meegeleverde LICENSE/NOTICE. De native Python-adapters en React-formulieren zijn eigen code.
+
+De Apache-2.0-licentietekst van Homarr is opgenomen in `docs/licenses/HOMARR-LICENSE.txt`. De test-only Mock-integratie is uitgesloten van de gebruikerscatalogus.

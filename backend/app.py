@@ -14,6 +14,7 @@ from backend.proxmox import setup_proxmox
 from backend.proxmenux import setup_proxmenux
 from backend.linkwarden import setup_linkwarden
 from backend.homepage import setup_homepage
+from backend.homepage_integrations import setup_homepage_integrations
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -30,6 +31,7 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     setup_proxmenux(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_linkwarden(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_homepage(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_homepage_integrations(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     metadata_path = ROOT / "build-info.json"
     metadata = (
         json.loads(metadata_path.read_text(encoding="utf-8"))
