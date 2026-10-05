@@ -52,7 +52,7 @@ ln -sfn "$release" /opt/controldeck/current.next
 mv -Tf /opt/controldeck/current.next /opt/controldeck/current
 healthy=false
 if systemctl restart controldeck; then
-    for attempt in $(seq 1 30); do
+    for _ in $(seq 1 30); do
         if curl -fsS http://127.0.0.1:8080/ready >/dev/null && \
            curl -fsS http://127.0.0.1:8080/health | python3 -c 'import json,sys; sys.exit(json.load(sys.stdin).get("commit") != sys.argv[1])' "$commit"; then
             healthy=true
