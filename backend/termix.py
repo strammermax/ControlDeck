@@ -31,10 +31,11 @@ def setup_termix(app, configuration_path):
                 raise ValueError("Provisioning rejected")
             response = requests.post(UPSTREAM + "/users/proxy-login", headers={"X-Forwarded-Username": g.account["email"], "X-Forwarded-Role": g.account["role"], "X-Forwarded-Proto": "https"}, timeout=5)
             data = response.json()
-            if response.status_code != 200 or not isinstance(data, dict) or not data.get("success") or not isinstance(data.get("token"), str) or not data["token"]:
+            token = response.cookies.get("jwt")
+            if response.status_code != 200 or not isinstance(data, dict) or not data.get("success") or data.get("username") != g.account["email"] or bool(data.get("is_admin")) != (g.account["role"] == "admin") or not isinstance(token, str) or not token:
                 raise ValueError("Login rejected")
-            result = jsonify(token=data["token"])
-            result.set_cookie("jwt", data["token"], secure=True, httponly=True, samesite="Lax", path="/termix/")
+            result = jsonify(ready=True)
+            result.set_cookie("jwt", token, secure=True, httponly=True, samesite="Lax", path="/termix/")
             return result
         except (requests.RequestException, ValueError):
             return jsonify(error="Termix is momenteel niet beschikbaar. Probeer opnieuw."), 503

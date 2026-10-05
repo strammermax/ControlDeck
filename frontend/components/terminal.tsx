@@ -10,9 +10,10 @@ export function Terminal({enabled, csrfToken}: {enabled: boolean; csrfToken: str
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     setState("loading");
-    startTerminal(csrfToken, controller.signal).then(token => {
+    startTerminal(csrfToken, controller.signal).then(() => {
       if (controller.signal.aborted) return;
-      localStorage.setItem("jwt", token);
+      // Browser sessions stay in HttpOnly cookies; discard stale legacy tokens.
+      localStorage.removeItem("jwt");
       setState("ready");
     }).catch(() => setState("failed")).finally(() => clearTimeout(timeout));
     return () => {controller.abort(); clearTimeout(timeout);};

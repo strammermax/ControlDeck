@@ -9,16 +9,16 @@ test('terminal normaal: uses protected endpoint and CSRF token', async () => {
       assert.equal(url, '/api/termix/session');
       assert.equal(options.method, 'POST');
       assert.equal(options.headers['X-CSRF-Token'], 'csrf');
-      return {ok:true,json:async()=>({token:'signed-session'})};
+      return {ok:true,json:async()=>({ready:true})};
     };
-    assert.equal(await startTerminal('csrf'), 'signed-session');
+    assert.equal(await startTerminal('csrf'), true);
   } finally {globalThis.fetch=previous;}
 });
 test('terminal boundary: abort signal propagates and empty token is rejected', async () => {
   const previous=globalThis.fetch;
   try {
     const signal=new AbortController().signal;
-    globalThis.fetch=async (_,options)=>{assert.equal(options.signal,signal);return {ok:true,json:async()=>({token:''})};};
+    globalThis.fetch=async (_,options)=>{assert.equal(options.signal,signal);return {ok:true,json:async()=>({ready:false})};};
     await assert.rejects(startTerminal('csrf',signal), /Invalid/);
   } finally {globalThis.fetch=previous;}
 });
@@ -27,7 +27,7 @@ test('terminal faal: unavailable service and malformed session fail closed', asy
   try {
     globalThis.fetch=async()=>({ok:false});
     await assert.rejects(startTerminal('csrf'), /unavailable/);
-    globalThis.fetch=async()=>({ok:true,json:async()=>({token:123})});
+    globalThis.fetch=async()=>({ok:true,json:async()=>({ready:'yes'})});
     await assert.rejects(startTerminal('csrf'), /Invalid/);
   } finally {globalThis.fetch=previous;}
 });

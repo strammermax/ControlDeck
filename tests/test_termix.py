@@ -27,7 +27,7 @@ def bridge(tmp_path, monkeypatch):
 
 
 def response(status=200, **data):
-    return Mock(status_code=status, json=lambda:data)
+    return Mock(status_code=status, json=lambda:data, cookies={'jwt':'signed'})
 
 
 @pytest.mark.parametrize('case', ['normaal', 'boundary', 'faal'])
@@ -47,13 +47,14 @@ def test_terminal_configuration(case):
 @pytest.mark.parametrize('case', ['normaal', 'boundary', 'faal'])
 def test_provision_and_login(bridge, monkeypatch, case):
     client, _, _ = bridge
-    mocked = Mock(side_effect=[response(201 if case=='normaal' else 409), response(success=True, token='signed')])
+    mocked = Mock(side_effect=[response(201 if case=='normaal' else 409), response(success=True, username='user@example.test', is_admin=False)])
     monkeypatch.setattr('backend.termix.requests.post', mocked)
     if case == 'faal': mocked.side_effect=requests.ConnectionError()
     result=client.post('/api/termix/session', headers={'X-CSRF-Token':'csrf'})
     assert result.status_code == (503 if case=='faal' else 200)
     if case != 'faal':
-        assert result.json == {'token':'signed'}
+        assert result.json == {'ready':True}
+        assert 'signed' not in result.get_data(as_text=True)
         assert 'Secure' in result.headers['Set-Cookie'] and 'HttpOnly' in result.headers['Set-Cookie']
         assert 'Path=/termix/' in result.headers['Set-Cookie']
         assert mocked.call_args_list[0].kwargs['json']['username']=='user@example.test'

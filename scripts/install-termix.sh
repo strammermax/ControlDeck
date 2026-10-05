@@ -5,15 +5,18 @@ set -euo pipefail
 source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 [[ -f /var/lib/controldeck/accounts.json && -d /opt/controldeck/current ]] || { echo 'Install ControlDeck and its accounts first.' >&2; exit 1; }
 apt-get update
-apt-get install -y docker.io docker-compose nginx
+apt-get install -y nginx curl
+if ! command -v docker >/dev/null 2>&1; then apt-get install -y docker.io; fi
+if ! docker compose version >/dev/null 2>&1; then apt-get install -y docker-compose; fi
 systemctl enable --now docker
 install -d -m 0700 /opt/controldeck-integrations/termix
 install -m 0600 "$source_root/deploy/termix.compose.yml" /opt/controldeck-integrations/termix/compose.yml
-docker-compose -p controldeck-integrations -f /opt/controldeck-integrations/termix/compose.yml up -d
+docker compose -p controldeck-integrations -f /opt/controldeck-integrations/termix/compose.yml up -d
 for _ in $(seq 1 60); do
-    if curl -fsS http://127.0.0.1:8090/ >/dev/null; then break; fi
+    if curl -fsS http://127.0.0.1:8090/users/registration-allowed >/dev/null; then break; fi
     sleep 2
 done
+curl -fsS http://127.0.0.1:8090/users/registration-allowed >/dev/null
 # Seed the first profile as an administrator before exposing any gateway routes.
 # Subsequent approved profiles are provisioned lazily by the authenticated bridge.
 python3 - <<'PY'
