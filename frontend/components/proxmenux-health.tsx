@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { collectUpdates, diskStatus, healthLabels, healthProblems, healthText, type MonitorNode } from "../lib/proxmox";
+import { UPDATE_LXCS_COMMAND, collectUpdates, diskStatus, healthLabels, healthProblems, healthText, updatesPerNode, type MonitorNode } from "../lib/proxmox";
 
 const levelSymbol = { ok: "✓", warning: "△", error: "✗", unknown: "?", standby: "◌" } as const;
 const diskText = { ok: "OK", warning: "Let op", error: "Fout", unknown: "Onbekend", standby: "Slaapstand" } as const;
@@ -73,10 +73,30 @@ export function ProxmenuxHealth({ refreshSeconds }: { refreshSeconds: number }) 
           {update.monitorUrl && <> · <a className="update-link" href={update.monitorUrl} target="_blank" rel="noopener noreferrer" title={`Open de ProxMenux Monitor van ${update.node}; de update start je daar, met de login van de monitor.`}>Bijwerken in ProxMenux ↗</a></>}
           {update.packages.length > 0 && <div className="update-packages">{update.packages.join(", ")}{(update.count ?? 0) > update.packages.length ? " …" : ""}</div>}
         </li>)}</ul> : updates.missing.length === 0 && !loading ? <p>✓ Alle containers zijn bijgewerkt.</p> : null}
-        {updates.rows.length > 0 && <p className="health-ok">Updates voer je uit in de ProxMenux Monitor van de node. Uitvoeren vanuit ControlDeck volgt later (issue #1).</p>}
+        {updates.rows.length > 0 && <BulkUpdate perNode={updatesPerNode(updates.rows)}/>}
         {updates.missing.length > 0 && <p className="health-error" role="status">Geen updategegevens van {updates.missing.join(", ")}; die containers ontbreken in deze lijst.</p>}
         {loading && <p className="health-ok" role="status">Nog niet alle nodes zijn geladen.</p>}
       </article>
     </div>
   </section>;
+}
+
+/** Guided bulk update per node with the community "PVE LXC Updater"; ControlDeck itself runs nothing. */
+function BulkUpdate({ perNode }: { perNode: ReturnType<typeof updatesPerNode> }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(UPDATE_LXCS_COMMAND); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setCopied(false); }
+  };
+  return <details className="bulk-update">
+    <summary>Alle containers van een node bijwerken</summary>
+    <ol>
+      <li>Open in Proxmox de node: {perNode.map((item, index) => <span key={item.node}>{index ? ", " : ""}<strong>{item.node}</strong> ({item.containers} {item.containers === 1 ? "container" : "containers"}{item.security ? `, ${item.security} beveiligingsupdates` : ""})</span>)} → <strong>Shell</strong>.</li>
+      <li>Plak dit commando en druk op Enter:
+        <div className="copy-row"><pre className="command">{UPDATE_LXCS_COMMAND}</pre><button type="button" onClick={() => void copy()} aria-live="polite">{copied ? "✓ Gekopieerd" : "Kopiëren"}</button></div>
+      </li>
+      <li>Beantwoord de vragen: doorgaan, gestopte containers overslaan, en welke containers je wilt uitsluiten.</li>
+      <li>Herstart daarna de containers die het script noemt. Ververs deze pagina om de nieuwe stand te zien.</li>
+    </ol>
+    <p className="health-ok">Dit is het officiële <a href="https://community-scripts.org/scripts/update-lxcs" target="_blank" rel="noopener noreferrer">PVE LXC Updater-script</a> van de Proxmox VE Helper-Scripts. Het werkt alleen het besturingssysteem van de containers bij (Debian/Ubuntu: <code>apt dist-upgrade</code> en <code>autoremove</code>), niet de app zelf, en start gestopte containers tijdelijk. Per container bijwerken kan via <em>Bijwerken in ProxMenux</em>. Bijwerken vanuit ControlDeck zelf volgt later (issue #1).</p>
+  </details>;
 }

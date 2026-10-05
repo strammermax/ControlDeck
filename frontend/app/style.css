@@ -147,3 +147,9 @@ tr.task-error {background:#f0808010}
 .update-link:hover {text-decoration:underline}
 footer .release-link {color:var(--muted)}
 footer .release-link:hover {color:var(--blue);text-decoration:underline}
+.bulk-update {margin-top:14px;border-top:1px solid var(--border);padding-top:12px;font-size:13px}
+.bulk-update summary {cursor:pointer;color:var(--blue);font-weight:600}
+.bulk-update ol {padding-left:20px;display:grid;gap:8px;margin:10px 0}
+.copy-row {display:flex;gap:8px;align-items:stretch;margin-top:6px}
+.copy-row pre {flex:1;margin:0;overflow-x:auto;white-space:pre}
+.copy-row button {padding:6px 12px;white-space:nowrap}

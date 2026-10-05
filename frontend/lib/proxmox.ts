@@ -131,3 +131,18 @@ export function collectUpdates(nodes: readonly MonitorNode[]): { rows: UpdateRow
   const missing = nodes.filter(node => node.lxcUpdates === undefined || node.partial?.includes("containers")).map(node => node.name).sort();
   return { rows, containers: rows.length, security: rows.reduce((total, row) => total + (row.security ?? 0), 0), missing };
 }
+
+/** Official community "PVE LXC Updater": runs on the Proxmox host as root, asks which containers to skip. */
+export const UPDATE_LXCS_COMMAND = 'bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/pve/update-lxcs.sh)"';
+
+/** Per node: how many containers have updates and how many security updates; most security updates first. */
+export function updatesPerNode(rows: readonly UpdateRow[]): { node: string; containers: number; security: number }[] {
+  if (!Array.isArray(rows)) throw new TypeError("Rows must be a list");
+  const totals = new Map<string, { node: string; containers: number; security: number }>();
+  for (const row of rows) {
+    const entry = totals.get(row.node) ?? { node: row.node, containers: 0, security: 0 };
+    entry.containers += 1; entry.security += row.security ?? 0;
+    totals.set(row.node, entry);
+  }
+  return [...totals.values()].sort((a, b) => b.security - a.security || b.containers - a.containers || a.node.localeCompare(b.node));
+}

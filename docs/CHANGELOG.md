@@ -4,7 +4,7 @@ Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.m
 
 ## 2026.10.05 — Instellingen, Proxmox, ProxMenux, Modulebeheer en Linkwarden
 
-- LXC-updates: knop **Bijwerken in ProxMenux ↗** per container.
+- LXC-updates: knop **Bijwerken in ProxMenux ↗** per container en begeleide update per node met het PVE LXC Updater-script (kopieerknop).
 - Release notes per release uit de commitberichten; de footer linkt naar de release notes van de draaiende versie. CI bewaart de laatste 30 releases en image-versies.
 - Versienummering `jjjj.mm.dd.<build>`; elke build van `main` wordt automatisch een GitHub-release.
 

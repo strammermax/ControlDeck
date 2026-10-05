@@ -127,3 +127,17 @@ test('collectUpdates / faal: unreachable or partial nodes are listed as missing,
   assert.deepEqual(result.missing,['pve-intel','pve-nas']);
   assert.throws(() => collectUpdates(null),TypeError);
 });
+import { UPDATE_LXCS_COMMAND, updatesPerNode } from '../lib/proxmox.ts';
+const row = (node, id, security) => ({node, id, name:`ct${id}`, count:1, security, packages:[]});
+test('updatesPerNode / normaal: groups containers per node, most security updates first', () => {
+  assert.deepEqual(updatesPerNode([row('pve-amd',137,26), row('pve-intel',105,5), row('pve-amd',103,0), row('pve-intel',127,5)]),
+    [{node:'pve-amd',containers:2,security:26},{node:'pve-intel',containers:2,security:10}]);
+});
+test('updatesPerNode / boundary: no rows and missing security counts', () => {
+  assert.deepEqual(updatesPerNode([]),[]);
+  assert.deepEqual(updatesPerNode([{...row('pve-nas',1,0), security:null}]),[{node:'pve-nas',containers:1,security:0}]);
+});
+test('updatesPerNode / faal: malformed input is rejected; the command is the official host script', () => {
+  assert.throws(() => updatesPerNode(null),TypeError);
+  assert.match(UPDATE_LXCS_COMMAND,/^bash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/community-scripts\/ProxmoxVE\/main\/tools\/pve\/update-lxcs\.sh\)"$/);
+});
