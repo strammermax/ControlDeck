@@ -86,10 +86,19 @@ Per node controleert ControlDeck het certificaat, het token en of de hostname va
 - Opnieuw opslaan met dezelfde node en hetzelfde adres: het tokenveld mag leeg blijven.
 - Een token intrekken: in de monitor (Settings → Security → API tokens). Ontkoppelen in ControlDeck: `DELETE /api/proxmenux/connection`.
 
+## Wat het Overzicht toont
+
+- **CPU-vermogen** — de monitor meet via RAPL alleen de CPU (bijv. `AMD RAPL (CPU only)`), niet het totale verbruik van de server. De bron staat in de tooltip.
+- **Load** — 1-minuutgemiddelde naast het aantal CPU-threads (`4.26 / 16`).
+- **Schijven in slaapstand** — worden niet gewekt; SMART en temperatuur zijn dan niet gemeten. Status **◌ Slaapstand**, temperatuur "—" (een gemelde 0 °C wordt nooit getoond).
+- **LXC-updates** — over alle nodes gesorteerd (meeste beveiligingsupdates eerst), met totaal en de eerste pakketnamen. Nodes zonder updategegevens worden apart genoemd; ze tellen nooit als "bijgewerkt".
+- Nodekaarten staan alfabetisch.
+
 ## Gedrag en storingen
 
-- Per node worden vijf monitor-endpoints parallel opgehaald (time-out 15 s).
-- Bekende gegevens worden direct getoond en elke 30 s op de achtergrond ververst; alleen de allereerste keer wordt gewacht.
+- Per node worden vijf monitor-endpoints parallel opgehaald: time-out 15 s, voor `health/details` 30 s (die voert alle controles uit en duurt op kleine nodes soms langer dan 15 s).
+- Faalt één onderdeel, dan blijven de andere gegevens zichtbaar met de melding "Niet beschikbaar: …".
+- De pagina wacht nooit op de monitors: de eerste keer toont een node "◌ Laden…" en wordt op de achtergrond opgehaald; daarna worden bekende gegevens direct getoond en elke 30 s ververst.
 - Een onbereikbare node blokkeert de andere niet. Hij toont **? Onbekend** of de laatst bekende gegevens met **verouderd**, nooit "gezond".
 - Schijven met onbekende SMART-status zijn **Onbekend**, niet "OK".
 

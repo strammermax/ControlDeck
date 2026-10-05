@@ -97,3 +97,31 @@ test('monitorGuidance / faal: unknown or missing state is never ready', () => {
   assert.equal(monitorGuidance(undefined).level,'unknown');
   assert.equal(monitorGuidance('something').level,'unknown');
 });
+import { collectUpdates, diskStatus } from '../lib/proxmox.ts';
+test('diskStatus / normaal: a readable disk keeps its level', () => {
+  assert.equal(diskStatus(disk()),'ok');
+});
+test('diskStatus / boundary: a sleeping disk without SMART is "standby", not unknown', () => {
+  assert.equal(diskStatus(disk({smart:'unknown',health:'unknown',standby:true})),'standby');
+  assert.equal(diskStatus(disk({smart:'FAILED',standby:true})),'error');
+});
+test('diskStatus / faal: an awake disk without SMART stays unknown', () => {
+  assert.equal(diskStatus(disk({smart:'unknown',health:'unknown',standby:false})),'unknown');
+});
+const upd = (id, security, count) => ({id, name:`ct${id}`, count, security, packages:[]});
+test('collectUpdates / normaal: security first across all nodes, with totals', () => {
+  const result = collectUpdates([{name:'pve-amd', lxcUpdates:[upd(103,0,4), upd(137,26,50)]}, {name:'pve-intel', lxcUpdates:[upd(105,5,5)]}]);
+  assert.deepEqual(result.rows.map(r => r.id),[137,105,103]);
+  assert.equal(result.containers,3);
+  assert.equal(result.security,31);
+  assert.deepEqual(result.missing,[]);
+});
+test('collectUpdates / boundary: no updates and equal security sorted by count', () => {
+  assert.deepEqual(collectUpdates([{name:'a', lxcUpdates:[]}]),{rows:[], containers:0, security:0, missing:[]});
+  assert.deepEqual(collectUpdates([{name:'a', lxcUpdates:[upd(1,0,2), upd(2,0,9)]}]).rows.map(r => r.id),[2,1]);
+});
+test('collectUpdates / faal: unreachable or partial nodes are listed as missing, never as up to date', () => {
+  const result = collectUpdates([{name:'pve-intel', overall:'unknown', error:'x'}, {name:'pve-nas', partial:['containers'], lxcUpdates:[]}]);
+  assert.deepEqual(result.missing,['pve-intel','pve-nas']);
+  assert.throws(() => collectUpdates(null),TypeError);
+});

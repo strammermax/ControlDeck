@@ -52,9 +52,9 @@ def env(tmp_path, monkeypatch):
     responses = {"system": SYSTEM, "health": {"version": "1.2.6"}, "health/details": HEALTH, "storage": STORAGE, "hardware": HARDWARE, "vms": VMS}
     hosts = {"https://192.168.1.98:8008": "pve-amd", "https://192.168.1.97:8008": "pve-nas"}
     failing = set()
-    def fake(node, ca_path, path):
+    def fake(node, ca_path, path, timeout=None):
         assert ca_path.read_text() == CA.strip() + "\n"
-        if node["url"] in failing:
+        if node["url"] in failing or (node["url"], path) in failing:
             raise MonitorError("Monitor niet bereikbaar.")
         return {**SYSTEM, "hostname": hosts.get(node["url"])} if path == "system" else responses[path]
     monkeypatch.setattr(proxmenux, "monitor_get", fake)
@@ -106,7 +106,8 @@ def test_node_summary(case):
         assert {c["id"]: c["status"] for c in result["categories"]} == {"cpu": "ok", "lxc_mounts": "error", "remote_mounts": "warning"}
         assert result["temperature"] == 48.5 and result["powerWatts"] == 61.2 and result["hostUpdates"] == 3 and result["load"] == 1.5
         assert result["disks"][0]["wear"] == 7 and result["zfsPools"][0]["health"] == "ONLINE"
-        assert result["lxcUpdates"] == [{"id": 129, "name": "plex", "count": 4, "security": 2, "latest": "1.2"}]
+        assert result["lxcUpdates"] == [{"id": 129, "name": "plex", "count": 4, "security": 2, "packages": []}]
+        assert result["threads"] is None and result["powerSource"] is None
         dumped = json.dumps(result)
         assert "SECRET" not in dumped and "192.168.1.98" not in dumped
     elif case == "boundary":
@@ -176,6 +177,17 @@ def test_connection_is_admin_only_with_csrf(env):
     assert not stored.exists()
 
 
+def settled(viewer, predicate=lambda nodes: not any(node.get("loading") for node in nodes)):
+    """The first load runs in the background; poll until the summary satisfies the predicate."""
+    import time
+    for _ in range(200):
+        nodes = viewer.get("/api/proxmenux/summary").json["nodes"]
+        if predicate(nodes):
+            return nodes
+        time.sleep(0.01)
+    raise AssertionError(nodes)
+
+
 @pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
 def test_summary(env, case):
     client, hosts, failing, stored = env
@@ -184,31 +196,57 @@ def test_summary(env, case):
         assert viewer.get("/api/proxmenux/summary").json["code"] == "not_connected"
         client().put("/api/proxmenux/connection", headers=H, json={"ca": CA, "nodes": NODES})
         failing.add("https://192.168.1.97:8008")
-        nodes = viewer.get("/api/proxmenux/summary").json["nodes"]
+        nodes = settled(viewer)
         # One unreachable node does not block the other and is never shown as healthy.
         assert nodes[0]["overall"] == "error" and nodes[1] == {"name": "pve-nas", "overall": "unknown", "error": "Monitor niet bereikbaar.", "stale": True}
         assert client("other@example.test").get("/api/proxmenux/summary").status_code == 403
         return
     client().put("/api/proxmenux/connection", headers=H, json={"ca": CA, "nodes": NODES})
-    first = viewer.get("/api/proxmenux/summary")
-    assert first.status_code == 200 and first.json["nodes"][0]["stale"] is False
-    assert TOKEN not in first.get_data(as_text=True) and "SECRET" not in first.get_data(as_text=True)
+    # The very first request never waits for the monitors.
+    first = viewer.get("/api/proxmenux/summary").json["nodes"]
+    assert all(node.get("loading") or node.get("updatedAt") for node in first)
+    nodes = settled(viewer)
+    assert nodes[0]["stale"] is False and nodes[0]["partial"] == []
+    body = json.dumps(nodes)
+    assert TOKEN not in body and "SECRET" not in body
     if case == "boundary":
         # Expired cache: known data is returned at once and marked stale when the refresh fails.
         original = proxmenux.CACHE_SECONDS
         proxmenux.CACHE_SECONDS = -1
         failing.add("https://192.168.1.98:8008")
         try:
-            viewer.get("/api/proxmenux/summary")
-            import time
-            for _ in range(50):
-                node = viewer.get("/api/proxmenux/summary").json["nodes"][0]
-                if node.get("error"):
-                    break
-                time.sleep(0.02)
+            node = settled(viewer, lambda nodes: bool(nodes[0].get("error")))[0]
             assert node["stale"] is True and node["temperature"] == 48.5 and "bereikbaar" in node["error"]
         finally:
             proxmenux.CACHE_SECONDS = original
+
+
+def test_slow_part_keeps_other_data(env):
+    """A failing health check (e.g. a time-out on a small node) leaves the other monitor data visible."""
+    client, hosts, failing, stored = env
+    client().put("/api/proxmenux/connection", headers=H, json={"ca": CA, "nodes": NODES})
+    failing.add(("https://192.168.1.97:8008", "health/details"))
+    node = settled(client("viewer@example.test"))[1]
+    assert node["name"] == "pve-nas" and node["partial"] == ["gezondheid"] and node["overall"] == "unknown"
+    assert node["temperature"] == 48.5 and node["disks"] and "error" not in node
+    assert proxmenux.PART_TIMEOUTS["health/details"] >= 30
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_summary_details(case):
+    if case == "normaal":
+        vms = [{"vmid": 137, "name": "arrsuite", "update_check": {"available": True, "count": 50, "security_count": 26, "latest": "50:26:apparmor,containerd.io,curl,dmidec"}}]
+        result = node_summary({}, {}, {"cpu_threads": 16}, {"power_meter": {"watts": 4.2, "adapter": "AMD RAPL (CPU only)"}}, vms)
+        assert result["lxcUpdates"][0]["packages"] == ["apparmor", "containerd.io", "curl", "dmidec"]
+        assert result["threads"] == 16 and result["powerSource"] == "AMD RAPL (CPU only)"
+    elif case == "boundary":
+        sleeping = node_summary({}, {"disks": [{"name": "sda", "standby": True, "smart_status": "unknown", "temperature": 0}]}, {}, {}, [])
+        assert sleeping["disks"][0]["temperature"] is None and sleeping["disks"][0]["standby"] is True
+        listed = node_summary({}, {}, {}, {}, [{"vmid": 1, "update_check": {"available": True, "packages": ["a", "b", 3, "c", "d", "e", "f"], "latest": "9:9:x"}}])
+        assert listed["lxcUpdates"][0]["packages"] == ["a", "b", "c", "d", "e"]
+    else:
+        odd = node_summary({}, {}, {}, {}, [{"vmid": 1, "update_check": {"available": True, "latest": "not-packed; rm -rf /"}}, {"vmid": 2, "update_check": {"available": True, "latest": "1:0:ok,<script>"}}])
+        assert odd["lxcUpdates"][0]["packages"] == [] and odd["lxcUpdates"][1]["packages"] == ["ok"]
 
 
 class FakeResponse:

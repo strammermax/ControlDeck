@@ -71,12 +71,12 @@ export function bytes(value: number | null | undefined): string {
 
 export type HealthLevel = "ok" | "warning" | "error" | "unknown";
 export type MonitorNode = {
-  name: string; overall: HealthLevel; stale: boolean; error?: string; updatedAt?: number; summary?: string | null;
+  name: string; overall: HealthLevel; stale: boolean; error?: string; updatedAt?: number; summary?: string | null; loading?: boolean; partial?: string[];
   categories?: { id: string; status: HealthLevel; reason: string | null }[];
-  temperature?: number | null; load?: number | null; hostUpdates?: number | null; powerWatts?: number | null;
+  temperature?: number | null; load?: number | null; hostUpdates?: number | null; powerWatts?: number | null; powerSource?: string | null; threads?: number | null;
   disks?: { name: string | null; model: string | null; health: string | null; smart: string | null; temperature: number | null; wear: number | null; reallocated: number | null; pending: number | null; standby: boolean; size: string | null }[];
   zfsPools?: { name: string | null; health: string | null; size: string | null; free: string | null }[];
-  lxcUpdates?: { id: number | null; name: string | null; count: number | null; security: number | null; latest: string | null }[];
+  lxcUpdates?: { id: number | null; name: string | null; count: number | null; security: number | null; packages: string[] }[];
 };
 
 export const healthLabels: Record<string, string> = {
@@ -114,4 +114,20 @@ export function monitorGuidance(state: MonitorState | undefined): { label: strin
     case "absent": return { label: "Niet gevonden", level: "error", steps: ["Installeer ProxMenux in een shell op deze node (als root). De Monitor wordt automatisch meegeïnstalleerd.", "Open daarna http://<node-ip>:8008, zet HTTPS (Proxmox-hostcertificaat) en de login aan en maak een API-token."] };
     default: return { label: "Nog niet gecontroleerd", level: "unknown", steps: [] };
   }
+}
+
+/** A sleeping disk is not read (to avoid spinning it up): show "Slaapstand" instead of "Onbekend". */
+export function diskStatus(disk: NonNullable<MonitorNode["disks"]>[number]): HealthLevel | "standby" {
+  const level = diskLevel(disk);
+  return level === "unknown" && disk.standby ? "standby" : level;
+}
+
+export type UpdateRow = NonNullable<MonitorNode["lxcUpdates"]>[number] & { node: string };
+/** All nodes together: most security updates first, then most updates; totals and nodes without data. */
+export function collectUpdates(nodes: readonly MonitorNode[]): { rows: UpdateRow[]; containers: number; security: number; missing: string[] } {
+  if (!Array.isArray(nodes)) throw new TypeError("Nodes must be a list");
+  const rows = nodes.flatMap(node => (node.lxcUpdates ?? []).map(update => ({ ...update, node: node.name })))
+    .sort((a, b) => (b.security ?? 0) - (a.security ?? 0) || (b.count ?? 0) - (a.count ?? 0) || a.node.localeCompare(b.node) || (a.id ?? 0) - (b.id ?? 0));
+  const missing = nodes.filter(node => node.lxcUpdates === undefined || node.partial?.includes("containers")).map(node => node.name).sort();
+  return { rows, containers: rows.length, security: rows.reduce((total, row) => total + (row.security ?? 0), 0), missing };
 }

@@ -8,6 +8,7 @@
 - ProxMenux-wizard zoekt per node de monitor (niet gevonden, alleen http, ander certificaat, login uit, klaar) en begeleidt installatie en inrichting.
 - Admin → Modulebeheer met tabbladen Installeren (alleen niet-geïnstalleerd), Bewerken en Verwijderen (alleen geïnstalleerd), inclusief verwijderwizard en `uninstall-termix.sh` (gegevens bewaren of wissen). Vereist eenmalig opnieuw `install-wizard.sh` op de host.
 - `install-lxc.sh` installeert de root-worker voor Modulebeheer voortaan automatisch.
+- ProxMenux-overzicht: CPU-vermogen (RAPL) met bron, load ten opzichte van threads, slaapstand voor schijven, LXC-updates over alle nodes gesorteerd met totalen en pakketnamen, laden op de achtergrond en 30 s time-out voor de gezondheidscontrole.
 - Modulecatalogus ondersteunt meerdere modules en koppelingen naast installaties.
 - Gebruikersdropdown rechtsboven met Profiel, Instellingen en Uitloggen.
 - Persoonlijke Instellingen-pagina per gebruiker: interfacetaal (Nederlands/English) en volgorde van de hoofdnavigatie met slepen, Annuleren, Opslaan en Standaard herstellen.

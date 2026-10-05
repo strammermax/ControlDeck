@@ -21,9 +21,12 @@ from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError, normali
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}")
 STATUS = {"OK": "ok", "INFO": "ok", "WARNING": "warning", "CRITICAL": "error", "ERROR": "error"}
 TIMEOUT = 15
+# health/details runs all checks on the node and can take well over 15 s on small hosts.
+PART_TIMEOUTS = {"health/details": 30}
 CACHE_SECONDS = 30
 STALE_SECONDS = 180
 PARTS = ("health/details", "storage", "system", "hardware", "vms")
+PART_LABELS = {"health/details": "gezondheid", "storage": "schijven", "system": "systeem", "hardware": "hardware", "vms": "containers"}
 MAX_NODES = 16
 
 
@@ -92,11 +95,11 @@ def cluster_session(ca_path):
     return session
 
 
-def monitor_get(node, ca_path, path):
+def monitor_get(node, ca_path, path, timeout=TIMEOUT):
     try:
         with cluster_session(ca_path) as session:
             # verify is the same CA file, so no public CA bundle is ever added to the context.
-            response = session.get(f"{node['url']}/api/{path}", headers={"Authorization": f"Bearer {node['token']}"}, timeout=TIMEOUT, verify=str(ca_path), allow_redirects=False)
+            response = session.get(f"{node['url']}/api/{path}", headers={"Authorization": f"Bearer {node['token']}"}, timeout=timeout, verify=str(ca_path), allow_redirects=False)
     except requests.exceptions.SSLError:
         raise MonitorError("Het certificaat past niet bij de cluster-CA of het adres.") from None
     except requests.RequestException:
@@ -162,8 +165,10 @@ def node_summary(health, storage, system, hardware, vms):
         if not isinstance(disk, dict):
             continue
         life = number(disk.get("ssd_life_left"))
+        temperature = number(disk.get("temperature"))
         disks.append({"name": text(disk.get("name"), 40), "model": text(disk.get("model"), 80), "health": text(disk.get("health"), 20), "smart": text(disk.get("smart_status"), 20),
-                      "temperature": number(disk.get("temperature")), "wear": number(disk.get("percentage_used")) if number(disk.get("percentage_used")) is not None else (100 - life if life is not None else None),
+                      # A sleeping disk reports 0 °C; that is "not measured", not a temperature.
+                      "temperature": temperature if temperature not in (None, 0) else None, "wear": number(disk.get("percentage_used")) if number(disk.get("percentage_used")) is not None else (100 - life if life is not None else None),
                       "reallocated": number(disk.get("reallocated_sectors")), "pending": number(disk.get("pending_sectors")), "standby": disk.get("standby") is True, "size": text(disk.get("size_formatted"), 20)})
     pools = [{"name": text(pool.get("name"), 60), "health": text(pool.get("health"), 20), "size": text(pool.get("size"), 20), "free": text(pool.get("free"), 20)}
              for pool in (storage.get("zfs_pools") if isinstance(storage, dict) and isinstance(storage.get("zfs_pools"), list) else []) if isinstance(pool, dict)]
@@ -171,7 +176,12 @@ def node_summary(health, storage, system, hardware, vms):
     for guest in vms if isinstance(vms, list) else []:
         check = guest.get("update_check") if isinstance(guest, dict) else None
         if isinstance(check, dict) and check.get("available"):
-            updates.append({"id": number(guest.get("vmid")), "name": text(guest.get("name"), 80), "count": number(check.get("count")), "security": number(check.get("security_count")), "latest": text(check.get("latest"), 40)})
+            # "latest" is "<count>:<security>:<package,package,...>" (truncated), not a version.
+            packages = [str(item)[:60] for item in check.get("packages") if isinstance(item, str)][:5] if isinstance(check.get("packages"), list) else []
+            packed = re.fullmatch(r"\d+:\d+:(.*)", check.get("latest") or "") if isinstance(check.get("latest"), str) else None
+            if not packages and packed:
+                packages = [name[:60] for name in packed.group(1).split(",") if re.fullmatch(r"[A-Za-z0-9.+_-]{1,60}", name)][:5]
+            updates.append({"id": number(guest.get("vmid")), "name": text(guest.get("name"), 80), "count": number(check.get("count")), "security": number(check.get("security_count")), "packages": packages})
     load = system.get("load_average") if isinstance(system, dict) else None
     return {
         "overall": STATUS.get(health.get("overall") if isinstance(health, dict) else None, "unknown"),
@@ -181,6 +191,8 @@ def node_summary(health, storage, system, hardware, vms):
         "load": number(load[0]) if isinstance(load, list) and load else None,
         "hostUpdates": number(system.get("available_updates")) if isinstance(system, dict) else None,
         "powerWatts": number((hardware.get("power_meter") or {}).get("watts")) if isinstance(hardware, dict) and isinstance(hardware.get("power_meter"), dict) else None,
+        "powerSource": text((hardware.get("power_meter") or {}).get("adapter"), 60) if isinstance(hardware, dict) and isinstance(hardware.get("power_meter"), dict) else None,
+        "threads": number(system.get("cpu_threads")) if isinstance(system, dict) else None,
         "disks": disks, "zfsPools": pools, "lxcUpdates": sorted(updates, key=lambda item: -(item["security"] or 0)),
     }
 
@@ -335,9 +347,19 @@ def setup_proxmenux(app, configuration_path, data_dir):
 
         def fetch(node, key):
             """Fetches the five monitor endpoints in parallel and stores the result or the error."""
+            def part(name):
+                try:
+                    return monitor_get(node, ca_path, name, PART_TIMEOUTS.get(name, TIMEOUT)), None
+                except MonitorError as error:
+                    return None, str(error)
             try:
                 with ThreadPoolExecutor(max_workers=len(PARTS)) as parts:
-                    data = node_summary(*parts.map(lambda part: monitor_get(node, ca_path, part), PARTS))
+                    results = dict(zip(PARTS, parts.map(part, PARTS)))
+                failed = [name for name, (_, error) in results.items() if error]
+                if len(failed) == len(PARTS):
+                    raise MonitorError(results[PARTS[0]][1])
+                data = node_summary(*(results[name][0] or {} for name in PARTS))
+                data["partial"] = [PART_LABELS[name] for name in failed]
                 with lock:
                     cache[node["name"]] = {"key": key, "at": time.time(), "data": data, "error": None, "refreshing": False}
             except MonitorError as error:
@@ -350,6 +372,8 @@ def setup_proxmenux(app, configuration_path, data_dir):
 
         def view(node, entry):
             if entry["data"] is None:
+                if entry["error"] is None:
+                    return {"name": node["name"], "overall": "unknown", "loading": True, "stale": False}
                 return {"name": node["name"], "overall": "unknown", "error": entry["error"], "stale": True}
             stale = bool(entry["error"]) or time.time() - entry["at"] > STALE_SECONDS
             return {"name": node["name"], **entry["data"], "updatedAt": int(entry["at"]), "stale": stale, **({"error": entry["error"]} if entry["error"] else {})}
@@ -364,11 +388,9 @@ def setup_proxmenux(app, configuration_path, data_dir):
                     return view(node, entry)
                 if known:
                     entry["refreshing"] = True
-            if known:
-                Thread(target=fetch, args=(node, key), daemon=True).start()
-                with lock:
-                    return view(node, cache[node["name"]])
-            fetch(node, key)
+                if not known:
+                    cache[node["name"]] = {"key": key, "at": 0.0, "data": None, "error": None, "refreshing": True}
+            Thread(target=fetch, args=(node, key), daemon=True).start()
             with lock:
                 return view(node, cache[node["name"]])
 
