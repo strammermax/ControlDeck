@@ -15,11 +15,15 @@ from pathlib import Path
 
 ROOT = Path('/var/lib/controldeck/installations')
 INSTALLER = Path('/opt/controldeck-integrations/installer/scripts/install-termix.sh')
+UNINSTALLER = Path('/opt/controldeck-integrations/installer/scripts/uninstall-termix.sh')
+BASE_FIELDS = {'id','module','method','target','requestedBy','createdAt'}
 
 
 def validate_job(value,job_id,now):
-    if not isinstance(value,dict) or set(value)!={'id','module','method','target','requestedBy','createdAt'}:
+    # Install jobs: base fields only. Uninstall jobs: base fields plus action and keepData.
+    if not isinstance(value,dict) or set(value) not in (BASE_FIELDS, BASE_FIELDS|{'action','keepData'}):
         raise ValueError('Invalid job fields')
+    if 'action' in value and (value['action']!='uninstall' or not isinstance(value['keepData'],bool)): raise ValueError('Invalid action')
     if value['id']!=job_id or not re.fullmatch('[a-f0-9]{32}',value['id']): raise ValueError('Invalid job id')
     if (value['module'],value['method'],value['target'])!=('termix','docker','local'): raise ValueError('Unsupported installation')
     if not isinstance(value['requestedBy'],str) or type(value['createdAt']) not in (float,int): raise ValueError('Invalid requester')
@@ -75,16 +79,20 @@ def main():
                 profiles=json.loads(Path('/var/lib/controldeck/accounts.json').read_text())
                 if not any(a['email']==job['requestedBy'] and a['role']=='admin' and a.get('enabled',True) and a.get('ssoType','google')=='google' for a in profiles):
                     raise ValueError('Administrator no longer allowed')
-                write_result(descriptors[1],path.name,{'id':path.stem,'status':'running','message':'Termix installeren en met ControlDeck koppelen…'})
-                info=INSTALLER.stat()
-                if info.st_uid!=0 or info.st_mode & 0o022 or INSTALLER.is_symlink(): raise ValueError('Unsafe installer')
+                uninstall=job.get('action')=='uninstall'
+                script=UNINSTALLER if uninstall else INSTALLER
+                write_result(descriptors[1],path.name,{'id':path.stem,'status':'running','message':'Termix verwijderen…' if uninstall else 'Termix installeren en met ControlDeck koppelen…'})
+                info=script.stat()
+                if info.st_uid!=0 or info.st_mode & 0o022 or script.is_symlink(): raise ValueError('Unsafe installer')
+                # Fixed argument list; nothing from the job reaches the command except one validated boolean.
+                command=['/bin/bash',str(script)]+(['--delete-data'] if uninstall and not job['keepData'] else [])
                 # Installation output stays out of the browser (may include identities).
                 with open('/var/log/controldeck-install.log','w') as log:
                     os.chmod(log.name,0o600)
-                    subprocess.run(['/bin/bash',str(INSTALLER)],stdout=log,stderr=subprocess.STDOUT,timeout=480,check=True)
-                result={'id':path.stem,'status':'succeeded','message':'Termix is geïnstalleerd en gekoppeld. Je kunt Terminal openen.'}
+                    subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,timeout=480,check=True)
+                result={'id':path.stem,'status':'succeeded','message':('Termix is verwijderd. De gegevens zijn bewaard.' if job['keepData'] else 'Termix en alle Termix-gegevens zijn verwijderd.') if uninstall else 'Termix is geïnstalleerd en gekoppeld. Je kunt Terminal openen.'}
             except (ValueError,OSError,KeyError,TypeError,subprocess.SubprocessError):
-                result={'id':path.stem,'status':'failed','message':'De installatie is niet afgerond. De beheerder kan het installatielog op de host controleren.'}
+                result={'id':path.stem,'status':'failed','message':'De opdracht is niet afgerond. De beheerder kan het installatielog op de host controleren.'}
             write_result(descriptors[1],path.name,result)
         write_result(descriptors[0],'worker.json',{'updatedAt':time.time()})
     finally:

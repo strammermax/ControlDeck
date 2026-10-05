@@ -38,8 +38,8 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
       - name: Verify shell scripts
         run: |
-          bash -n scripts/install-lxc.sh scripts/deploy-lxc.sh scripts/install-termix.sh scripts/install-wizard.sh
-          shellcheck scripts/install-lxc.sh scripts/deploy-lxc.sh scripts/install-termix.sh scripts/install-wizard.sh
+          bash -n scripts/install-lxc.sh scripts/deploy-lxc.sh scripts/install-termix.sh scripts/install-wizard.sh scripts/uninstall-termix.sh
+          shellcheck scripts/install-lxc.sh scripts/deploy-lxc.sh scripts/install-termix.sh scripts/install-wizard.sh scripts/uninstall-termix.sh
       - name: Package deployment bundle
         run: python scripts/package.py --commit "$GITHUB_SHA"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

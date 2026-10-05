@@ -7,7 +7,9 @@ source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 install -d -o root -g controldeck -m 0750 /var/lib/controldeck/installations /var/lib/controldeck/installations/results
 install -d -o controldeck -g controldeck -m 0750 /var/lib/controldeck/installations/queue
 install -d -o root -g root -m 0755 /opt/controldeck-integrations/installer/{scripts,deploy}
-install -o root -g root -m 0755 "$source_root/scripts/install-termix.sh" /opt/controldeck-integrations/installer/scripts/install-termix.sh
+for filename in install-termix.sh uninstall-termix.sh; do
+    install -o root -g root -m 0755 "$source_root/scripts/$filename" "/opt/controldeck-integrations/installer/scripts/$filename"
+done
 for filename in termix.compose.yml termix-gateway.conf termix-app.conf; do
     install -o root -g root -m 0644 "$source_root/deploy/$filename" "/opt/controldeck-integrations/installer/deploy/$filename"
 done

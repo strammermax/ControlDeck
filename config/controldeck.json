@@ -127,7 +127,7 @@
         },
         {
           "id": "modules",
-          "label": "Modules",
+          "label": "Modulebeheer",
           "route": "admin/modules"
         },
         {

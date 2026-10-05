@@ -28,3 +28,19 @@ test('wizard faal: backend rejection and malformed response are shown',async()=>
     await assert.rejects(installationRequest('','csrf'),/Ongeldig/);
   } finally{globalThis.fetch=previous;}
 });
+import { modulesFor } from '../lib/installations.ts';
+const catalog = [{id:'termix',installed:true},{id:'proxmox',installed:true},{id:'proxmenux',installed:false}];
+test('modulesFor / normaal: install hides installed modules; edit and remove show only installed', () => {
+  assert.deepEqual(modulesFor('install',catalog).map(m => m.id),['proxmenux']);
+  assert.deepEqual(modulesFor('edit',catalog).map(m => m.id),['termix','proxmox']);
+  assert.deepEqual(modulesFor('remove',catalog).map(m => m.id),['termix','proxmox']);
+});
+test('modulesFor / boundary: everything or nothing installed', () => {
+  assert.deepEqual(modulesFor('install',catalog.map(m => ({...m,installed:true}))),[]);
+  assert.deepEqual(modulesFor('remove',[]),[]);
+});
+test('modulesFor / faal: unknown state is never offered for edit or removal', () => {
+  assert.deepEqual(modulesFor('remove',[{id:'x'}]),[]);
+  assert.deepEqual(modulesFor('install',[{id:'x'}]).map(m => m.id),['x']);
+  assert.throws(() => modulesFor('install',null),TypeError);
+});

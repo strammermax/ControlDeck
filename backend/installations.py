@@ -13,13 +13,19 @@ from backend.configuration import ConfigurationError, load_config
 
 
 def validate_install_request(value):
-    if not isinstance(value, dict) or set(value) != {'module', 'method', 'target'}:
+    """Install (default) or uninstall Termix; keepData is only meaningful when uninstalling."""
+    if not isinstance(value, dict) or not {'module', 'method', 'target'} <= set(value) <= {'module', 'method', 'target', 'action', 'keepData'}:
         raise ValueError('Kies een module, installatiemethode en bestemming.')
+    action = value.get('action', 'install')
+    if action not in ('install', 'uninstall') or ('keepData' in value and (action != 'uninstall' or not isinstance(value['keepData'], bool))):
+        raise ValueError('Onbekende actie.')
     if value['module'] != 'termix' or value['method'] not in ('docker', 'lxc') or value['target'] not in ('local', 'proxmox'):
         raise ValueError('Onbekende module, methode of bestemming.')
     if value['target'] != ('local' if value['method'] == 'docker' else 'proxmox'):
         raise ValueError('De bestemming past niet bij de installatiemethode.')
-    return dict(value)
+    if action == 'uninstall' and value['method'] != 'docker':
+        raise ValueError('Alleen een Docker-installatie kan worden verwijderd.')
+    return {**value, 'action': action, **({'keepData': value.get('keepData', True)} if action == 'uninstall' else {})}
 
 
 def setup_installations(app, configuration_path, data_dir):
@@ -58,7 +64,11 @@ def setup_installations(app, configuration_path, data_dir):
             modules = sorted((json.loads(item.read_text()) for item in catalog_root.glob('*.json')), key=lambda module: (module.get('kind', 'install') != 'install', module['id']))
             for module in modules:
                 module.setdefault('kind', 'install')
-            return jsonify(modules=modules, status=status(), connections={name: (Path(data_dir) / name / 'connection.json').is_file() for name in ('proxmox', 'proxmenux')})
+            state = status()
+            connections = {name: (Path(data_dir) / name / 'connection.json').is_file() for name in ('proxmox', 'proxmenux')}
+            for module in modules:
+                module['installed'] = connections.get(module['id'], False) if module['kind'] == 'connect' else (state['configured'] if module['id'] == 'termix' else False)
+            return jsonify(modules=modules, status=state, connections=connections)
         except (OSError, ValueError):
             return jsonify(error='De modulecatalogus is niet beschikbaar.'),503
 
@@ -70,6 +80,15 @@ def setup_installations(app, configuration_path, data_dir):
             return jsonify(error=str(error)),400
         state=status()
         blockers=[]
+        if selected['action']=='uninstall':
+            if not state['workerAvailable']:
+                blockers.append('De installatieservice is nog niet beschikbaar op deze ControlDeck-host.')
+            if not state['configured']:
+                blockers.append('Termix is niet geïnstalleerd.')
+            return jsonify(**selected, canInstall=not blockers, blockers=blockers, alreadyInstalled=state['configured'],
+                steps=['Sluit de Terminal-module af voor alle gebruikers.', 'Verwijder de Termix-gateway uit Nginx en de koppeling uit ControlDeck.', 'Stop en verwijder de Termix-container.',
+                       'Bewaar de Termix-gegevens (het volume blijft staan).' if selected['keepData'] else 'Verwijder alle Termix-gegevens: verbindingen, sleutels en opnamen. Dit kan niet ongedaan worden gemaakt.'],
+                resources=None, installer='uninstall-termix', documentation=None, preservesData=selected['keepData'])
         if selected['method']=='lxc':
             blockers.append('De Proxmox-verbinding voor het aanmaken van een LXC is nog niet ingericht.')
         elif not state['workerAvailable']:
@@ -90,6 +109,8 @@ def setup_installations(app, configuration_path, data_dir):
             return jsonify(error=str(error)),400
         if selected['method']!='docker':
             return jsonify(error='Richt eerst de Proxmox-verbinding in.'),409
+        if selected['action']=='uninstall' and not status()['configured']:
+            return jsonify(error='Termix is niet geïnstalleerd.'),409
         if not status()['workerAvailable']:
             return jsonify(error='Installatieservice niet beschikbaar.'),503
         try:
@@ -99,7 +120,9 @@ def setup_installations(app, configuration_path, data_dir):
                     if not result.exists() or json.loads(result.read_text()).get('status') in ('queued','running'):
                         return jsonify(error='Er wordt al een installatie uitgevoerd. Wacht tot deze klaar is.'),409
                 job_id=uuid.uuid4().hex
-                payload={**selected,'id':job_id,'requestedBy':g.account['email'],'createdAt':time.time()}
+                # Install jobs keep the original shape so an older root worker keeps accepting them.
+                fields={key:value for key,value in selected.items() if selected['action']=='uninstall' or key not in ('action','keepData')}
+                payload={**fields,'id':job_id,'requestedBy':g.account['email'],'createdAt':time.time()}
                 temporary=root/'queue'/f'{job_id}.tmp'
                 temporary.write_text(json.dumps(payload),encoding='utf-8')
                 os.chmod(temporary,0o640)

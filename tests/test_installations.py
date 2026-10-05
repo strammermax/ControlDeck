@@ -32,7 +32,7 @@ def wizard(tmp_path,monkeypatch):
 
 @pytest.mark.parametrize('case',['normaal','boundary','faal'])
 def test_install_selection(case):
-    if case=='normaal':assert validate_install_request(SELECTION)==SELECTION
+    if case=='normaal':assert validate_install_request(SELECTION)=={**SELECTION,'action':'install'}
     elif case=='boundary':assert validate_install_request({'module':'termix','method':'lxc','target':'proxmox'})['method']=='lxc'
     else:
         for invalid in (None,{}, {**SELECTION,'module':'shell'}, {**SELECTION,'command':'rm'}, {**SELECTION,'target':'proxmox'}):
@@ -140,3 +140,78 @@ def test_worker_reads_bounded_regular_job_files(tmp_path,case):
         with pytest.raises(ValueError):worker.read_job(path)
         path.unlink();source=tmp_path/'source.json';source.write_text(serialized);path.symlink_to(source)
         with pytest.raises(OSError):worker.read_job(path)
+
+
+UNINSTALL={**SELECTION,'action':'uninstall','keepData':True}
+
+
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_uninstall_selection(case):
+    if case=='normaal':assert validate_install_request(UNINSTALL)==UNINSTALL
+    elif case=='boundary':assert validate_install_request({**SELECTION,'action':'uninstall'})['keepData'] is True
+    else:
+        for invalid in ({**UNINSTALL,'keepData':'no'},{**SELECTION,'keepData':False},{**SELECTION,'action':'delete'},
+                        {'module':'termix','method':'lxc','target':'proxmox','action':'uninstall'},{**UNINSTALL,'command':'rm -rf /'}):
+            with pytest.raises(ValueError):validate_install_request(invalid)
+
+
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_catalog_marks_installed_modules(wizard,tmp_path,case):
+    client,root=wizard
+    data=root.parent
+    if case=='normaal':
+        termix=client.get('/api/installations').json
+        assert next(m for m in termix['modules'] if m['id']=='termix')['installed'] is False  # test config: provider disabled
+    elif case=='boundary':
+        (data/'proxmox').mkdir();(data/'proxmox/connection.json').write_text('{}')
+        modules={m['id']:m['installed'] for m in client.get('/api/installations').json['modules']}
+        assert modules['proxmox'] is True and modules['proxmenux'] is False
+    else:
+        assert all(module['installed'] is False for module in client.get('/api/installations').json['modules'])
+
+
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_uninstall_plan_and_queue(wizard,monkeypatch,case):
+    client,root=wizard
+    import backend.installations as installations
+    monkeypatch.setattr(installations,'load_config',lambda path:{'providers':[{'id':'termix','type':'termix','enabled':case!='faal'}]})
+    selection=UNINSTALL if case!='boundary' else {**UNINSTALL,'keepData':False}
+    plan=client.post('/api/installations/plan',json=selection,headers={'X-CSRF-Token':'csrf'}).json
+    if case=='faal':
+        assert plan['canInstall'] is False and 'niet geïnstalleerd' in plan['blockers'][0]
+        assert client.post('/api/installations/jobs',json=selection,headers={'X-CSRF-Token':'csrf'}).status_code==409
+        assert list((root/'queue').iterdir())==[]
+        return
+    assert plan['canInstall'] is True and plan['preservesData'] is (case=='normaal')
+    assert ('Verwijder alle Termix-gegevens' in plan['steps'][-1])==(case=='boundary')
+    job=client.post('/api/installations/jobs',json=selection,headers={'X-CSRF-Token':'csrf'}).json
+    stored=json.loads((root/'queue'/f"{job['id']}.json").read_text())
+    assert stored['action']=='uninstall' and stored['keepData'] is (case=='normaal')
+
+
+def test_install_job_keeps_shape_for_older_worker(wizard):
+    client,root=wizard
+    job=client.post('/api/installations/jobs',json=SELECTION,headers={'X-CSRF-Token':'csrf'}).json
+    stored=json.loads((root/'queue'/f"{job['id']}.json").read_text())
+    assert set(stored)=={'id','module','method','target','requestedBy','createdAt'}
+
+
+def test_uninstall_requires_admin_and_csrf(wizard,tmp_path):
+    client,root=wizard
+    assert client.post('/api/installations/jobs',json=UNINSTALL).status_code==403
+    with client.session_transaction() as session:
+        session['identity']={'email':'user@example.test','sub':'user'}
+    assert client.post('/api/installations/jobs',json=UNINSTALL,headers={'X-CSRF-Token':'csrf'}).status_code==403
+    assert list((root/'queue').iterdir())==[]
+
+
+@pytest.mark.parametrize('case',['normaal','boundary','faal'])
+def test_worker_accepts_uninstall_jobs(case):
+    spec=importlib.util.spec_from_file_location('worker',Path(__file__).resolve().parent.parent/'scripts/install-worker.py')
+    worker=importlib.util.module_from_spec(spec);spec.loader.exec_module(worker)
+    value={**SELECTION,'id':'a'*32,'requestedBy':'admin@example.test','createdAt':1000}
+    if case=='normaal':assert worker.validate_job({**value,'action':'uninstall','keepData':True},'a'*32,1001)['action']=='uninstall'
+    elif case=='boundary':assert worker.validate_job({**value,'action':'uninstall','keepData':False},'a'*32,1599)['keepData'] is False
+    else:
+        for invalid in ({**value,'action':'uninstall'},{**value,'action':'install','keepData':True},{**value,'action':'uninstall','keepData':'false'},{**value,'keepData':True}):
+            with pytest.raises(ValueError):worker.validate_job(invalid,'a'*32,1001)

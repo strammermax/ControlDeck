@@ -1,6 +1,28 @@
-# Module-installatiewizard
+# Modulebeheer
 
-De admin opent **Admin → Modules**. De wizard heeft vijf stappen: module kiezen, Docker of Proxmox LXC kiezen, bestemming en instellingen bekijken, het installatieplan controleren, en installeren met zichtbare voortgang. Gewone gebruikers gebruiken daarna de module; het aanpassen van infrastructuur blijft adminwerk.
+De admin opent **Admin → Modulebeheer** en kiest een tabblad:
+
+| Tabblad | Toont | Doet |
+| --- | --- | --- |
+| **Installeren** | Alleen modules die nog niet zijn geïnstalleerd of gekoppeld | Installatiewizard (Termix) of koppelwizard (Proxmox VE, ProxMenux Monitor) |
+| **Bewerken** | Alleen geïnstalleerde modules | Koppelingen aanpassen (adres, certificaat, tokens; opgeslagen tokens mogen leeg blijven). Termix heeft geen eigen instellingen: Bewerken controleert de installatie en herstelt de koppeling |
+| **Verwijderen** | Alleen geïnstalleerde modules | Verwijderwizard: gevolgen → bevestigen door de modulenaam te typen → uitvoeren → afrondingsstappen buiten ControlDeck |
+
+"Geïnstalleerd" betekent: voor Termix een actieve provider, voor koppelingen een opgeslagen verbinding. Een onbekende status telt als niet geïnstalleerd, zodat er nooit iets wordt aangeboden om te verwijderen dat er niet is. Gewone gebruikers gebruiken de modules; het aanpassen van infrastructuur blijft adminwerk.
+
+## Verwijderen
+
+| Module | Wat ControlDeck doet | Zelf afronden |
+| --- | --- | --- |
+| Proxmox VE | Verbinding en token van de server verwijderen (`DELETE /api/proxmox/connection`) | `pveum user token remove controldeck@pve controldeck` (en optioneel de gebruiker) |
+| ProxMenux Monitor | Tokens en cluster-CA van de server verwijderen | Tokens intrekken in elke monitor; ProxMenux blijft op de nodes |
+| Termix | Root-worker voert `uninstall-termix.sh` uit: provider uit, Nginx-gateway en runtime-drop-in weg, ControlDeck terug op poort 8080, container verwijderd | — |
+
+Bij Termix kiest de admin **Gegevens bewaren** (standaard; het Docker-volume blijft, opnieuw installeren brengt alles terug) of **Alles verwijderen** (`--delete-data`: verbindingen, sleutels en opnamen definitief weg). Docker en Nginx blijven geïnstalleerd. De verwijderopdracht bevat naast de vaste velden alleen `action: "uninstall"` en de boolean `keepData`; de worker zet dat om in een vaste argumentenlijst.
+
+**Na een update:** de root-worker en de scripts onder `/opt/controldeck-integrations/installer` worden niet automatisch bijgewerkt. Draai na deze versie eenmalig opnieuw `bash scripts/install-wizard.sh` als root, anders mislukt verwijderen met een duidelijke melding. Installatieopdrachten behouden hun oude vorm en blijven ook met een oudere worker werken.
+
+## Installeren
 
 Elk bestand in `config/catalog/` is één catalogusmodule. `kind` is `install` (standaard, bijvoorbeeld Termix) of `connect` (een bestaande toepassing koppelen, zoals Proxmox VE; zie [PROXMOX.md](PROXMOX.md)). Termix is het eerste installatievoorbeeld. De openbare beschrijving staat in `config/catalog/termix.json`. De catalogus bevat uitsluitend metadata; een browser kan geen willekeurig image, shellcommando of downloadadres laten uitvoeren. Nieuwe modules krijgen een expliciet beoordeelde installer, API-controles en normale, boundary- en faaltests.
 
