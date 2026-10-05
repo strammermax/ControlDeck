@@ -126,7 +126,7 @@ export type UpdateRow = NonNullable<MonitorNode["lxcUpdates"]>[number] & { node:
 /** All nodes together: most security updates first, then most updates; totals and nodes without data. */
 export function collectUpdates(nodes: readonly MonitorNode[]): { rows: UpdateRow[]; containers: number; security: number; missing: string[] } {
   if (!Array.isArray(nodes)) throw new TypeError("Nodes must be a list");
-  const rows = nodes.flatMap(node => (node.lxcUpdates ?? []).map(update => ({ ...update, node: node.name })))
+  const rows = nodes.flatMap((node): UpdateRow[] => (node.lxcUpdates ?? []).map((update: NonNullable<MonitorNode["lxcUpdates"]>[number]) => ({ ...update, node: node.name })))
     .sort((a, b) => (b.security ?? 0) - (a.security ?? 0) || (b.count ?? 0) - (a.count ?? 0) || a.node.localeCompare(b.node) || (a.id ?? 0) - (b.id ?? 0));
   const missing = nodes.filter(node => node.lxcUpdates === undefined || node.partial?.includes("containers")).map(node => node.name).sort();
   return { rows, containers: rows.length, security: rows.reduce((total, row) => total + (row.security ?? 0), 0), missing };
