@@ -242,10 +242,16 @@ def setup_auth(app, data_dir, accounts_path):
             values = json.loads(existing[0])
             if request.method == "PUT":
                 patch = request.get_json(silent=True)
-                if not isinstance(patch, dict) or not set(patch) <= {"theme", "lastRoute"}:
+                if not isinstance(patch, dict) or not set(patch) <= {"theme", "lastRoute", "language", "navOrder"}:
                     return jsonify(error="Ongeldige voorkeuren."), 400
                 if "theme" in patch and patch["theme"] not in ("dark", "light"):
                     return jsonify(error="Ongeldig thema."), 400
+                if "language" in patch and patch["language"] not in ("nl", "en"):
+                    return jsonify(error="Ongeldige taal."), 400
+                # Only top-level menu ids; unknown or hidden ids are ignored by the UI, never granted.
+                order = patch.get("navOrder", [])
+                if not isinstance(order, list) or len(order) > 32 or len(set(map(str, order))) != len(order) or not all(isinstance(item, str) and len(item) <= 64 and re.fullmatch(r"[a-z][a-z0-9-]*", item) for item in order):
+                    return jsonify(error="Ongeldige menuvolgorde."), 400
                 if "lastRoute" in patch and (not isinstance(patch["lastRoute"], str) or len(patch["lastRoute"]) > 130 or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-/" for c in patch["lastRoute"])):
                     return jsonify(error="Ongeldige pagina."), 400
                 values.update(patch)

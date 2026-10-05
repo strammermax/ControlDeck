@@ -27,3 +27,17 @@ export function href(item: MenuItem): string {
   if (item.route) return `#${item.route}`;
   throw new TypeError("Menu item has no destination");
 }
+/** Applies a personal top-level order; unknown ids are ignored and new items keep their configured position at the end. */
+export function orderMenu(menu: MenuItem[], order: readonly string[] | undefined): MenuItem[] {
+  if (!Array.isArray(menu)) throw new TypeError("Menu must be a list");
+  if (!order?.length) return menu;
+  const rank = new Map(order.map((id, index) => [id, index]));
+  return menu.map((item, index) => ({item, index})).sort((a, b) => (rank.get(a.item.id) ?? order.length + a.index) - (rank.get(b.item.id) ?? order.length + b.index)).map(entry => entry.item);
+}
+/** Returns a copy with one item moved; out-of-range positions are rejected. */
+export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= list.length || to >= list.length) throw new RangeError("Invalid position");
+  const copy = [...list];
+  copy.splice(to, 0, copy.splice(from, 1)[0]);
+  return copy;
+}

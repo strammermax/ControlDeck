@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { version } from "../package.json";
-import { firstRoute, getDestinations, href, isActive, type Configuration } from "../lib/navigation";
+import { firstRoute, getDestinations, href, isActive, orderMenu, type Configuration } from "../lib/navigation";
+import { translate } from "../lib/i18n";
+import { Settings, type PersonalSettings } from "../components/settings";
 import { Icon } from "../components/icon";
 import { ModuleWizard } from "../components/module-wizard";
 import { Terminal } from "../components/terminal";
 import { Accounts } from "../components/accounts";
 
 type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string } | null; csrfToken: string | null };
-type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string };
+type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string; language?: "nl" | "en"; navOrder?: string[] };
+/** Personal settings page; available to every signed-in user, independent of module grants. */
+const SETTINGS_ROUTE = "settings";
 
 type Health = { status: string; version: string; uptime_seconds: number };
 function uptime(seconds: number) {
@@ -33,6 +37,7 @@ export default function Home() {
   const [health, setHealth] = useState<Health | null>(null);
   const [status, setStatus] = useState("Checking");
   const [refreshing, setRefreshing] = useState(false);
+  const [personal, setPersonal] = useState<PersonalSettings>({language:"nl", navOrder:[]});
   const nav = useRef<HTMLElement>(null);
   const request = useRef<AbortController | null>(null);
   const hamburger = useRef<HTMLButtonElement>(null);
@@ -59,7 +64,8 @@ export default function Home() {
         if (!response.ok) throw new Error("Preferences unavailable");
         const values: UserPreferences = await response.json();
         if (!current()) return;
-        preferences.current = values; savedPreferences.current = JSON.stringify(values);
+        preferences.current = values; savedPreferences.current = JSON.stringify({theme:values.theme, lastRoute:values.lastRoute});
+        setPersonal({language: values.language === "en" ? "en" : "nl", navOrder: Array.isArray(values.navOrder) ? values.navOrder : []});
         preferenceUser.current = session.user.email; setThemeReady(false);
       }
       await Promise.all([
@@ -88,7 +94,7 @@ export default function Home() {
   useEffect(() => {
     const route = () => {
       const id = window.location.hash.slice(1) || preferences.current.lastRoute || "";
-      setActive(destinations.some(item => item.id === id) ? id : (config ? firstRoute(config.menu) ?? destinations[0]?.id ?? "" : ""));
+      setActive(id === SETTINGS_ROUTE || destinations.some(item => item.id === id) ? id : (config ? firstRoute(config.menu) ?? destinations[0]?.id ?? "" : ""));
       setMobile(false); closeMenus();
     };
     route(); window.addEventListener("hashchange", route);
@@ -111,7 +117,7 @@ export default function Home() {
   useEffect(() => {
     if (!auth?.authenticated || !auth.csrfToken || !themeReady || !active) return;
     const values: UserPreferences = {theme: theme === "light" ? "light" : "dark", lastRoute: active};
-    preferences.current = values;
+    preferences.current = {...preferences.current, ...values};
     const serialized = JSON.stringify(values);
     if (serialized === savedPreferences.current) return;
     const timer = setTimeout(async () => {
@@ -129,6 +135,7 @@ export default function Home() {
     const timer = setInterval(() => void refresh(), (refreshSeconds ?? 30) * 1000);
     return () => clearInterval(timer);
   }, [refresh, refreshSeconds]);
+  useEffect(() => { document.documentElement.lang = personal.language; }, [personal.language]);
   useEffect(() => {
     if (config) document.title = config.site.title;
   }, [config]);
@@ -151,7 +158,9 @@ export default function Home() {
   if (!config) return <main className="configuration-loading"><h1>ControlDeck</h1><p role="status">{configError ? "De configuratie kan niet worden geladen. Controleer de instellingen." : "Configuratie laden…"}</p>{configError && <button onClick={() => void refresh()} disabled={refreshing}>Opnieuw proberen</button>}</main>;
   if (!destinations.length) return <main className="configuration-loading"><h1>ControlDeck</h1><p>Er zijn nog geen onderdelen aan je account toegewezen. Neem contact op met je beheerder.</p><button onClick={async () => {await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); void refresh();}}>Uitloggen</button></main>;
   const site = config.site;
-  const destination = destinations.find(item => item.id === active) ?? destinations[0];
+  const onSettings = active === SETTINGS_ROUTE;
+  const destination = onSettings ? {id:SETTINGS_ROUTE, label:translate(personal.language, "settings"), view:"settings", description:undefined} : destinations.find(item => item.id === active) ?? destinations[0];
+  const menu = orderMenu(config.menu, personal.navOrder);
   const provider = config.providers.find(item => item.id === destination?.provider);
   const navigate = (route?: string) => { if (route) setActive(route); setMobile(false); closeMenus(); };
   return <>
@@ -159,10 +168,11 @@ export default function Home() {
     <header className="topbar">
       <a className="brand" href={`#${firstRoute(config.menu) ?? destinations[0]?.id}`}><img src={site.logo} alt="" className="logo" /><span><h1>{site.title}</h1><span className="subtitle">{site.subtitle}</span></span></a>
       <div className="tools">
-        <span className="user">▱ <span>{`${auth.user?.firstName ?? ""} ${auth.user?.lastName ?? ""}`.trim() || auth.user?.email}</span></span><button className="logout" onClick={async () => { const response = await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); if (response.ok) {setAuth(null); setConfig(null); void refresh();} }}>Uitloggen</button>
+        <span className="user">▱ <span>{`${auth.user?.firstName ?? ""} ${auth.user?.lastName ?? ""}`.trim() || auth.user?.email}</span></span><button className="logout" onClick={async () => { const response = await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); if (response.ok) {setAuth(null); setConfig(null); void refresh();} }}>{translate(personal.language, "logout")}</button>
         <span className={`status ${status.toLowerCase()}`} role="status" title="Bereikbaarheid van de ControlDeck-service">{status === "Online" ? "●" : "△"} {status}</span>
         <span className="uptime" title="Uptime van het ControlDeck-proces">Uptime: {status === "Online" && health ? uptime(health.uptime_seconds) : "—"}</span>
         <button className="refresh" onClick={() => void refresh()} disabled={refreshing} aria-label="Status vernieuwen"><span className={refreshing ? "spin" : ""} aria-hidden="true">⟳</span><span>Refresh</span></button>
+        <a className={onSettings ? "settings-link active" : "settings-link"} href={`#${SETTINGS_ROUTE}`} aria-current={onSettings ? "page" : undefined} title={translate(personal.language, "settings")}><Icon name="settings"/><span className="sr-only">{translate(personal.language, "settings")}</span></a>
         <button className="theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={theme === "dark" ? "Licht thema inschakelen" : "Donker thema inschakelen"}>{theme === "dark" ? "☾" : "☀"}</button>
       </div>
     </header>
@@ -170,8 +180,8 @@ export default function Home() {
       {preferencesError && <p className="config-error" role="alert">Je laatste voorkeuren konden niet worden opgeslagen.</p>}
       {configError && <p className="config-error" role="alert">De gewijzigde configuratie kan niet worden geladen. De laatst geladen instellingen blijven zichtbaar.</p>}
       <button ref={hamburger} className="hamburger" aria-expanded={mobile} aria-controls="navigation" onClick={() => setMobile(!mobile)}><span aria-hidden="true">☰</span> {destination?.label}</button>
-      <nav ref={nav} id="navigation" aria-label="Hoofdnavigatie" className={mobile ? "navigation expanded" : "navigation"} style={{"--menu-columns": config.menu.length} as CSSProperties}>
-        {config.menu.map(item => {
+      <nav ref={nav} id="navigation" aria-label="Hoofdnavigatie" className={mobile ? "navigation expanded" : "navigation"} style={{"--menu-columns": menu.length} as CSSProperties}>
+        {menu.map(item => {
           const selected = isActive(item, active);
           const contents = <><Icon name={item.icon ?? "dashboard"} />{item.label}</>;
           return item.children ? <details className="nav-group" key={item.id} onToggle={event => {
@@ -182,7 +192,7 @@ export default function Home() {
       <main id="workspace" tabIndex={-1} className={destination?.view === "empty" ? "workspace" : "workspace module"}>
         {destination?.view === "empty" ? <h2 className="sr-only">{destination.label}</h2> : <>
           <h2>{destination?.label}</h2>
-          {active === "admin/modules" && auth.user?.role === "admin" ? <ModuleWizard csrfToken={auth.csrfToken!}/> : destination?.view === "terminal" ? <Terminal key={auth.user?.email} enabled={config.providers.some(p => p.id === "termix" && p.enabled)} csrfToken={auth.csrfToken!}/> : active === "admin/users" && auth.user?.role === "admin" ? <Accounts csrfToken={auth.csrfToken!}/> : active === "admin/providers" ? <div className="provider-list">{config.providers.length ? config.providers.map(item => <section key={item.id} className="provider-card"><h3>{item.label}</h3><p>{item.enabled ? "Ingeschakeld" : "Niet ingericht"}</p>{item.url ? <a href={item.url}>{item.url}</a> : <p>Nog geen adres ingesteld.</p>}</section>) : <p>Er zijn nog geen koppelingen ingesteld.</p>}</div> : <>
+          {onSettings ? <Settings menu={config.menu} settings={personal} csrfToken={auth.csrfToken!} onSaved={values => { setPersonal(values); preferences.current = {...preferences.current, ...values}; }}/> : active === "admin/modules" && auth.user?.role === "admin" ? <ModuleWizard csrfToken={auth.csrfToken!}/> : destination?.view === "terminal" ? <Terminal key={auth.user?.email} enabled={config.providers.some(p => p.id === "termix" && p.enabled)} csrfToken={auth.csrfToken!}/> : active === "admin/users" && auth.user?.role === "admin" ? <Accounts csrfToken={auth.csrfToken!}/> : active === "admin/providers" ? <div className="provider-list">{config.providers.length ? config.providers.map(item => <section key={item.id} className="provider-card"><h3>{item.label}</h3><p>{item.enabled ? "Ingeschakeld" : "Niet ingericht"}</p>{item.url ? <a href={item.url}>{item.url}</a> : <p>Nog geen adres ingesteld.</p>}</section>) : <p>Er zijn nog geen koppelingen ingesteld.</p>}</div> : <>
             <p>{destination?.description ?? "Dit onderdeel is nog niet ingericht."}</p>
             {provider?.url && <><p>Adres: <a href={provider.url}>{provider.url}</a></p><a className="provider-open" href={provider.url} target="_blank" rel="noopener noreferrer">Open {provider.label} ↗</a><p>Deze koppeling opent de toepassing. Gegevens uit de toepassing volgen later.</p></>}
           </>}

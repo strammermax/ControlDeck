@@ -210,3 +210,36 @@ def test_module_permissions_three_cases(app, case):
         assert client.get("/api/config").json["modules"] == []
     else:
         assert client.get("/api/accounts").status_code == 403
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_user_settings_language_and_navigation_order(app, case):
+    client = app.test_client()
+    login(app, client, "user@example.test", "user")
+    headers = {"X-CSRF-Token":"valid-csrf"}
+    if case == "normaal":
+        settings = {"language":"en", "navOrder":["terminal", "dashboard", "media"]}
+        assert client.put("/api/preferences", headers=headers, json=settings).status_code == 200
+        assert client.get("/api/preferences").json == settings
+    elif case == "boundary":
+        order = [f"m{index}" for index in range(32)]
+        assert client.put("/api/preferences", headers=headers, json={"navOrder":order}).status_code == 200
+        assert client.put("/api/preferences", headers=headers, json={"navOrder":[]}).status_code == 200
+        assert client.get("/api/preferences").json["navOrder"] == []
+    else:
+        for invalid in ({"language":"de"}, {"navOrder":"dashboard"}, {"navOrder":["dashboard", "dashboard"]},
+                        {"navOrder":[f"m{index}" for index in range(33)]}, {"navOrder":["../admin"]}, {"navOrder":[1]}):
+            assert client.put("/api/preferences", headers=headers, json=invalid).status_code == 400
+        assert client.get("/api/preferences").json == {}
+
+
+def test_user_settings_require_login_csrf_and_stay_per_user(app):
+    anonymous, admin, user = app.test_client(), app.test_client(), app.test_client()
+    assert anonymous.put("/api/preferences", json={"language":"en"}).status_code == 401
+    login(app, admin)
+    login(app, user, "user@example.test", "user")
+    assert user.put("/api/preferences", json={"language":"en"}).status_code == 403
+    assert user.put("/api/preferences", headers={"X-CSRF-Token":"valid-csrf"}, json={"navOrder":["admin", "terminal"]}).status_code == 200
+    assert admin.get("/api/preferences").json == {}
+    # Storing a hidden id does not expose the admin module to a user.
+    assert all(item["id"] != "admin" for item in user.get("/api/config").json["menu"])

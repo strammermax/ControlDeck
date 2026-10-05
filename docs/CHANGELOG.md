@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — Personal settings
+
+- Persoonlijke Instellingen-pagina per gebruiker: interfacetaal (Nederlands/English) en volgorde van de hoofdnavigatie met slepen, Annuleren, Opslaan en Standaard herstellen.
+
 ## 0.3.0 — Configuration, SSO and users
 
 - Runtime-configuratie in gesplitste JSON-bestanden voor site, menu, modules, providers en toekomstige widgets.

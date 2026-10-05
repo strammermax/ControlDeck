@@ -26,3 +26,12 @@ De interface blijft een statische Next.js-export. Er komen geen extra runtimepro
 ## Verificatie
 
 Bij deze wijziging worden TypeScript, productie-export en Python-tests uitgevoerd. Browsercontrole omvat desktop- en mobiele navigatie, dropdowns, directe links, terugnavigatie, thema en refresh. De bestaande CI controleert ook Docker en rolt de main-commit uit naar LXC 164. Google OIDC-login, serverzijdige rollen en accountbeheer worden apart getest. Windows-login en API-adapters volgen later; widgetdefinities worden nog niet als Dashboard gerenderd.
+
+## Persoonlijke instellingen
+
+Het tandwiel rechtsboven opent `#settings`. Elke aangemelde gebruiker ziet deze pagina, los van de modulerechten. De instellingen gelden per gebruiker en worden via `/api/preferences` in SQLite opgeslagen, dus ook op andere apparaten gebruikt.
+
+- **Interfacetaal:** Nederlands (standaard) of English. De keuze wordt direct opgeslagen. Voorlopig vertalen de Instellingen-pagina en de bediening rechtsboven; menulabels komen uit de configuratie.
+- **Menuvolgorde:** sleep de hoofdtabbladen in de gewenste volgorde en kies Opslaan. Annuleren zet de laatst opgeslagen volgorde terug, Standaard herstellen de configuratievolgorde. Groepen zoals Proxmox en Admin verplaatsen als geheel. Op touchscherm eerst lang drukken; met het toetsenbord Alt+pijl omhoog/omlaag op de greep.
+
+De server accepteert `language` (`nl`/`en`) en `navOrder` (maximaal 32 unieke menu-id's). Een opgeslagen id geeft nooit toegang: de volgorde wordt alleen toegepast op het menu dat de server voor die gebruiker filtert. Onbekende id's worden genegeerd en nieuwe menu-items komen achteraan.
