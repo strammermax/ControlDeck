@@ -46,3 +46,13 @@ exit
 Backup toekomstige persistente data en configuratie volgens het technische ontwerp. De huidige foundation heeft geen gebruikersdatabase of secrets. Releasebundles kunnen opnieuw uit GitHub worden opgehaald zolang zij beschikbaar blijven; workflowartifacts hebben beperkte retentie, officiële releases zijn het blijvende distributiepunt.
 
 Releasecleanup is voorlopig handmatig. Bewaar altijd de actieve en minstens één vorige werkende release. Controleer schijfruimte voordat oude releases worden verwijderd; wijzig niets buiten `/opt/controldeck/releases`.
+
+## Homepage: hostvalidatie herstellen
+
+Op 5 oktober 2026 draaide de bestaande Homepage-Docker-container gezond, maar verzoeken via de interne DNS-naam met poort 3000 werden geweigerd. `HOMEPAGE_ALLOWED_HOSTS` bevatte de naam zonder poort. Homepage vergelijkt de exacte Host-header; neem daarom ook de gebruikte combinatie van naam en poort op.
+
+De bestaande Compose-configuratie is privé geback-upt. Alleen de ontbrekende combinaties zijn toegevoegd, waarna de Homepage-container met het bestaande image opnieuw is aangemaakt. Configuratiebestanden, mounts en herstartbeleid bleven behouden. Gebruik geen wildcard om deze fout te omzeilen.
+
+Verificatie: IP-adres, bestaande namen zonder poort en namen met poort geven HTTP 200. Een onbekende Host-header blijft HTTP 400 geven. De pagina, services-API en bookmarks-API geven HTTP 200 en de container is healthy.
+
+Zie de officiële [Homepage-documentatie over toegestane hosts](https://gethomepage.dev/installation/#homepage_allowed_hosts).
