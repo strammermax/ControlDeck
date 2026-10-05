@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased — Personal settings
+Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.mm.dd.<build>` (zie [CI-CD.md](CI-CD.md)). De changelog groepeert wijzigingen per dag.
+
+## 2026.10.05 — Instellingen, Proxmox, ProxMenux, Modulebeheer en Linkwarden
+
+- LXC-updates: knop **Bijwerken in ProxMenux ↗** per container.
+- Release notes per release uit de commitberichten; de footer linkt naar de release notes van de draaiende versie. CI bewaart de laatste 30 releases en image-versies.
+- Versienummering `jjjj.mm.dd.<build>`; elke build van `main` wordt automatisch een GitHub-release.
 
 - Proxmox VE-koppeling via Admin → Modules (alleen-lezen API-token, certificaatpinning, verbindingstest). Zie PROXMOX.md.
 - Proxmox → Overzicht toont clusterwidgets (CPU/geheugen van gasten en nodes, taken per categorie en node over 48 uur, SDN-zones) en de laatste taken van het hele cluster met filters en verouderd-melding.

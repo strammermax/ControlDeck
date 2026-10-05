@@ -8,6 +8,7 @@ RUN npm run build
 
 FROM python:3.12-slim-bookworm AS runtime
 ARG APP_COMMIT=development
+ARG APP_VERSION=development
 LABEL org.opencontainers.image.source="https://github.com/strammermax/ControlDeck" \
       org.opencontainers.image.title="ControlDeck" \
       org.opencontainers.image.licenses="GPL-3.0"
@@ -18,7 +19,8 @@ RUN mkdir /data && chown 10001:10001 /data
 COPY backend/ backend/
 COPY config/ config/
 COPY VERSION LICENSE ./
-RUN python -c "import json,pathlib; pathlib.Path('build-info.json').write_text(json.dumps({'version':pathlib.Path('VERSION').read_text().strip(),'commit':'${APP_COMMIT}'}))"
+COPY scripts/version.py scripts/version.py
+RUN python scripts/version.py --check "${APP_VERSION}" && python -c "import json,pathlib; pathlib.Path('build-info.json').write_text(json.dumps({'version':'${APP_VERSION}','commit':'${APP_COMMIT}'}))"
 COPY --from=ui /build/out/ frontend/out/
 COPY scripts/python_licenses.py scripts/python_licenses.py
 RUN python scripts/python_licenses.py --output frontend/out/PYTHON-LICENSES.txt

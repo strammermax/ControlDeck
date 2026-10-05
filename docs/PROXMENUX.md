@@ -91,7 +91,7 @@ Per node controleert ControlDeck het certificaat, het token en of de hostname va
 - **CPU-vermogen** — de monitor meet via RAPL alleen de CPU (bijv. `AMD RAPL (CPU only)`), niet het totale verbruik van de server. De bron staat in de tooltip.
 - **Load** — 1-minuutgemiddelde naast het aantal CPU-threads (`4.26 / 16`).
 - **Schijven in slaapstand** — worden niet gewekt; SMART en temperatuur zijn dan niet gemeten. Status **◌ Slaapstand**, temperatuur "—" (een gemelde 0 °C wordt nooit getoond).
-- **LXC-updates** — over alle nodes gesorteerd (meeste beveiligingsupdates eerst), met totaal en de eerste pakketnamen. Nodes zonder updategegevens worden apart genoemd; ze tellen nooit als "bijgewerkt".
+- **LXC-updates** — over alle nodes gesorteerd (meeste beveiligingsupdates eerst), met totaal en de eerste pakketnamen. Nodes zonder updategegevens worden apart genoemd; ze tellen nooit als "bijgewerkt". **Bijwerken in ProxMenux ↗** opent de monitor van die node in een nieuw tabblad; de update start je daar, met de eigen login van de monitor. ProxMenux voert updates uit als interactief script via een terminalsessie en biedt geen eenvoudige API-actie; uitvoeren vanuit ControlDeck vraagt root-toegang tot de node en hoort bij [issue #1](https://github.com/strammermax/ControlDeck/issues/1).
 - Nodekaarten staan alfabetisch.
 
 ## Gedrag en storingen

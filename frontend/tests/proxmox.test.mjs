@@ -110,8 +110,10 @@ test('diskStatus / faal: an awake disk without SMART stays unknown', () => {
 });
 const upd = (id, security, count) => ({id, name:`ct${id}`, count, security, packages:[]});
 test('collectUpdates / normaal: security first across all nodes, with totals', () => {
-  const result = collectUpdates([{name:'pve-amd', lxcUpdates:[upd(103,0,4), upd(137,26,50)]}, {name:'pve-intel', lxcUpdates:[upd(105,5,5)]}]);
+  const result = collectUpdates([{name:'pve-amd', monitorUrl:'https://amd:8008', lxcUpdates:[upd(103,0,4), upd(137,26,50)]}, {name:'pve-intel', lxcUpdates:[upd(105,5,5)]}]);
   assert.deepEqual(result.rows.map(r => r.id),[137,105,103]);
+  assert.equal(result.rows[0].monitorUrl,'https://amd:8008');
+  assert.equal(result.rows[1].monitorUrl,undefined);
   assert.equal(result.containers,3);
   assert.equal(result.security,31);
   assert.deepEqual(result.missing,[]);

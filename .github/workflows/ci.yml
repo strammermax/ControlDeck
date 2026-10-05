@@ -3,7 +3,6 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,6 +12,8 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -23,11 +24,11 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Verify release version
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Compute version (yyyy.mm.dd.build)
+        id: version
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: test "$RELEASE_TAG" = "v$(cat VERSION)"
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: echo "value=$(python scripts/version.py --build "$BUILD_NUMBER")" >> "$GITHUB_OUTPUT"
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
       - run: npm ci
@@ -41,27 +42,31 @@ jobs:
           bash -n scripts/install-lxc.sh scripts/deploy-lxc.sh scripts/install-termix.sh scripts/install-wizard.sh scripts/uninstall-termix.sh scripts/install-linkwarden.sh
           shellcheck scripts/install-lxc.sh scripts/deploy-lxc.sh scripts/install-termix.sh scripts/install-wizard.sh scripts/uninstall-termix.sh scripts/install-linkwarden.sh
       - name: Package deployment bundle
-        run: python scripts/package.py --commit "$GITHUB_SHA"
+        env:
+          APP_VERSION: ${{ steps.version.outputs.value }}
+        run: python scripts/package.py --commit "$GITHUB_SHA" --version "$APP_VERSION"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: controldeck-linux
           path: dist/*
           retention-days: 14
       - name: Build and test Docker runtime
+        env:
+          APP_VERSION: ${{ steps.version.outputs.value }}
         run: |
-          docker build --build-arg APP_COMMIT="$GITHUB_SHA" -t controldeck:test .
+          docker build --build-arg APP_COMMIT="$GITHUB_SHA" --build-arg APP_VERSION="$APP_VERSION" -t controldeck:test .
           docker run -d --name controldeck-test -p 127.0.0.1:8080:8080 controldeck:test
           trap 'docker logs controldeck-test; docker rm -f controldeck-test' EXIT
           for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8080/ready; then
-              curl -fsS http://127.0.0.1:8080/health | python -c 'import json,os,sys; assert json.load(sys.stdin)["commit"] == os.environ["GITHUB_SHA"]'
+              curl -fsS http://127.0.0.1:8080/health | python -c 'import json,os,sys; h=json.load(sys.stdin); assert h["commit"] == os.environ["GITHUB_SHA"] and h["version"] == os.environ["APP_VERSION"]'
               exit 0
             fi
             sleep 2
           done
           exit 1
   publish:
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: verify
     runs-on: ubuntu-latest
     permissions:
@@ -72,35 +77,59 @@ jobs:
       - name: Publish image to GHCR
         env:
           GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ needs.verify.outputs.version }}
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           tag="sha-$GITHUB_SHA"
-          docker build --build-arg APP_COMMIT="$GITHUB_SHA" -t "$image:$tag" .
+          docker build --build-arg APP_COMMIT="$GITHUB_SHA" --build-arg APP_VERSION="$APP_VERSION" -t "$image:$tag" .
           docker push "$image:$tag"
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            docker tag "$image:$tag" "$image:$GITHUB_REF_NAME"
-            docker push "$image:$GITHUB_REF_NAME"
-          else
-            docker tag "$image:$tag" "$image:main"
-            docker push "$image:main"
-          fi
+          for alias in "$APP_VERSION" main; do
+            docker tag "$image:$tag" "$image:$alias"
+            docker push "$image:$alias"
+          done
+      - name: Prune old image versions (keep 30 and main)
+        # Housekeeping must never block a release or deployment.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/prune.py images --repo "$GITHUB_REPOSITORY" --keep 30
   release:
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    # Every verified build of main is a release: tag v<yyyy.mm.dd.build> on the built commit.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: [verify, publish]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: controldeck-linux
           path: dist
+      - name: Write release notes from commits since the previous release
+        env:
+          APP_VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          previous=$(git tag --list 'v*' --sort=-creatordate | head -n 1)
+          python3 scripts/prune.py notes --repo "$GITHUB_REPOSITORY" --version "$APP_VERSION" ${previous:+--since "$previous"} > release-notes.md
+          cat release-notes.md
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ needs.verify.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag --title "ControlDeck $GITHUB_REF_NAME" --generate-notes
+          tag="v$APP_VERSION"
+          # A re-run of the same workflow run keeps its number; do not fail on an existing release.
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "Release $tag exists"; exit 0; fi
+          gh release create "$tag" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "ControlDeck $APP_VERSION" --notes-file release-notes.md
+      - name: Prune old releases (keep 30 CalVer releases)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/prune.py releases --repo "$GITHUB_REPOSITORY" --keep 30
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.LXC_DEPLOY_ENABLED == 'true'
     needs: [verify, publish]

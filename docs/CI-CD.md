@@ -14,19 +14,27 @@ De runner downloadt het artifact van dezelfde workflowrun en roept de root-owned
 
 Builds draaien op GitHub; de productierunner doet geen frontendbuild. Deploymentjobs worden achter elkaar uitgevoerd en niet halverwege afgebroken.
 
-## Een release maken
+## Versies en releases
 
-1. Werk `VERSION`, `frontend/package.json` en `docs/CHANGELOG.md` bij; vernieuw de npm-lockfile.
-2. Commit en push naar main; wacht op een geslaagde workflow.
-3. Maak een tag die overeenkomt met VERSION, bijvoorbeeld `v0.1.0`.
-4. Push de tag. De tagworkflow valideert de versie, voert de controles uit, publiceert het versie-image en maakt een GitHub-release met bundle en checksum.
+Versienummers zijn `jjjj.mm.dd.<build>`, bijvoorbeeld `2026.10.05.27`:
 
-```bash
-git tag -a v0.1.0 -m 'ControlDeck infrastructure foundation'
-git push origin v0.1.0
-```
+- **Datum:** de builddag in Europe/Amsterdam.
+- **Build:** het doorlopende runnummer van deze workflow (`github.run_number`); het loopt altijd op, ook over dagen heen.
 
-Tags publiceren een release maar voeren geen tweede LXC-deployment uit. Productie volgt gecontroleerde pushes naar main. Een handmatige workflow op main kan dezelfde commit opnieuw uitrollen. Een andere ref start geen productiejob.
+CI berekent het nummer bij elke build met `scripts/version.py`; er hoeft niets met de hand te worden aangepast. Elke gecontroleerde push naar `main`:
+
+1. krijgt dit versienummer in de Linux-bundle (`build-info.json`), het Docker-image en `/health` (de footer toont het);
+2. wordt gepubliceerd als image met de tags `sha-<commit>`, `<versie>` en `main`;
+3. wordt een **GitHub-release** met tag `v<versie>` op de gebouwde commit, met bundle en checksum;
+4. wordt uitgerold naar de LXC (als `LXC_DEPLOY_ENABLED` aan staat).
+
+**Release notes** worden per release samengesteld uit de commitberichten sinds de vorige release (`scripts/prune.py notes`), met een link naar de [changelog](CHANGELOG.md). Schrijf commitberichten daarom als korte, leesbare zin. In ControlDeck linkt de footertekst met het versienummer naar de release notes van de draaiende versie (bij `development` naar het releaseoverzicht).
+
+**Opruimen:** GitHub verwijdert releases, tags en images nooit zelf. CI bewaart de laatste **30** CalVer-releases (met hun tags) en de laatste **30** image-versies; versies met de tag `main` blijven altijd. De historische releases v0.1.0–v0.4.0 worden nooit verwijderd. Git-geschiedenis wordt nooit aangeraakt. Build-artifacts verlopen na 14 dagen, workflowlogs na 90 dagen. Opruimen mag mislukken zonder release of uitrol te blokkeren.
+
+Pull requests krijgen ook een versienummer, maar worden niet gepubliceerd, uitgebracht of uitgerold. Een herhaalde run (zelfde runnummer) maakt geen tweede release. Lokaal en zonder build-nummer is de versie `development` (bestand `VERSION`). De Docker-build en `package.py` weigeren elk ander formaat.
+
+Releases v0.1.0 t/m v0.4.0 gebruikten nog semver met handmatige tags; die blijven bestaan.
 
 ## GitHub-inrichting
 

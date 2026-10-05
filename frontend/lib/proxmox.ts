@@ -71,7 +71,7 @@ export function bytes(value: number | null | undefined): string {
 
 export type HealthLevel = "ok" | "warning" | "error" | "unknown";
 export type MonitorNode = {
-  name: string; overall: HealthLevel; stale: boolean; error?: string; updatedAt?: number; summary?: string | null; loading?: boolean; partial?: string[];
+  name: string; monitorUrl?: string; overall: HealthLevel; stale: boolean; error?: string; updatedAt?: number; summary?: string | null; loading?: boolean; partial?: string[];
   categories?: { id: string; status: HealthLevel; reason: string | null }[];
   temperature?: number | null; load?: number | null; hostUpdates?: number | null; powerWatts?: number | null; powerSource?: string | null; threads?: number | null;
   disks?: { name: string | null; model: string | null; health: string | null; smart: string | null; temperature: number | null; wear: number | null; reallocated: number | null; pending: number | null; standby: boolean; size: string | null }[];
@@ -122,11 +122,11 @@ export function diskStatus(disk: NonNullable<MonitorNode["disks"]>[number]): Hea
   return level === "unknown" && disk.standby ? "standby" : level;
 }
 
-export type UpdateRow = NonNullable<MonitorNode["lxcUpdates"]>[number] & { node: string };
+export type UpdateRow = NonNullable<MonitorNode["lxcUpdates"]>[number] & { node: string; monitorUrl?: string };
 /** All nodes together: most security updates first, then most updates; totals and nodes without data. */
 export function collectUpdates(nodes: readonly MonitorNode[]): { rows: UpdateRow[]; containers: number; security: number; missing: string[] } {
   if (!Array.isArray(nodes)) throw new TypeError("Nodes must be a list");
-  const rows = nodes.flatMap((node): UpdateRow[] => (node.lxcUpdates ?? []).map((update: NonNullable<MonitorNode["lxcUpdates"]>[number]) => ({ ...update, node: node.name })))
+  const rows = nodes.flatMap((node): UpdateRow[] => (node.lxcUpdates ?? []).map((update: NonNullable<MonitorNode["lxcUpdates"]>[number]) => ({ ...update, node: node.name, monitorUrl: node.monitorUrl })))
     .sort((a, b) => (b.security ?? 0) - (a.security ?? 0) || (b.count ?? 0) - (a.count ?? 0) || a.node.localeCompare(b.node) || (a.id ?? 0) - (b.id ?? 0));
   const missing = nodes.filter(node => node.lxcUpdates === undefined || node.partial?.includes("containers")).map(node => node.name).sort();
   return { rows, containers: rows.length, security: rows.reduce((total, row) => total + (row.security ?? 0), 0), missing };

@@ -198,7 +198,7 @@ def test_summary(env, case):
         failing.add("https://192.168.1.97:8008")
         nodes = settled(viewer)
         # One unreachable node does not block the other and is never shown as healthy.
-        assert nodes[0]["overall"] == "error" and nodes[1] == {"name": "pve-nas", "overall": "unknown", "error": "Monitor niet bereikbaar.", "stale": True}
+        assert nodes[0]["overall"] == "error" and nodes[1] == {"name": "pve-nas", "monitorUrl": "https://192.168.1.97:8008", "overall": "unknown", "error": "Monitor niet bereikbaar.", "stale": True}
         assert client("other@example.test").get("/api/proxmenux/summary").status_code == 403
         return
     client().put("/api/proxmenux/connection", headers=H, json={"ca": CA, "nodes": NODES})
@@ -207,6 +207,7 @@ def test_summary(env, case):
     assert all(node.get("loading") or node.get("updatedAt") for node in first)
     nodes = settled(viewer)
     assert nodes[0]["stale"] is False and nodes[0]["partial"] == []
+    assert [node["monitorUrl"] for node in nodes] == [node["url"] for node in NODES]
     body = json.dumps(nodes)
     assert TOKEN not in body and "SECRET" not in body
     if case == "boundary":

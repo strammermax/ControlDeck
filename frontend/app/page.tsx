@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { version } from "../package.json";
 import { firstRoute, getDestinations, href, isActive, orderMenu, type Configuration } from "../lib/navigation";
 import { translate } from "../lib/i18n";
+import { releaseNotesUrl } from "../lib/release";
 import { Settings, type PersonalSettings } from "../components/settings";
 import { Icon } from "../components/icon";
 import { ModuleWizard } from "../components/module-wizard";
@@ -220,7 +220,7 @@ export default function Home() {
           </>}
         </>}
       </main>
-      <footer><p>{site.footerText} v{health?.version ?? version}</p><a href={site.supportUrl}>{site.supportLabel}</a></footer>
+      <footer><p>{(() => { const label = `${site.footerText}${health?.version ? ` v${health.version}` : ""}`; const notes = releaseNotesUrl(site.supportUrl, health?.version); return notes ? <a className="release-link" href={notes} target="_blank" rel="noopener noreferrer" title="Release notes van deze versie">{label}</a> : label; })()}</p><a href={site.supportUrl}>{site.supportLabel}</a></footer>
     </div>
   </>;
 }

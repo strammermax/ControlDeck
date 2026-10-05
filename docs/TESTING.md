@@ -18,6 +18,30 @@ Frontend-unit-tests draaien met de ingebouwde Node-testfunctie en controleren co
 
 Unit-tests bewijzen geen succesvolle Google Cloud-configuratie of beschikbaarheid van externe toepassingen. Daarom blijven echte Google-login en browsercontroles van formulieren, navigatie en voorkeurherstel aanvullende verificaties. Bij deze release zijn lokale admin/user-testaccounts gebruikt voor de browsercontrole; een echte Google-login wordt apart bevestigd. Een CI-build krijgt nooit een onbeveiligde loginbypass.
 
+## Regressietests: elke bug krijgt een test
+
+Iedere bug die we zien, in productie, in CI of tijdens het bouwen, krijgt bij de oplossing een **regressietest**:
+
+1. **Eerst reproduceren:** schrijf de test zó dat hij **faalt zonder de oplossing**. Een test die ook zonder fix slaagt, bewijst niets.
+2. **Dan oplossen:** de test slaagt met de oplossing.
+3. **Benoemen:** zet in de docstring of het commentaar het symptoom en de oorzaak, zodat later duidelijk is waarom de test bestaat. Bijvoorbeeld: *"Python 3.13 (urllib3 VERIFY_X509_STRICT) weigerde de Proxmox-cluster-CA zonder keyUsage."*
+4. **Echt gedrag:** test op het niveau waar de bug zat. Een TLS-fout test je met een echte TLS-verbinding, een time-out met een trage bron, een API-fout via de endpoint, niet alleen via een mock van de functie die je net hebt aangepast.
+5. **Samen committen:** fix en test zitten in dezelfde commit. Vermeld de bug in de commitboodschap.
+
+Een fout die CI vindt (tests, TypeScript-controle, build, shellcheck) is ook een bug: los hem op en draai daarna alle controles lokaal (`python -m pytest -q`, `npm test`, `npm run typecheck`, `npm run build`) vóór de volgende push. Typecontrolefouten worden gedekt door `npm run typecheck`; daarvoor is geen aparte unit-test nodig.
+
+Voorbeelden uit dit project:
+
+| Bug | Regressietest |
+| --- | --- |
+| ProxMenux: geldige node-certificaten geweigerd op Python 3.13 (strenge X.509-controle, cluster-CA zonder keyUsage) | `tests/test_proxmenux.py::test_cluster_ca_tls_against_real_server` (echte HTTPS-server) |
+| ProxMenux: node "niet bereikbaar" doordat de gezondheidscontrole langer duurt dan de time-out | `test_slow_part_keeps_other_data` |
+| ProxMenux: slapende schijf als "Onbekend · 0 °C" | `test_summary_details[boundary]`, `diskStatus` in `frontend/tests/proxmox.test.mjs` |
+| ProxMenux: intern veld `latest` (`50:26:apparmor,…`) als versie getoond | `test_summary_details[normaal]` en `[faal]` |
+| Detectie: niet-JSON-antwoord via https viel terug op http | `test_detect_states[faal]` |
+| Installatie-API: ontbrekende worker gaf "verouderd" (409) in plaats van "niet beschikbaar" (503) | `test_queue_installation[faal]` |
+| Proxmox-client: query-parameter `path=` botste met de argumentnaam | `test_connect_flow` (gebruikt `/access/permissions?path=/`) |
+
 ## Normaal, boundary, faal
 
 Elke functie krijgt minimaal drie herkenbare testcategorieën: `normaal` voor verwacht gebruik, `boundary` voor grenswaarden/randgevallen en `faal` voor afwijzing of uitval. Drie categorieën is het minimum, niet het maximum: login en rechten hebben extra beveiligingsgevallen. Nieuwe functies zijn pas klaar wanneer hun drietal in CI slaagt.

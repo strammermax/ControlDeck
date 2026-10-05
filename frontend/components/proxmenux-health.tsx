@@ -70,8 +70,10 @@ export function ProxmenuxHealth({ refreshSeconds }: { refreshSeconds: number }) 
         <h3>LXC-updates <small>{updates.containers ? `${updates.containers} ${updates.containers === 1 ? "container" : "containers"} · ${updates.security} beveiligingsupdates · beveiliging eerst` : "via Helper-Scripts"}</small></h3>
         {updates.rows.length ? <ul className="pool-list">{updates.rows.map(update => <li key={`${update.node}-${update.id}`}>
           <span className={`task-status ${update.security ? "warning" : ""}`}>{update.security ? `△ ${update.security} beveiliging` : "↑"}</span> CT {update.id} ({update.name}) · {update.node} · {update.count ?? "?"} {update.count === 1 ? "update" : "updates"}
+          {update.monitorUrl && <> · <a className="update-link" href={update.monitorUrl} target="_blank" rel="noopener noreferrer" title={`Open de ProxMenux Monitor van ${update.node}; de update start je daar, met de login van de monitor.`}>Bijwerken in ProxMenux ↗</a></>}
           {update.packages.length > 0 && <div className="update-packages">{update.packages.join(", ")}{(update.count ?? 0) > update.packages.length ? " …" : ""}</div>}
         </li>)}</ul> : updates.missing.length === 0 && !loading ? <p>✓ Alle containers zijn bijgewerkt.</p> : null}
+        {updates.rows.length > 0 && <p className="health-ok">Updates voer je uit in de ProxMenux Monitor van de node. Uitvoeren vanuit ControlDeck volgt later (issue #1).</p>}
         {updates.missing.length > 0 && <p className="health-error" role="status">Geen updategegevens van {updates.missing.join(", ")}; die containers ontbreken in deze lijst.</p>}
         {loading && <p className="health-ok" role="status">Nog niet alle nodes zijn geladen.</p>}
       </article>

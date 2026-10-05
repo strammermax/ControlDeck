@@ -371,6 +371,9 @@ def setup_proxmenux(app, configuration_path, data_dir):
                         cache[node["name"]] = {"key": key, "at": 0.0, "data": None, "error": str(error), "refreshing": False}
 
         def view(node, entry):
+            return {**node_view(node, entry), "monitorUrl": node["url"]}
+
+        def node_view(node, entry):
             if entry["data"] is None:
                 if entry["error"] is None:
                     return {"name": node["name"], "overall": "unknown", "loading": True, "stale": False}
