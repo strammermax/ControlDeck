@@ -46,6 +46,21 @@ CONTROLDECK_GOOGLE_CLIENT_SECRET=<client-secret>
 
 Docker: gebruik `.env.example` als basis voor een niet-gecommit `.env` en een schrijfbare `/data`-volume. `CONTROLDECK_DATA_DIR=/data`; `CONTROLDECK_ACCOUNTS=/data/accounts.json`. Kopieer een accountlijst naar die volume voordat je inlogt; een ontbrekende of ongeldige lijst geeft niemand toegang. Het configuratievolume blijft alleen-lezen.
 
+## Cloudflare Access (aanbevolen voor publieke toegang)
+
+Staat ControlDeck achter Cloudflare Access, dan gebruikt het die identiteit: je logt één keer in bij Cloudflare (bijvoorbeeld via Google) en komt zonder tweede login binnen. Cloudflare zet bij elk verzoek een ondertekend JWT in de header `Cf-Access-Jwt-Assertion` (en de cookie `CF_Authorization`). ControlDeck vertrouwt dit pas na controle van de RS256-handtekening tegen `<team>/cdn-cgi/access/certs`, de issuer (het teamdomein), de audience (de AUD-tag van precies deze Access-applicatie) en de geldigheid. Een vervalste of hergebruikte header, ook vanaf het LAN, opent geen sessie. Bij een onbekende sleutel-id wordt de sleutelset één keer ververst (sleutelrotatie).
+
+Daarna gelden dezelfde regels als bij Google: alleen een actief account met `ssoType` google in de accountlijst krijgt een sessie, met dezelfde rollen, modules en voorkeuren. Een bestaand profiel wordt op e-mailadres herkend en behoudt zijn subject en voorkeuren; een nieuw profiel krijgt subject `cloudflare:<sub>`. Uitloggen verwijdert de lokale sessie en stuurt door naar `/cdn-cgi/access/logout`.
+
+Zet in `/etc/controldeck/controldeck.env`:
+
+```text
+CONTROLDECK_CF_ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com
+CONTROLDECK_CF_ACCESS_AUD=<AUD-tag van de Access-applicatie>
+```
+
+De AUD-tag staat in Cloudflare One bij de applicatie (Overview > Application Audience (AUD) Tag). Zonder beide variabelen is Access-login uitgeschakeld. De Google-login hierboven blijft beschikbaar als terugvaloptie, bijvoorbeeld voor lokale toegang zonder Cloudflare. Let op: Access en ControlDeck hebben elk een eigen lijst toegestane adressen; iemand heeft toegang als hij in beide staat.
+
 ## Sessies en voorkeuren
 
 Authlib controleert OAuth state, nonce en het ondertekende ID-token. Alleen een geverifieerd Google-e-mailadres dat actief in de lokale accountlijst staat krijgt een sessie. De stabiele Google `sub` wordt bij de eerste login aan het account gebonden; een ander Google-account kan niet via hetzelfde e-mailadres een bestaande identiteit overnemen. Het profiel is dus zonder wachtwoord, maar bevat technisch ook deze interne identiteitskoppeling.

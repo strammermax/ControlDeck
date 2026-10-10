@@ -1,4 +1,4 @@
-"""Google OIDC login, local account permissions and persistent per-user preferences."""
+"""Cloudflare Access or Google OIDC login, local account permissions and persistent per-user preferences."""
 
 import json
 import os
@@ -6,15 +6,65 @@ from pathlib import Path
 import secrets
 import re
 import tempfile
+import time
 from contextlib import contextmanager
 from threading import Lock
 import sqlite3
 from datetime import timedelta
 
+import requests
 from authlib.integrations.flask_client import OAuth
 from flask import g, jsonify, redirect, request, session
+from joserfc import jwt as jose_jwt
+from joserfc.errors import JoseError
+from joserfc.jwk import KeySet
 
 from backend.configuration import ConfigurationError, identifier, require
+
+ACCESS_LOGOUT_URL = "/cdn-cgi/access/logout"
+
+
+class CloudflareAccess:
+    """Verifies the signed identity Cloudflare Access adds to every proxied request.
+
+    The assertion is only trusted after checking its RS256 signature against the
+    team's published keys, the issuer, this application's audience tag and the
+    validity window. A forged or replayed header from inside the LAN is rejected.
+    """
+
+    def __init__(self, team_domain, audience, key_ttl=3600):
+        self.issuer = team_domain.rstrip("/")
+        self.audience = audience
+        self.key_ttl = key_ttl
+        self._keys, self._fetched, self._lock = None, 0.0, Lock()
+
+    def keys(self, refresh=False):
+        with self._lock:
+            if refresh or self._keys is None or time.time() - self._fetched > self.key_ttl:
+                response = requests.get(self.issuer + "/cdn-cgi/access/certs", timeout=5)
+                response.raise_for_status()
+                self._keys, self._fetched = KeySet.import_key_set(response.json()), time.time()
+            return self._keys
+
+    def verify(self, assertion):
+        """Returns {"email", "sub"} for a valid assertion, otherwise None."""
+        if not isinstance(assertion, str) or not 0 < len(assertion) <= 8192:
+            return None
+        registry = jose_jwt.JWTClaimsRegistry(leeway=30, iss={"essential": True, "value": self.issuer},
+                                              aud={"essential": True, "value": self.audience},
+                                              exp={"essential": True}, email={"essential": True}, sub={"essential": True})
+        # A key rotation shows up as an unknown key id: refresh the key set once.
+        for refresh in (False, True):
+            try:
+                claims = jose_jwt.decode(assertion, self.keys(refresh), algorithms=["RS256"]).claims
+                registry.validate(claims)
+            except (JoseError, ValueError, requests.RequestException):
+                continue
+            email, subject = claims["email"], claims["sub"]
+            if isinstance(email, str) and isinstance(subject, str) and 0 < len(subject) <= 255:
+                return {"email": email.casefold(), "sub": subject}
+            return None
+        return None
 
 
 def validate_accounts(data):
@@ -114,6 +164,18 @@ def establish_identity(db_path, claims):
     return {"sub": subject, "email": email}
 
 
+def establish_access_identity(db_path, identity):
+    """Cloudflare Access already proved the e-mail address. An existing profile keeps
+    its subject (and preferences); a new one is stored under the Access subject."""
+    with database(db_path) as db:
+        existing = db.execute("SELECT subject FROM users WHERE email = ?", (identity["email"],)).fetchone()
+        if existing is not None:
+            return {"sub": existing[0], "email": identity["email"]}
+        subject = "cloudflare:" + identity["sub"]
+        db.execute("INSERT INTO users(subject,email) VALUES(?,?) ON CONFLICT(subject) DO UPDATE SET email=excluded.email", (subject, identity["email"]))
+    return {"sub": subject, "email": identity["email"]}
+
+
 def setup_auth(app, data_dir, accounts_path):
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -138,10 +200,33 @@ def setup_auth(app, data_dir, accounts_path):
     if configured:
         google = OAuth(app).register("google", client_id=client_id, client_secret=client_secret, server_metadata_url="https://accounts.google.com/.well-known/openid-configuration", client_kwargs={"scope": "openid email", "code_challenge_method": "S256", "timeout": 10})
     app.extensions["controldeck_google"] = google
+    team_domain = os.environ.get("CONTROLDECK_CF_ACCESS_TEAM_DOMAIN", "").rstrip("/")
+    audience = os.environ.get("CONTROLDECK_CF_ACCESS_AUD", "")
+    access = CloudflareAccess(team_domain, audience) if team_domain.startswith("https://") and audience else None
+    app.extensions["controldeck_access"] = access
+
+    def account_for(email):
+        try:
+            return next((a for a in load_accounts(accounts_path) if a["email"] == email and a["enabled"] and a["ssoType"] == "google"), None)
+        except ConfigurationError:
+            return None
 
     @app.before_request
     def authorization():
         g.account = None
+        g.via_access = False
+        if access is not None:
+            assertion = request.headers.get("Cf-Access-Jwt-Assertion") or request.cookies.get("CF_Authorization")
+            verified = access.verify(assertion) if assertion else None
+            if verified is not None:
+                g.via_access = True
+                current = session.get("identity")
+                # The Access identity always wins over an older session for another user.
+                if not (isinstance(current, dict) and current.get("email") == verified["email"]) and account_for(verified["email"]) is not None:
+                    session.clear()
+                    session["identity"] = establish_access_identity(db_path, verified)
+                    session["csrf"] = secrets.token_hex(32)
+                    session.permanent = True
         identity = session.get("identity")
         if isinstance(identity, dict) and isinstance(identity.get("email"), str):
             try:
@@ -161,7 +246,8 @@ def setup_auth(app, data_dir, accounts_path):
     @app.get("/api/session")
     def session_info():
         user = {key: g.account[key] for key in ("firstName", "lastName", "email", "role", "ssoType")} if g.account else None
-        return jsonify(authenticated=bool(user), loginAvailable=configured, user=user, csrfToken=session.get("csrf") if user else None)
+        return jsonify(authenticated=bool(user), loginAvailable=configured, user=user, csrfToken=session.get("csrf") if user else None,
+                       logoutUrl=ACCESS_LOGOUT_URL if g.via_access else None)
 
     @app.get("/auth/google/login")
     def login():

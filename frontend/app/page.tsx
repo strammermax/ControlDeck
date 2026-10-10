@@ -15,7 +15,7 @@ import { ProxmoxSummary } from "../components/proxmox-summary";
 import { ProxmenuxHealth } from "../components/proxmenux-health";
 import { CronjobsPage } from "../components/cronjobs-page";
 
-type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string; ssoType?: string } | null; csrfToken: string | null };
+type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string; ssoType?: string } | null; csrfToken: string | null; logoutUrl?: string | null };
 type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string; language?: "nl" | "en"; navOrder?: string[] };
 /** Personal settings page; available to every signed-in user, independent of module grants. */
 const SETTINGS_ROUTE = "settings";
@@ -168,7 +168,7 @@ export default function Home() {
     {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("login") === "denied" && <p role="alert">Aanmelden is niet toegestaan of kon niet worden afgerond.</p>}
   </section></main>;
   if (!config) return <main className="configuration-loading"><h1>ControlDeck</h1><p role="status">{configError ? "De configuratie kan niet worden geladen. Controleer de instellingen." : "Configuratie laden…"}</p>{configError && <button onClick={() => void refresh()} disabled={refreshing}>Opnieuw proberen</button>}</main>;
-  if (!destinations.length) return <main className="configuration-loading"><h1>ControlDeck</h1><p>Er zijn nog geen onderdelen aan je account toegewezen. Neem contact op met je beheerder.</p><button onClick={async () => {await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); void refresh();}}>Uitloggen</button></main>;
+  if (!destinations.length) return <main className="configuration-loading"><h1>ControlDeck</h1><p>Er zijn nog geen onderdelen aan je account toegewezen. Neem contact op met je beheerder.</p><button onClick={async () => {await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); if (auth.logoutUrl) {window.location.assign(auth.logoutUrl); return;} void refresh();}}>Uitloggen</button></main>;
   const site = config.site;
   const onSettings = active === SETTINGS_ROUTE, onProfile = active === PROFILE_ROUTE;
   const destination = onSettings ? {id:SETTINGS_ROUTE, label:translate(personal.language, "settings"), view:"settings", description:undefined} : onProfile ? {id:PROFILE_ROUTE, label:translate(personal.language, "profile"), view:"profile", description:undefined} : destinations.find(item => item.id === active) ?? destinations[0];
@@ -185,7 +185,7 @@ export default function Home() {
           <div className="user-dropdown">
             <a href={`#${PROFILE_ROUTE}`} aria-current={onProfile ? "page" : undefined} onClick={closeMenus}><Icon name="profile"/>{translate(personal.language, "profile")}</a>
             <a href={`#${SETTINGS_ROUTE}`} aria-current={onSettings ? "page" : undefined} onClick={closeMenus}><Icon name="settings"/>{translate(personal.language, "settings")}</a>
-            <button type="button" className="separated" onClick={async () => { closeMenus(); const response = await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); if (response.ok) {setAuth(null); setConfig(null); void refresh();} }}><Icon name="logout"/>{translate(personal.language, "logout")}</button>
+            <button type="button" className="separated" onClick={async () => { closeMenus(); const response = await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); if (response.ok) { if (auth.logoutUrl) {window.location.assign(auth.logoutUrl); return;} setAuth(null); setConfig(null); void refresh();} }}><Icon name="logout"/>{translate(personal.language, "logout")}</button>
           </div>
         </details>
         <span className={`status ${status.toLowerCase()}`} role="status" title="Bereikbaarheid van de ControlDeck-service">{status === "Online" ? "●" : "△"} {status}</span>
