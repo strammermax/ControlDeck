@@ -133,8 +133,9 @@ def test_socket_server_and_client(proxy_state, monkeypatch, tmp_path):
     socket_path = tmp_path / "agent.sock"
     thread = threading.Thread(target=proxy.serve, args=(str(socket_path),), daemon=True)
     thread.start()
+    # serve() binds first and chmods right after; wait for both to avoid a race.
     for _ in range(100):
-        if socket_path.exists():
+        if socket_path.exists() and socket_path.stat().st_mode & 0o777 == 0o660:
             break
         time.sleep(0.02)
     assert oct(socket_path.stat().st_mode & 0o777) == "0o660"
