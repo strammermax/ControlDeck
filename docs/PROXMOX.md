@@ -7,7 +7,7 @@ ControlDeck leest gegevens uit een Proxmox VE-cluster via de officiële API (`/a
 **Admin → Modules → Proxmox VE** opent de koppelwizard:
 
 1. **Module** — kies Proxmox VE.
-2. **Verbinding** — vul een node-adres (`https://192.168.1.98:8006`) of eigen domein (`https://pm.vanburik.info`) in. Een geplakt adres met `/#` wordt opgeschoond. ControlDeck haalt het certificaat op:
+2. **Verbinding** — vul een node-adres (`https://pve-amd.home:8006`) of eigen domein (`https://pm.vanburik.info`) in. Een geplakt adres met `/#` wordt opgeschoond. ControlDeck haalt het certificaat op:
    - Geldig (publiek vertrouwd) certificaat: normale certificaat- en hostnaamcontrole, geen vingerafdruk.
    - Zelfondertekend certificaat: de wizard toont de SHA-256-vingerafdruk. Vergelijk die met Proxmox → node → Systeem → Certificaten (`pve-ssl.pem`) en bevestig. ControlDeck accepteert daarna uitsluitend dat certificaat; een ander certificaat wordt geweigerd vóórdat het token wordt verzonden. Na vernieuwing van het Proxmox-certificaat moet je opnieuw koppelen.
 3. **Toegang** — maak een alleen-lezen token:

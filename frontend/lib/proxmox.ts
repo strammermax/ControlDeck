@@ -33,7 +33,7 @@ export function duration(start: number, end: number | null, now: number): string
   return `${Math.floor(seconds / 3600)}u ${String(Math.floor(seconds / 60) % 60).padStart(2, "0")}m`;
 }
 
-/** Normalizes a pasted address such as https://192.168.1.98:8006/# for display before the server validates it. */
+/** Normalizes a pasted address such as https://pve-amd.home:8006/# for display before the server validates it. */
 export function cleanAddress(value: string): string {
   return value.trim().replace(/#.*$/, "").replace(/\/+$/, "");
 }

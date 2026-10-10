@@ -57,7 +57,7 @@ export function ProxmenuxConnect({ csrfToken, onBack }: { csrfToken: string; onB
       <p>Maak per monitor een API-token: Settings → Security → API tokens. Het token wordt alleen op de ControlDeck-server bewaard.{stored?.suggestions.length && !stored.connected ? " De nodes zijn ingevuld vanuit je Proxmox-koppeling." : ""}</p>
       {rows.map((row, index) => { const guidance = monitorGuidance(stateOf(row)); return <div className="node-block" key={index}><div className="node-row">
         <label>Node<input value={row.name} onChange={event => update(index, { name: event.target.value })} placeholder="pve-amd" autoComplete="off" spellCheck={false}/></label>
-        <label>Adres<input value={row.url} onChange={event => update(index, { url: event.target.value })} placeholder="https://192.168.1.98:8008" autoComplete="off" spellCheck={false}/></label>
+        <label>Adres<input value={row.url} onChange={event => update(index, { url: event.target.value })} placeholder="https://pve-amd.home:8008" autoComplete="off" spellCheck={false}/></label>
         <label>API-token<input type="password" value={row.token} onChange={event => update(index, { token: event.target.value.trim() })} placeholder={keeps(row) ? "Leeg laten om het opgeslagen token te houden" : "eyJ…"} autoComplete="new-password" spellCheck={false}/></label>
         {rows.length > 1 && <button type="button" onClick={() => { setRows(rows.filter((_, i) => i !== index)); setDetected(null); }} aria-label={`Verwijder ${row.name || "node"}`}>✕</button>}
       </div>

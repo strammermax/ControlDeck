@@ -18,7 +18,7 @@ async function call<T>(path: string, csrfToken: string, method = "GET", body?: u
 export function ProxmoxConnect({ csrfToken, onBack }: { csrfToken: string; onBack: () => void }) {
   const [step, setStep] = useState(2);
   const [stored, setStored] = useState<Stored | null>(null);
-  const [url, setUrl] = useState("https://192.168.1.98:8006");
+  const [url, setUrl] = useState("https://pve-amd.home:8006");
   const [certificate, setCertificate] = useState<Certificate | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [tokenId, setTokenId] = useState("");
@@ -38,7 +38,7 @@ export function ProxmoxConnect({ csrfToken, onBack }: { csrfToken: string; onBac
     {error && <p role="alert">{error}</p>}
     {stored?.connected && step < 5 && <p role="status">Proxmox is al gekoppeld met {stored.url} ({stored.tokenId}). Je kunt de koppeling hier vervangen.</p>}
     {step === 2 && <fieldset><legend>Verbinding</legend>
-      <label>Adres van Proxmox<input value={url} onChange={event => { setUrl(event.target.value); setCertificate(null); setConfirmed(false); }} placeholder="https://192.168.1.98:8006" autoComplete="off"/></label>
+      <label>Adres van Proxmox<input value={url} onChange={event => { setUrl(event.target.value); setCertificate(null); setConfirmed(false); }} placeholder="https://pve-amd.home:8006" autoComplete="off"/></label>
       <p>Een node-adres of je eigen domein, bijvoorbeeld https://pm.vanburik.info. ControlDeck controleert eerst het certificaat.</p>
       {certificate && (certificate.trusted
         ? <p role="status">✓ Het certificaat van {certificate.url} is geldig. Er is geen vingerafdruk nodig.</p>

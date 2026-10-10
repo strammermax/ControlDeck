@@ -32,7 +32,7 @@ class ProxmoxError(Exception):
 
 
 def normalize_url(value, default_port=8006):
-    """Accepts a pasted address such as https://192.168.1.98:8006/# and returns https://host:port."""
+    """Accepts a pasted address such as https://pve-amd.home:8006/# and returns https://host:port."""
     if not isinstance(value, str) or len(value) > 300:
         raise ValueError("Ongeldig adres.")
     parts = urlsplit(value.strip())
@@ -41,7 +41,7 @@ def normalize_url(value, default_port=8006):
     except ValueError:
         raise ValueError("Ongeldige poort.") from None
     if parts.scheme != "https" or not parts.hostname or parts.username or parts.password or parts.query or parts.path not in ("", "/") or not HOST.fullmatch(parts.hostname):
-        raise ValueError("Gebruik een https-adres zonder pad, bijvoorbeeld https://192.168.1.98:8006.")
+        raise ValueError("Gebruik een https-adres zonder pad, bijvoorbeeld https://pve-amd.home:8006.")
     return f"https://{parts.hostname}:{port}"
 
 
