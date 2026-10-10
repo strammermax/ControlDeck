@@ -38,9 +38,9 @@ controldeck.service → Flask/Gunicorn → statische frontend
 | Swap | 512 MiB |
 | Rootdisk | 8 GiB op `Storage` |
 | Bridge | `vmbr0`, volgens aangeleverde configuratie |
-| Actueel IPv4-adres | `192.168.1.164/24`, gemeten binnen de draaiende container |
+| Actueel IPv4-adres | `192.168.20.164/24`, gemeten binnen de draaiende container |
 | Gateway | `192.168.1.1` |
-| Webinterface | `http://192.168.1.164:8080` |
+| Webinterface | `http://controldeck.home:8080` |
 | HTTPS-ingang | `https://controldeck.vanburik.info`, via bestaande Cloudflare Tunnel `remote` |
 | Health/readiness | `/health` en `/ready` op dezelfde host en poort |
 

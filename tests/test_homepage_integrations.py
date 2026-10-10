@@ -36,7 +36,7 @@ def test_integration_validation(case):
 
 @pytest.mark.parametrize('case',['normaal','boundary','faal'])
 def test_integration_url(case):
-    if case=='normaal':assert integration_url('http://192.168.1.119:5055/')=='http://192.168.1.119:5055'
+    if case=='normaal':assert integration_url('http://linkwarden.home:5055/')=='http://linkwarden.home:5055'
     elif case=='boundary':assert integration_url('https://example.test/custom/path/')=='https://example.test/custom/path'
     else:
         for value in ['https://user:secret@example.test','https://example.test?key=secret','file:///etc/passwd','https://example.test:99999','https://example.test/../secret','https://example.test/#token',None,'https://example.test/ space']:

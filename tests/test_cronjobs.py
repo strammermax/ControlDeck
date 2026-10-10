@@ -45,7 +45,7 @@ def env(tmp_path, monkeypatch):
     accounts.write_text(json.dumps([{"email": "admin@example.test", "role": "admin"}, {"email": "viewer@example.test", "role": "user", "modules": ["proxmox"]}]))
     fake = FakeProxy()
     monkeypatch.setattr(cronjobs, "proxy_request", fake)
-    monkeypatch.setattr(cronjobs, "source_address", lambda address: "192.168.1.164")
+    monkeypatch.setattr(cronjobs, "source_address", lambda address: "controldeck.home")
     app = create_app(data_dir=tmp_path / "data", accounts_path=accounts)
     app.config["TESTING"] = True
     def client(email="admin@example.test"):
@@ -60,10 +60,10 @@ def env(tmp_path, monkeypatch):
 @pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
 def test_install_command(case):
     if case == "normaal":
-        command = cronjobs.install_command(PUBLIC_KEY, "192.168.1.164", "a" * 40)
+        command = cronjobs.install_command(PUBLIC_KEY, "controldeck.home", "a" * 40)
         assert f"https://raw.githubusercontent.com/strammermax/ControlDeck/{'a' * 40}/scripts/controldeck-agent.py" in command
         assert f"echo '{cronjobs.agent_checksum()}  /tmp/controldeck-agent' | sha256sum -c -" in command
-        assert f'restrict,from="192.168.1.164",command="/usr/local/sbin/controldeck-agent" {PUBLIC_KEY}' in command
+        assert f'restrict,from="controldeck.home",command="/usr/local/sbin/controldeck-agent" {PUBLIC_KEY}' in command
         # Idempotent: the key line is only added when the key is not present yet (shared cluster authorized_keys).
         assert f"grep -qF '{'A' * 68}' /root/.ssh/authorized_keys" in command
         # The checksum is verified before anything is installed.
@@ -109,7 +109,7 @@ def test_enrol_flow(env, case):
     assert admin.post("/api/cronjobs/agent/scan", headers=H, json={"node": "pve-amd", "address": "192.168.1.98"}).json["fingerprint"] == FINGERPRINT
     assert admin.post("/api/cronjobs/agent/trust", headers=H, json={"node": "pve-amd", "address": "192.168.1.98", "fingerprint": FINGERPRINT}).status_code == 200
     command = admin.post("/api/cronjobs/agent/install-command", headers=H, json={"node": "pve-amd", "address": "192.168.1.98"}).json["command"]
-    assert 'from="192.168.1.164"' in command
+    assert 'from="controldeck.home"' in command
     test = admin.post("/api/cronjobs/agent/test", headers=H, json={"node": "pve-amd"}).json
     assert test["state"] == "ready" and test["hostname"] == "pve-amd"
     assert fake.calls[-1]["actor"] == "admin@example.test"
@@ -154,4 +154,4 @@ def test_removal_command_keeps_the_cluster_authorized_keys_symlink():
     assert "sed -i" not in cronjobs_entry.replace("Gebruik geen sed -i", "")
     assert "cat /tmp/authorized_keys.new > /root/.ssh/authorized_keys" in cronjobs_entry
     # The install command appends (>>), which also writes through the symlink.
-    assert ">> /root/.ssh/authorized_keys" in cronjobs.install_command(PUBLIC_KEY, "192.168.1.164", "a" * 40)
+    assert ">> /root/.ssh/authorized_keys" in cronjobs.install_command(PUBLIC_KEY, "controldeck.home", "a" * 40)

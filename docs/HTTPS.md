@@ -20,13 +20,13 @@ Browser → https://controldeck.vanburik.info:443
          HTTP op het lokale netwerk
                     |
                     v
-           http://192.168.1.164:8080
+           http://controldeck.home:8080
            Flask/Gunicorn in LXC 164
 ```
 
 Cloudflare verzorgt het browsergerichte TLS-certificaat. De bestaande tunnelconnector gebruikt een versleutelde verbinding met Cloudflare. De laatste verbinding van die connector naar de ControlDeck-LXC gebruikt HTTP. Er is dus geen TLS-certificaat in de ControlDeck-applicatie zelf geïnstalleerd en niet ieder segment van deze route gebruikt TLS.
 
-Er is geen extra proxy of tunnelproces in LXC 164 geplaatst. De gebruiker heeft de hostname aan de bestaande tunnel toegevoegd met zijn Proxmox-toolbox. Nginx Proxy Manager op `192.168.1.128` maakt geen deel uit van deze actieve route.
+Er is geen extra proxy of tunnelproces in LXC 164 geplaatst. De gebruiker heeft de hostname aan de bestaande tunnel toegevoegd met zijn Proxmox-toolbox. Nginx Proxy Manager op `nginxproxy.home` maakt geen deel uit van deze actieve route.
 
 ## Ingestelde tunnelroute
 
@@ -34,7 +34,7 @@ Er is geen extra proxy of tunnelproces in LXC 164 geplaatst. De gebruiker heeft 
 | --- | --- |
 | Tunnel | `remote` |
 | Publieke hostname | `controldeck.vanburik.info` |
-| Service | `http://192.168.1.164:8080` |
+| Service | `http://controldeck.home:8080` |
 | Publieke DNS | Cloudflare-record naar de bestaande tunnel |
 | Applicatiepoort | `8080` |
 | Browserpoort | `443` |
@@ -57,7 +57,7 @@ Na iedere deployment kan `/health` opnieuw worden gecontroleerd om versie en com
 
 De huidige domeinnaam kan ook vanaf het LAN via Cloudflare worden gebruikt. Technitium DNS hoeft hiervoor geen record naar LXC 164 te krijgen: een rechtstreekse verwijzing naar de LXC biedt op die host geen HTTPS-listener op poort 443.
 
-Als later een volledig lokale HTTPS-route gewenst is, kan Nginx Proxy Manager een host met passend certificaat aanbieden die naar `192.168.1.164:8080` verwijst. Pas dan kan Technitium de hostname intern naar `192.168.1.128` laten resolven. Dit is een aanvullende route en is voor ControlDeck nog niet ingesteld. Controleer daarbij bestaande zones, A/AAAA/CNAME-records en certificaatvernieuwing.
+Als later een volledig lokale HTTPS-route gewenst is, kan Nginx Proxy Manager een host met passend certificaat aanbieden die naar `controldeck.home:8080` verwijst. Pas dan kan Technitium de hostname intern naar `nginxproxy.home` laten resolven. Dit is een aanvullende route en is voor ControlDeck nog niet ingesteld. Controleer daarbij bestaande zones, A/AAAA/CNAME-records en certificaatvernieuwing.
 
 ## Toegang en vervolg
 
