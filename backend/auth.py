@@ -215,11 +215,19 @@ def sync_from_vault(app, vault, accounts_path):
     for name, value in values.items():
         if name.startswith("CONTROLDECK_") and name not in ("CONTROLDECK_ACCOUNTS", "CONTROLDECK_INFISICAL_PATH"):
             os.environ[name] = value
-    if "CONTROLDECK_ACCOUNTS" in values:
+    raw_accounts = values.get("CONTROLDECK_ACCOUNTS")
+    if raw_accounts is None and "ACCESS_USERS" in values:
+        # The shared per-app access list: e-mail + role, all modules.
         try:
-            write_accounts(accounts_path, json.loads(values["CONTROLDECK_ACCOUNTS"]))
+            raw_accounts = json.dumps([{"email": item["email"], "role": item.get("role", "user")}
+                                       for item in json.loads(values["ACCESS_USERS"]) if isinstance(item, dict) and "email" in item])
+        except (ValueError, TypeError):
+            raw_accounts = "invalid"
+    if raw_accounts is not None:
+        try:
+            write_accounts(accounts_path, json.loads(raw_accounts))
         except (ConfigurationError, ValueError, OSError):
-            app.logger.warning("CONTROLDECK_ACCOUNTS in de keyvault is ongeldig; laatst bekende accounts blijven actief")
+            app.logger.warning("Accountlijst (CONTROLDECK_ACCOUNTS/ACCESS_USERS) in de keyvault is ongeldig; laatst bekende accounts blijven actief")
             return False
     return True
 

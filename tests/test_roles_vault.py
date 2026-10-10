@@ -124,3 +124,18 @@ def test_login_type_controls_available_methods(tmp_path, monkeypatch, login_type
     assert body["loginAvailable"] is google
     assert (app.extensions["controldeck_access"] is not None) is access
     assert body["loginType"] == ("both" if login_type == "typo" else login_type)
+
+
+def test_shared_access_users_list_becomes_accounts(tmp_path, monkeypatch):
+    vault = FakeVault({"ACCESS_USERS": json.dumps([{"email": "camiel@example.test", "role": "admin"}, {"email": "Stram@Example.test", "role": "editor"}])})
+    app, path = make_app(tmp_path, monkeypatch, vault)
+    assert [(a["email"], a["role"]) for a in json.loads(path.read_text())] == [("camiel@example.test", "admin"), ("stram@example.test", "editor")]
+    assert login(app, "stram@example.test").get("/api/session").get_json()["user"]["role"] == "editor"
+
+
+def test_controldeck_accounts_win_over_access_users(tmp_path, monkeypatch):
+    vault = FakeVault({"ACCESS_USERS": json.dumps([{"email": "a@example.test", "role": "admin"}]),
+                       "CONTROLDECK_ACCOUNTS": json.dumps([{"email": "b@example.test", "role": "admin"}])})
+    _, path = make_app(tmp_path, monkeypatch, vault)
+    assert [a["email"] for a in json.loads(path.read_text())] == ["b@example.test"]
+
