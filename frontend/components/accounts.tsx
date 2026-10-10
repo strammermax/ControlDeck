@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 
-type Account = { firstName: string; lastName: string; email: string; role: "admin" | "user"; enabled: boolean; ssoType: "google" | "windows"; modules: string[] };
+type Account = { firstName: string; lastName: string; email: string; role: "admin" | "editor" | "user"; enabled: boolean; ssoType: "google" | "windows"; modules: string[] };
 const empty: Account = { firstName: "", lastName: "", email: "", role: "user", enabled: true, ssoType: "google", modules: ["*"] };
 export function Accounts({ csrfToken }: { csrfToken: string }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -31,7 +31,7 @@ export function Accounts({ csrfToken }: { csrfToken: string }) {
       <label>Voornaam<input maxLength={100} value={profile.firstName} onChange={event => setProfile({...profile, firstName:event.target.value})}/></label>
       <label>Achternaam<input maxLength={100} value={profile.lastName} onChange={event => setProfile({...profile, lastName:event.target.value})}/></label>
       <label>E-mail<input type="email" required maxLength={254} value={profile.email} onChange={event => setProfile({...profile, email:event.target.value})}/></label>
-      <label>Rechten<select value={profile.role} onChange={event => setProfile({...profile, role:event.target.value as Account["role"]})}><option value="user">User</option><option value="admin">Admin</option></select></label>
+      <label>Rechten<select value={profile.role} onChange={event => setProfile({...profile, role:event.target.value as Account["role"]})}><option value="user">User</option><option value="editor">Editor</option><option value="admin">Admin</option></select></label>
       <label>SSO-type<select value={profile.ssoType} onChange={event => setProfile({...profile, ssoType:event.target.value as Account["ssoType"]})}><option value="google">Google</option><option value="windows">Windows (koppeling volgt)</option></select></label>
       <label className="checkbox"><input type="checkbox" checked={profile.enabled} onChange={event => setProfile({...profile, enabled:event.target.checked})}/>Ingeschakeld</label>
       <div className="form-actions"><button type="submit" disabled={busy}>{busy ? "Opslaan…" : "Opslaan"}</button>{editing && <button type="button" onClick={() => {setEditing(null); setProfile(empty);}}>Annuleren</button>}</div>

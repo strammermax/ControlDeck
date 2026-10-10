@@ -13,6 +13,7 @@ from flask import g, jsonify, request
 from backend.auth import filter_configuration
 from backend.configuration import load_config
 from backend.proxmox import Client as ProxmoxClient, ProxmoxError
+from backend.auth import is_manager
 
 
 class LinkwardenError(Exception):
@@ -144,7 +145,7 @@ def setup_linkwarden(app, configuration_path, data_dir):
         if request.path.startswith('/api/linkwarden') and g.account is not None:
             if not any(module['id'] == 'bookmarks' for module in filter_configuration(load_config(configuration_path), g.account)['modules']):
                 return jsonify(error='Geen toegang tot Bookmarks.'), 403
-            if request.path.startswith(('/api/linkwarden/connection', '/api/linkwarden/installation-nodes')) and g.account['role'] != 'admin':
+            if request.path.startswith(('/api/linkwarden/connection', '/api/linkwarden/installation-nodes')) and not is_manager(g.account):
                 return jsonify(error='Beheerrechten vereist.'), 403
 
     @app.errorhandler(LinkwardenError)

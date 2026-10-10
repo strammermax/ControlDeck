@@ -7,6 +7,7 @@ from flask import g, jsonify, request
 from backend.auth import filter_configuration, database
 from backend.configuration import load_config
 from backend.linkwarden import save_private
+from backend.auth import is_manager
 
 
 def validate_homepage_link(value):
@@ -46,7 +47,7 @@ def setup_homepage(app,configuration_path,data_dir):
         if request.path.startswith('/api/homepage') and g.account is not None:
             if not any(m['id']=='bookmarks' for m in filter_configuration(load_config(configuration_path),g.account)['modules']):
                 return jsonify(error='Geen toegang tot Bookmarks.'),403
-            if request.method not in ('GET','HEAD','OPTIONS') and g.account['role']!='admin':
+            if request.method not in ('GET','HEAD','OPTIONS') and not is_manager(g.account):
                 return jsonify(error='Beheerrechten vereist.'),403
 
     @app.route('/api/homepage/links',methods=['GET','POST'])

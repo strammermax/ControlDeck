@@ -17,6 +17,7 @@ from flask import g, jsonify, request
 
 from backend.auth import filter_configuration
 from backend.configuration import ConfigurationError, load_config
+from backend.auth import is_manager
 
 TOKEN_ID = re.compile(r"[A-Za-z0-9._-]{1,64}@[A-Za-z0-9._-]{1,64}![A-Za-z][A-Za-z0-9._-]{0,63}")
 SECRET = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
@@ -282,7 +283,7 @@ def setup_proxmox(app, configuration_path, data_dir):
     def proxmox_access():
         if not request.path.startswith("/api/proxmox") or g.account is None:
             return None
-        if request.path.startswith("/api/proxmox/connection") and g.account["role"] != "admin":
+        if request.path.startswith("/api/proxmox/connection") and not is_manager(g.account):
             return jsonify(error="Beheerrechten vereist om Proxmox te koppelen."), 403
         if not can_view():
             return jsonify(error="Geen toegang tot Proxmox."), 403

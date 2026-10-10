@@ -11,6 +11,7 @@ import requests
 from flask import g, jsonify, request
 from backend.root_components import root_components
 from backend.configuration import ConfigurationError, load_config
+from backend.auth import is_manager
 
 
 # Minimum root-worker protocol per action. Workers from before versioning report nothing and count as 1.
@@ -62,7 +63,7 @@ def setup_installations(app, configuration_path, data_dir):
 
     @app.before_request
     def administrative_access():
-        if request.path.startswith('/api/installations') and g.account is not None and g.account['role']!='admin':
+        if request.path.startswith('/api/installations') and g.account is not None and not is_manager(g.account):
             return jsonify(error='Beheerrechten vereist om modules te installeren.'),403
 
     @app.get('/api/installations')

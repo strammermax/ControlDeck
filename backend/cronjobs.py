@@ -16,6 +16,7 @@ from flask import g, jsonify, request
 from backend.agent_client import AgentUnavailable, proxy_request
 from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError
 from backend.root_components import bootstrap_info, update_command
+from backend.auth import is_manager
 
 ROOT = Path(__file__).resolve().parent.parent
 AGENT_FILE = ROOT / "scripts/controldeck-agent.py"
@@ -101,7 +102,7 @@ def setup_cronjobs(app, data_dir, commit):
     @app.before_request
     def cronjobs_access():
         if request.path.startswith("/api/cronjobs/agent") or request.path == "/api/cronjobs/connection":
-            if g.account is not None and g.account["role"] != "admin":
+            if g.account is not None and not is_manager(g.account):
                 return jsonify(error="Beheerrechten vereist om nodes te koppelen."), 403
         return None
 

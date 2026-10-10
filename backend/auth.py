@@ -20,8 +20,16 @@ from joserfc.errors import JoseError
 from joserfc.jwk import KeySet
 
 from backend.configuration import ConfigurationError, identifier, require
+from backend.vault import Vault, VaultError
 
 ACCESS_LOGOUT_URL = "/cdn-cgi/access/logout"
+ROLES = ("admin", "editor", "user")
+# Editors manage modules, providers and connections; only admins manage accounts.
+MANAGER_ROLES = ("admin", "editor")
+
+
+def is_manager(account):
+    return isinstance(account, dict) and account.get("role") in MANAGER_ROLES
 
 
 class CloudflareAccess:
@@ -81,7 +89,7 @@ def validate_accounts(data):
         require(email not in emails, "Duplicate account email")
         emails.add(email)
         account["email"] = email
-        require(account["role"] in ("admin", "user"), "Invalid role")
+        require(account["role"] in ROLES, "Invalid role")
         require(type(account["enabled"]) is bool, "enabled must be boolean")
         require(account["ssoType"] in ("google", "windows"), "Invalid SSO type")
         require(isinstance(account["modules"], list) and len(account["modules"]) <= 100, "account.modules: expected an array")
@@ -122,6 +130,8 @@ def filter_configuration(config, account):
     """Server-side projection; UI hiding alone is not an authorization boundary."""
     if account["role"] == "admin":
         return config
+    if account["role"] == "editor":
+        return _without_user_management(config)
     allowed = set(account["modules"])
     # Administrative configuration remains admin-only even with a wildcard grant.
     modules = [module for module in config["modules"] if module["id"] != "admin" and ("*" in allowed or module["id"] in allowed)]
@@ -138,6 +148,20 @@ def filter_configuration(config, account):
     if any(module.get("view") == "terminal" for module in modules):
         provider_ids.add("termix")
     return {**config, "modules": modules, "menu": [item for item in (entry(item) for item in config["menu"]) if item], "providers": [p for p in config["providers"] if p["id"] in provider_ids], "widgets": [w for w in config["widgets"] if w["route"] in routes and w["provider"] in provider_ids]}
+
+
+def _without_user_management(config):
+    """Everything an admin sees, minus the account management page."""
+    hidden = "admin/users"
+    modules = [{**module, "pages": [p for p in module.get("pages", []) if f"{module['id']}/{p['id']}" != hidden]} if module["id"] == "admin" else module
+               for module in config["modules"]]
+    def entry(item):
+        if "children" in item:
+            children = [child for child in (entry(child) for child in item["children"]) if child]
+            return {**item, "children": children} if children else None
+        return None if item.get("route") == hidden else item
+    return {**config, "modules": modules, "menu": [item for item in (entry(item) for item in config["menu"]) if item],
+            "widgets": [w for w in config["widgets"] if w.get("route") != hidden]}
 
 
 @contextmanager
@@ -176,7 +200,43 @@ def establish_access_identity(db_path, identity):
     return {"sub": subject, "email": identity["email"]}
 
 
+LOGIN_TYPES = ("both", "cloudflare", "google")
+
+
+def sync_from_vault(app, vault, accounts_path):
+    """The vault is leading: CONTROLDECK_* settings become the environment and
+    CONTROLDECK_ACCOUNTS replaces the local account file. When the vault is
+    unreachable the last known account file keeps ControlDeck usable."""
+    try:
+        values = vault.read()
+    except VaultError as error:
+        app.logger.warning("Keyvault niet gelezen (%s); laatst bekende instellingen blijven actief", error)
+        return False
+    for name, value in values.items():
+        if name.startswith("CONTROLDECK_") and name not in ("CONTROLDECK_ACCOUNTS", "CONTROLDECK_INFISICAL_PATH"):
+            os.environ[name] = value
+    if "CONTROLDECK_ACCOUNTS" in values:
+        try:
+            write_accounts(accounts_path, json.loads(values["CONTROLDECK_ACCOUNTS"]))
+        except (ConfigurationError, ValueError, OSError):
+            app.logger.warning("CONTROLDECK_ACCOUNTS in de keyvault is ongeldig; laatst bekende accounts blijven actief")
+            return False
+    return True
+
+
 def setup_auth(app, data_dir, accounts_path):
+    try:
+        vault = Vault.from_env()
+    except VaultError as error:
+        app.logger.warning("Keyvault niet geconfigureerd: %s", error)
+        vault = None
+    app.extensions["controldeck_vault"] = vault
+    if vault is not None:
+        sync_from_vault(app, vault, accounts_path)
+    login_type = os.environ.get("CONTROLDECK_LOGIN_TYPE", "both").strip().lower()
+    if login_type not in LOGIN_TYPES:
+        app.logger.warning("Onbekend CONTROLDECK_LOGIN_TYPE; 'both' wordt gebruikt")
+        login_type = "both"
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
     key_path = data_dir / "session.key"
@@ -195,14 +255,14 @@ def setup_auth(app, data_dir, accounts_path):
     client_id = os.environ.get("CONTROLDECK_GOOGLE_CLIENT_ID", "")
     client_secret = os.environ.get("CONTROLDECK_GOOGLE_CLIENT_SECRET", "")
     base_url = os.environ.get("CONTROLDECK_BASE_URL", "").rstrip("/")
-    configured = bool(client_id and client_secret and base_url.startswith("https://"))
+    configured = login_type != "cloudflare" and bool(client_id and client_secret and base_url.startswith("https://"))
     google = None
     if configured:
         google = OAuth(app).register("google", client_id=client_id, client_secret=client_secret, server_metadata_url="https://accounts.google.com/.well-known/openid-configuration", client_kwargs={"scope": "openid email", "code_challenge_method": "S256", "timeout": 10})
     app.extensions["controldeck_google"] = google
     team_domain = os.environ.get("CONTROLDECK_CF_ACCESS_TEAM_DOMAIN", "").rstrip("/")
     audience = os.environ.get("CONTROLDECK_CF_ACCESS_AUD", "")
-    access = CloudflareAccess(team_domain, audience) if team_domain.startswith("https://") and audience else None
+    access = CloudflareAccess(team_domain, audience) if login_type != "google" and team_domain.startswith("https://") and audience else None
     app.extensions["controldeck_access"] = access
 
     def account_for(email):
@@ -247,7 +307,7 @@ def setup_auth(app, data_dir, accounts_path):
     def session_info():
         user = {key: g.account[key] for key in ("firstName", "lastName", "email", "role", "ssoType")} if g.account else None
         return jsonify(authenticated=bool(user), loginAvailable=configured, user=user, csrfToken=session.get("csrf") if user else None,
-                       logoutUrl=ACCESS_LOGOUT_URL if g.via_access else None)
+                       logoutUrl=ACCESS_LOGOUT_URL if g.via_access else None, loginType=login_type)
 
     @app.get("/auth/google/login")
     def login():
@@ -291,6 +351,8 @@ def setup_auth(app, data_dir, accounts_path):
             return jsonify(error="Beheerrechten vereist."), 403
         try:
             with account_lock:
+                if vault is not None and request.method == "GET":
+                    sync_from_vault(app, vault, accounts_path)
                 values = load_accounts(accounts_path)
                 if request.method == "GET":
                     return jsonify(values)
@@ -306,10 +368,15 @@ def setup_auth(app, data_dir, accounts_path):
                         return jsonify(error="Gebruiker niet gevonden."), 404
                     values[index] = account
                 require(any(a["role"] == "admin" and a["enabled"] and a["ssoType"] == "google" for a in values), "At least one enabled Google administrator must remain")
+                if vault is not None:
+                    # The vault is leading: store there first, then update the local copy.
+                    vault.write("CONTROLDECK_ACCOUNTS", json.dumps(validate_accounts(values), ensure_ascii=False))
                 write_accounts(accounts_path, values)
                 return jsonify(account), 201 if request.method == "POST" else 200
         except ConfigurationError:
             return jsonify(error="Ongeldig profiel. Controleer de velden; minstens één actieve Google-admin moet behouden blijven."), 400
+        except VaultError:
+            return jsonify(error="Opslaan in de keyvault is mislukt; er is niets gewijzigd."), 503
         except OSError:
             return jsonify(error="Het profiel kan niet worden opgeslagen."), 503
 

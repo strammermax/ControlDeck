@@ -17,6 +17,7 @@ from backend.agent_client import AgentUnavailable, proxy_request
 from backend.auth import filter_configuration
 from backend.configuration import ConfigurationError, load_config
 from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError
+from backend.auth import is_manager
 
 JOB_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 RUN_ID = re.compile(r"\d{8}T\d{6}Z-[0-9a-f]{6}")
@@ -106,12 +107,12 @@ def setup_cronjob_api(app, configuration_path, data_dir):
         if not can_view():
             return jsonify(error="Geen toegang tot Proxmox."), 403
         admin_only = request.method != "GET" or path.endswith("/log")
-        if admin_only and g.account["role"] != "admin":
+        if admin_only and not is_manager(g.account):
             return jsonify(error="Beheerrechten vereist voor deze actie."), 403
         return None
 
     def is_admin():
-        return g.account["role"] == "admin"
+        return is_manager(g.account)
 
     def node_param(node):
         if not NODE.fullmatch(node) or node not in enrolled_nodes():

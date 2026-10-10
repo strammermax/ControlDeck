@@ -17,6 +17,7 @@ from flask import g, jsonify, request
 from backend.auth import filter_configuration
 from backend.configuration import ConfigurationError, load_config
 from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError, normalize_url
+from backend.auth import is_manager
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}")
 STATUS = {"OK": "ok", "INFO": "ok", "WARNING": "warning", "CRITICAL": "error", "ERROR": "error"}
@@ -262,7 +263,7 @@ def setup_proxmenux(app, configuration_path, data_dir):
     def proxmenux_access():
         if not request.path.startswith("/api/proxmenux") or g.account is None:
             return None
-        if request.path.startswith("/api/proxmenux/connection") and g.account["role"] != "admin":
+        if request.path.startswith("/api/proxmenux/connection") and not is_manager(g.account):
             return jsonify(error="Beheerrechten vereist om ProxMenux te koppelen."), 403
         if not can_view():
             return jsonify(error="Geen toegang tot Proxmox."), 403
