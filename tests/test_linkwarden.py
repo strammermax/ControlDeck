@@ -42,7 +42,7 @@ def env(tmp_path,monkeypatch):
 @pytest.mark.parametrize('case',['normaal','boundary','faal'])
 def test_url(case):
     if case=='normaal':assert linkwarden.base_url('https://links.example.com/dashboard')=='https://links.example.com'
-    elif case=='boundary':assert linkwarden.base_url('http://linkwarden.home:3000/')=='http://linkwarden.home:3000'
+    elif case=='boundary':assert linkwarden.base_url('http://192.168.1.119:3000/')=='http://192.168.1.119:3000'
     else:
         for value in (None,'http://example.com','https://u:p@example.com','https://example.com?secret=a','https://example.com/api','https://example.com:99999','https://exa mple.com'):
             with pytest.raises(ValueError):linkwarden.base_url(value)
@@ -207,10 +207,10 @@ def test_installation_nodes(env,monkeypatch,case):
 
 @pytest.mark.parametrize('case',['normaal','boundary','faal'])
 def test_ip_address_input(case):
-    if case=='normaal':assert linkwarden.base_url('linkwarden.home')=='http://linkwarden.home:3000'
+    if case=='normaal':assert linkwarden.base_url('192.168.1.119')=='http://192.168.1.119:3000'
     elif case=='boundary':
-        assert linkwarden.base_url('linkwarden.home:8080')=='http://linkwarden.home:8080'
+        assert linkwarden.base_url('192.168.1.119:8080')=='http://192.168.1.119:8080'
         assert linkwarden.base_url('[fd00::119]:3000')=='http://[fd00::119]:3000'
     else:
-        for value in ('8.8.8.8','linkwarden.home:99999','linkwarden.home?token=secret','linkwarden.home;echo'):
+        for value in ('8.8.8.8','192.168.1.119:99999','192.168.1.119?token=secret','192.168.1.119;echo'):
             with pytest.raises(ValueError):linkwarden.base_url(value)
