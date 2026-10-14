@@ -1,0 +1,7 @@
+{
+  "id": "nextcloud",
+  "type": "nextcloud",
+  "label": "Nextcloud",
+  "enabled": false,
+  "url": null
+}

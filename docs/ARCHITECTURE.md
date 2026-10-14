@@ -33,3 +33,11 @@ Node.js en TypeScript zijn builddependencies, geen verplichte productieprocessen
 ## Richting
 
 De visie en ontwerpen vormen het kader voor API-adapters, widgets en boomnavigatie. De huidige login, JSON-configuratie en submenu's vormen de basis hiervoor. Geen roottoegang, hostmounts of Docker-socket zijn nodig voor de huidige applicatie.
+
+## Modulaire functies
+
+Nieuwe functies worden zo veel mogelijk zelfstandig opgebouwd. `frontend/modules/<functie>/` bevat moduleweergave, instellingen en specifieke validatie; `frontend/modules/contracts.ts` beschrijft de grens naar de generieke modulehouder. De UI-registratie koppelt een module-ID aan deze onderdelen. De dashboardcatalogus definieert naam, bestaande modulerechten, beginformaat en standaardinstellingen. Het dashboard kent geen Linkwarden-collectieformulier of providerverkeer.
+
+`backend/modules/<functie>.py` valideert alleen instellingen voor de eigen module. De backendcatalogus registreert deze validator en de vereiste bestaande rechten; de dashboardopslag blijft generiek. Provideradapters blijven zelfstandig verantwoordelijk voor authenticatie, autorisatie en externe API's. Het register is expliciet en onderdeel van de build; er wordt geen willekeurige code van diensten geladen.
+
+Authenticatie, vaulttoegang, database, HTTP-clients en algemene UI-elementen worden gedeeld. De eerste uitgewerkte functie is Linkwarden. Bestaande Proxmox-, Kasm- en andere functies worden geleidelijk in dit patroon gebracht; zij zijn niet met deze wijziging allemaal omgebouwd. Dit blijft één Python-service met SQLite en een statische frontend.

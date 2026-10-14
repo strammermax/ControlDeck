@@ -33,3 +33,7 @@ Voor het uitlezen via `run` wordt de werkelijk actieve Python-interpreter gebrui
 - Een vaultstoring gebruikt voor bestaande accountconfiguratie de laatst bekende private kopie volgens het huidige gedrag. Nieuwe of gewijzigde secrets mogen niet stilzwijgend als succesvol opgeslagen worden gemeld wanneer de vault schrijfacties afwijst.
 
 De lokale clientbron en het CLI-contract zijn onderzocht; er zijn tijdens dit werk geen echte vaultwaarden uitgelezen, gewijzigd of gepubliceerd. De tests gebruiken synthetische waarden en vervangen de vaulttransportgrens. Een live verbinding en de runtime-installatie van de client moeten op de doelhost afzonderlijk worden gecontroleerd.
+
+## Aanmeldmodules
+
+Kasm-API-geheimen en de private accountkoppeling voor automatisch aanmelden horen in de JSON-waarde `CONTROLDECK_APP_LAUNCHES` in dezelfde ControlDeck-vaultmap. De aanmeldroute leest deze waarde rechtstreeks via de bestaande vaultclient. Er is geen lokale bestand- of wachtwoordterugval voor deze nieuwe functies. Zie [APP-LAUNCHES.md](APP-LAUNCHES.md) voor het precieze contract en de nog ontbrekende live inrichting.

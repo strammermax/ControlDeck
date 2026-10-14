@@ -1,6 +1,7 @@
+import {collectionSetting} from '../modules/linkwarden/settings.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {moduleOptions, collectionSetting} from '../lib/dashboard-modules.ts';
+import {moduleOptions} from '../lib/dashboard-modules.ts';
 import {dashboardItemView, placeItem} from '../lib/dashboards.ts';
 
 test('module catalog normal: Linkwarden uses Bookmarks permission and reusable feature identity',()=>{
@@ -19,4 +20,10 @@ test('module settings normal and boundary: all collections and maximum ID',()=>{
 });
 test('module settings failure: reject malformed, negative, decimal and excessive collection IDs',()=>{
  for(const value of ['0','-1','1.5','01','10000000000','token=x'])assert.throws(()=>collectionSetting(value));
+});
+
+test('independent service modules normal and authorization: Kasm and Nextcloud follow their own permissions',()=>{
+ assert.deepEqual(moduleOptions(['kasm','nextcloud']).map(module=>module.id),['kasm','nextcloud']);
+ assert.deepEqual(moduleOptions(['kasm']).map(module=>module.id),['kasm']);
+ for(const module of moduleOptions(['kasm','nextcloud']))assert.deepEqual(module.settings,{});
 });

@@ -92,3 +92,12 @@ Automatisch aanmaken van een Proxmox LXC is nog niet uitgevoerd of getest: hostt
 - Browsercontrole op een tijdelijk loopback-testharnas met synthetische gegevens: module kiezen, collectie instellen, opslaan/herladen, zoeken zonder resultaten, Beheren openen, twee modules met verschillende collecties en naast elkaar plaatsen. Op telefoonformaat is geen horizontale pagina-overflow gemeten. Deze controle is geen live Linkwarden-providerproef.
 - De bestaande volledige Bookmarks-pagina gebruikt dezelfde Linkwarden-component. De dashboardweergave biedt compacte bediening en bewaart uitsluitend selectie/plaatsing. Faviconweergave en PNG-upload zijn eveneens gedeeld.
 - Publicatie verloopt via de bestaande workflow, met controles vóór publiceren en deployen. Ingelogde productiecontrole achter Cloudflare vereist een bestaande gebruikerssessie.
+
+## 14 oktober 2026 — Modulaire structuur en aanmeldadapters
+
+- Finale lokale controles: 550 Python-tests geslaagd, 8 overgeslagen; 173 frontendtests geslaagd; TypeScript, statische productiebuild en whitespacecontrole geslaagd.
+- Linkwarden-weergave en instellingen staan in een eigen frontendmodulemap. Het dashboard monteert generieke modulecontracten en rechten uit de catalogus. Servervalidatie staat per module in backend/modules.
+- Kasm- en Nextcloud-aanmeldadapters zijn met synthetische fixtures getest op normale aanmelding, configuratiegrenzen, onbekende modules, accountbinding, CSRF, modulerechten, uitgeschakelde provider, bronuitval, TLS-fouten, onveilige redirects en ontbrekende vault. API-geheimen komen niet in de antwoordprojectie. De no-referrer-regressietest is eerst falend en na correctie geslaagd uitgevoerd.
+- De opgegeven Nextcloud-installatie is alleen-lezen bereikbaar gecontroleerd: versie 33.0.9, geen onderhoudsmodus, gewone loginpagina zonder zichtbare Google-knop. Dit bewijst geen ingerichte Google/user_oidc-aanmelding. Geen remote aanmeld- of accountinstellingen aangepast.
+- Het Kasm-adres, de vaultverwijzingen en de bestaande Nextcloud-Google-provider moeten nog worden vastgesteld. Live automatisch aanmelden is daarom niet geactiveerd en niet als werkend geclaimd. Een echte browseraanmelding achter Cloudflare is niet uitgevoerd.
+- De laatste Linkwarden-module is opnieuw in het lokale synthetische browserharnas gecontroleerd na de modulair opgebouwde registratiewijziging.

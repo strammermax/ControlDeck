@@ -1,16 +1,14 @@
 """Dashboard module catalog: references to existing features, never copied credentials."""
-MODULES = {"linkwarden": {"title": "Linkwarden", "permission": "bookmarks"}}
+from backend.modules.launch_urls import empty_settings
+from backend.modules.linkwarden import validate_settings as validate_linkwarden
+
+MODULES = {"linkwarden": {"title": "Linkwarden", "permission": "bookmarks", "validate": validate_linkwarden}, "kasm": {"title": "Kasm", "permission": "kasm", "validate": empty_settings}, "nextcloud": {"title": "Nextcloud", "permission": "nextcloud", "validate": empty_settings}}
 
 
 def validate_module(item):
     if not isinstance(item.get("moduleId"), str) or item["moduleId"] not in MODULES:
         raise ValueError("Onbekende dashboardmodule.")
-    settings = item.get("settings")
-    if not isinstance(settings, dict) or set(settings) != {"collectionId"}:
-        raise ValueError("Ongeldige module-instellingen.")
-    collection = settings["collectionId"]
-    if collection is not None and (type(collection) is not int or not 1 <= collection <= 9999999999):
-        raise ValueError("Kies een geldige Linkwarden-collectie.")
+    MODULES[item["moduleId"]]["validate"](item.get("settings"))
     return dict(item)
 
 

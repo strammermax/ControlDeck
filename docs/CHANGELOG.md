@@ -84,3 +84,10 @@ Authenticatie, providerintegraties en functionele modules volgen in latere relea
 - Linkwarden gebruikt één implementatie op de modulepagina en op persoonlijke dashboards, met de bestaande persoonlijke koppeling en rechten.
 - Eén modulekiezer vervangt afzonderlijke toevoegknoppen. Linkwarden kan per dashboardexemplaar een eigen collectie tonen, met zoeken, vernieuwen en meer laden.
 - De compacte module verwijst voor uitgebreid beheer naar Bookmarks. Plaats en grootte zijn optioneel uitklapbaar; verwijderen wordt pas aangeboden voor bestaande tegels.
+
+## Modulaire aanmeldadapters
+
+- Modules hebben eigen frontendmappen met weergave en instellingen; het dashboard gebruikt een generiek contract en expliciete registraties. Backendinstellingen worden per module gevalideerd.
+- Kasm kan via een centraal geconfigureerde API-sleutel een aanmeldlink voor het eigen gekoppelde account verkrijgen. Nextcloud gebruikt een geconfigureerde Google/user_oidc-route.
+- Aanmeldconfiguratie komt uitsluitend uit Infisical. Browserselectie van een doelaccount of doeladres is niet toegestaan. Live activering wacht op de private inrichting.
+- Regressie: de globale responsehook behield een strengere no-referrer-header van aanmeldroutes niet. De hook bewaart nu expliciet ingestelde policies; de gedragstest is eerst falend en daarna geslaagd uitgevoerd.

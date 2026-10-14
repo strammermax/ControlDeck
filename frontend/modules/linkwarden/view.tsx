@@ -1,8 +1,8 @@
 "use client";
 import {useEffect,useState} from 'react';
-import {linkwardenRequest,type BookmarkPage} from '../lib/linkwarden';
-import {groupBookmarks} from '../lib/bookmark-layout';
-import {BookmarkGroups} from './bookmark-groups';
+import {linkwardenRequest,type BookmarkPage} from '../../lib/linkwarden';
+import {groupBookmarks} from '../../lib/bookmark-layout';
+import {BookmarkGroups} from '../../components/bookmark-groups';
 
 /** Native UI, shared Google login, and personal Linkwarden API access. */
 export function LinkwardenModule({csrfToken,compact=false,collectionId=null}:{csrfToken:string;compact?:boolean;collectionId?:number|null}) {

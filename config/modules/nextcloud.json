@@ -1,0 +1,8 @@
+{
+  "id": "nextcloud",
+  "enabled": true,
+  "title": "Nextcloud",
+  "view": "integration",
+  "provider": "nextcloud",
+  "description": "Open Nextcloud via je bestaande Google-aanmelding."
+}
