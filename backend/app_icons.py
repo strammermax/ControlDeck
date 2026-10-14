@@ -37,4 +37,3 @@ def validate_icon(value):
     except (ValueError, IndexError, struct.error, binascii.Error, zlib.error):
         raise ValueError("Ongeldig PNG-icoon. Upload de afbeelding opnieuw.") from None
     return value
-
