@@ -43,7 +43,9 @@ exit
 
 ## Backup en ruimte
 
-Backup toekomstige persistente data en configuratie volgens het technische ontwerp. De huidige foundation heeft geen gebruikersdatabase of secrets. Releasebundles kunnen opnieuw uit GitHub worden opgehaald zolang zij beschikbaar blijven; workflowartifacts hebben beperkte retentie, officiële releases zijn het blijvende distributiepunt.
+Maak een consistente backup van `users.sqlite3`, `session.key`, de private account- en configuratiebestanden en providerdata. Gebruik voor SQLite de backup-API of stop de service tijdens het kopiëren. De sessiesleutel is ook nodig om bestaande versleutelde Homepage-credentials te kunnen lezen. Vaultgegevens vragen daarnaast een passende Infisical-backup en bootstrapherstelroute; zie [VAULT.md](VAULT.md).
+
+De dashboardmigratie maakt een private SQLite-kopie vóór installatie en iedere nieuwe schema-upgrade (momenteel v3). Dit is geen volledige runtimebackup. Herstel van een oudere release vereist een compatibele database en bijbehorend sleutelmateriaal; zie [DASHBOARD.md](DASHBOARD.md). Releasebundles kunnen opnieuw uit GitHub worden opgehaald zolang zij beschikbaar blijven; workflowartifacts hebben beperkte retentie, officiële releases zijn het blijvende distributiepunt.
 
 Releasecleanup is voorlopig handmatig. Bewaar altijd de actieve en minstens één vorige werkende release. Controleer schijfruimte voordat oude releases worden verwijderd; wijzig niets buiten `/opt/controldeck/releases`.
 

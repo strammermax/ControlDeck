@@ -30,17 +30,20 @@ def validate_homepage_link(value):
     return result
 
 
+def read_homepage_links(path):
+    """Shared validated source for Homepage, personal dashboards and search."""
+    if not path.exists():return []
+    value=json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(value,list) or len(value)>500:raise ValueError('Ongeldige configuratie.')
+    links=[];ids=set()
+    for row in value:
+        if not isinstance(row,dict) or type(row.get('id')) is not int or row['id']<=0 or row['id'] in ids:raise ValueError('Ongeldige link-ID.')
+        links.append({'id':row['id'],**validate_homepage_link(row)});ids.add(row['id'])
+    return links
+
+
 def setup_homepage(app,configuration_path,data_dir):
     path=Path(data_dir)/'homepage/links.json'
-    def read():
-        if not path.exists():return []
-        value=json.loads(path.read_text(encoding='utf-8'))
-        if not isinstance(value,list) or len(value)>500:raise ValueError('Ongeldige configuratie.')
-        links=[];ids=set()
-        for row in value:
-            if not isinstance(row,dict) or type(row.get('id')) is not int or row['id']<=0 or row['id'] in ids:raise ValueError('Ongeldige link-ID.')
-            links.append({'id':row['id'],**validate_homepage_link(row)});ids.add(row['id'])
-        return links
 
     @app.before_request
     def homepage_access():
@@ -56,12 +59,17 @@ def setup_homepage(app,configuration_path,data_dir):
         try:
             with database(Path(data_dir)/'users.sqlite3') as db:
                 db.execute('BEGIN IMMEDIATE')
-                links=read()
-                if request.method=='GET':return jsonify(links=links)
+                links=read_homepage_links(path)
+                if request.method in ('GET','HEAD'):return jsonify(links=links)
+                # Capture the current high-water mark before deletion as well as
+                # creation. Dashboard/integration references must never be retargeted.
+                db.execute('UPDATE homepage_link_sequence SET last_id=MAX(last_id,?) WHERE singleton=1', (max((item['id'] for item in links),default=0),))
                 if request.method=='POST':
                     if len(links)>=500:return jsonify(error='Maximaal 500 links toegestaan.'),400
                     row=validate_homepage_link(request.get_json(silent=True))
-                    row={'id':max((item['id'] for item in links),default=0)+1,**row};links.append(row)
+                    link_id=db.execute('SELECT last_id+1 FROM homepage_link_sequence WHERE singleton=1').fetchone()[0]
+                    db.execute('UPDATE homepage_link_sequence SET last_id=? WHERE singleton=1',(link_id,))
+                    row={'id':link_id,**row};links.append(row)
                 else:
                     index=next((i for i,item in enumerate(links) if item['id']==link_id),None)
                     if index is None:return jsonify(error='Link niet gevonden.'),404

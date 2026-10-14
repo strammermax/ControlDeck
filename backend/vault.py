@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 
 
 class VaultError(Exception):
@@ -18,8 +19,8 @@ class VaultError(Exception):
 
 
 class Vault:
-    def __init__(self, cli, path="/apps/controldeck", timeout=30):
-        self.cli, self.path, self.timeout = cli, path, timeout
+    def __init__(self, cli, path="/apps/controldeck", timeout=30, shared_path=""):
+        self.cli, self.path, self.timeout, self.shared_path = cli, path, timeout, shared_path
 
     @classmethod
     def from_env(cls):
@@ -29,11 +30,12 @@ class Vault:
         cli = os.environ.get("CONTROLDECK_INFISICAL_CLI") or shutil.which("infisical-secrets")
         if not cli:
             raise VaultError("infisical-secrets (infisical-secret-client) is niet geïnstalleerd")
-        return cls(cli, os.environ.get("CONTROLDECK_INFISICAL_PATH", "/apps/controldeck"))
+        return cls(cli, os.environ.get("CONTROLDECK_INFISICAL_PATH") or os.environ.get("INFISICAL_SECRET_PATH") or "/apps/controldeck",
+                   shared_path=os.environ.get("INFISICAL_SHARED_PATH", ""))
 
     def _run(self, args, stdin=None):
         try:
-            result = subprocess.run([self.cli, "--path", self.path, "--shared-path", "", *args], input=stdin,
+            result = subprocess.run([self.cli, "--path", self.path, "--shared-path", self.shared_path, *args], input=stdin,
                                     capture_output=True, text=True, timeout=self.timeout)
         except (OSError, subprocess.TimeoutExpired):
             raise VaultError("Keyvault niet bereikbaar") from None
@@ -47,9 +49,8 @@ class Vault:
         names = [line.strip() for line in self._run(["list"]).splitlines() if line.strip()]
         if not names:
             return {}
-        python = os.path.join(os.path.dirname(self.cli), "python")
         try:
-            return json.loads(self._run(["run", "--", python, "-c", script, *names]))
+            return json.loads(self._run(["run", "--", sys.executable, "-c", script, *names]))
         except ValueError:
             raise VaultError("Ongeldig antwoord van de keyvault") from None
 

@@ -17,6 +17,9 @@ from backend.homepage import setup_homepage
 from backend.homepage_integrations import setup_homepage_integrations
 from backend.cronjobs import setup_cronjobs
 from backend.cronjob_api import setup_cronjob_api
+from backend.dashboards import setup_dashboards
+from backend.search import setup_search
+from backend.search_engines import setup_search_engines
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -42,6 +45,9 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     setup_homepage_integrations(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_cronjobs(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data", metadata.get("commit"))
     setup_cronjob_api(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_dashboards(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_search(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_search_engines(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
 
     @app.get("/health")
     def health():

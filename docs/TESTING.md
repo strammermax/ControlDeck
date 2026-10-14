@@ -47,6 +47,10 @@ Voorbeelden uit dit project:
 
 ## Normaal, boundary, faal
 
+De persoonlijke dashboards worden gedekt door `tests/test_dashboards.py` en `frontend/tests/dashboards.test.mjs`: document- en rastervalidatie, aanmaken/dupliceren, standaardkeuze, verwijderen tot een lege lijst, herstart, gelijktijdige revisies, echte SQLite-backup/leesherstel, rechten per eigenaar en module, accountrevocatie en CSRF. `tests/test_vault_client.py` controleert het CLI-contract, mapkeuze, stdin-schrijven en veilige foutmeldingen. De Windows-interpreterregressie voert de echte extractiesubprocess uit. Browseracceptatie en beperkingen staan in [DASHBOARD.md](DASHBOARD.md).
+
+`tests/test_dashboard_apps_search.py` controleert gedeelde bronvalidatie, geschoonde app-/samenvattingsprojectie, bronverwijzingen zonder metadatakopie, bronuitval, veranderde rechten, lokale zoekresultaten en de regressies voor hergebruikte app-ID's en HEAD. `tests/test_search_engines.py` en `frontend/tests/search.test.mjs` dekken persoonlijke zoekmachines, veilige sjablonen/URL-codering, eigenaarschap, CSRF, revisies, grenzen en de schema-upgrade. Frontendtests verifiëren bovendien dat oude gekopieerde appvelden niet als terugval worden gebruikt bij ontbrekende brontoegang.
+
 Elke functie krijgt minimaal drie herkenbare testcategorieën: `normaal` voor verwacht gebruik, `boundary` voor grenswaarden/randgevallen en `faal` voor afwijzing of uitval. Drie categorieën is het minimum, niet het maximum: login en rechten hebben extra beveiligingsgevallen. Nieuwe functies zijn pas klaar wanneer hun drietal in CI slaagt.
 
 | Functie | Normaal | Boundary | Faal |

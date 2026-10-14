@@ -15,7 +15,7 @@ De knop **Verbinding testen en aanmaken** vraagt de echte, beschermde informatie
 
 Naam, groep, API-adres, openingsadres en het tonen van een Homepage-tegel zijn instelbaar. Het openingsadres is optioneel; zonder eigen adres wordt het API-adres gebruikt. Onder **Gekoppelde app → Bestaand** kies je een bestaande Homepage-link. De aantallen worden op die tegel getoond zonder een tweede tegel aan te maken. De link zelf blijft behouden wanneer je de integratie verwijdert. Elke link kan aan één integratie gekoppeld worden. Automatische iconen gebruiken de reeds gebundelde lokale service-iconen en volgen het ControlDeck-thema.
 
-Aantallen zijn van de laatste verbindingscontrole; **Aantallen vernieuwen** haalt actuele informatie op zonder de toepassing te wijzigen. Na opnieuw openen toont de pagina de opgeslagen aantallen van de laatste opslag. Er is geen achtergrondpolling of zwaar extra proces. Media en toekomstige widgets kunnen dezelfde adapter en geschoonde `summary` gebruiken. Het Dashboard blijft uitgesteld.
+Aantallen zijn van de laatste verbindingscontrole; **Aantallen vernieuwen** haalt actuele informatie op zonder de toepassing te wijzigen. Na opnieuw openen toont de pagina de opgeslagen aantallen van de laatste opslag. Er is geen achtergrondpolling of zwaar extra proces. Het [persoonlijke Dashboard](DASHBOARD.md) kan bestaande Homepage-apps als bronverwijzing tonen, met dezelfde opgeslagen geschoonde cijfers. Naam, adres, icoon en aantallen worden bij laden/vernieuwen uit de bron gehaald; het dashboard bewaart geen kopie van credentials of bronmetadata. Bookmarks-rechten blijven vereist. De dashboardknop **App-lijst vernieuwen** leest opgeslagen gegevens en voert zelf geen upstream-verversing uit.
 
 ## Aanmelden en rechten
 

@@ -14,6 +14,9 @@ import { ProxmoxTasks } from "../components/proxmox-tasks";
 import { ProxmoxSummary } from "../components/proxmox-summary";
 import { ProxmenuxHealth } from "../components/proxmenux-health";
 import { CronjobsPage } from "../components/cronjobs-page";
+import { DashboardPage } from "../components/dashboard";
+import { dashboardNavigation } from "../lib/dashboards";
+import { GlobalSearch } from "../components/global-search";
 
 type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string; ssoType?: string } | null; csrfToken: string | null; logoutUrl?: string | null };
 type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string; language?: "nl" | "en"; navOrder?: string[] };
@@ -37,6 +40,11 @@ export default function Home() {
   const [config, setConfig] = useState<Configuration | null>(null);
   const [configError, setConfigError] = useState(false);
   const [active, setActive] = useState("");
+  const [dashboardSelection, setDashboardSelection] = useState<{id: string; token: number} | null>(null);
+  const dashboardEditing = useRef(false);
+  const activeRoute = useRef(active);
+  activeRoute.current = active;
+  const onDashboardEditingChange = useCallback((editing: boolean) => { dashboardEditing.current = editing; }, []);
   const [mobile, setMobile] = useState(false);
   const [theme, setTheme] = useState("dark");
   const [themeReady, setThemeReady] = useState(false);
@@ -101,7 +109,11 @@ export default function Home() {
   useEffect(() => {
     const route = () => {
       const id = window.location.hash.slice(1) || preferences.current.lastRoute || "";
-      setActive(id === SETTINGS_ROUTE || id === PROFILE_ROUTE || destinations.some(item => item.id === id) ? id : (config ? firstRoute(config.menu) ?? destinations[0]?.id ?? "" : ""));
+      const requested = id === SETTINGS_ROUTE || id === PROFILE_ROUTE || destinations.some(item => item.id === id) ? id : (config ? firstRoute(config.menu) ?? destinations[0]?.id ?? "" : "");
+      const resolved = dashboardNavigation(activeRoute.current, requested, dashboardEditing.current, () => window.confirm("Je dashboardbewerking is nog niet opgeslagen. Bewerking verwerpen en deze pagina openen?"));
+      if (resolved !== requested) window.history.replaceState(null, "", `#${resolved}`);
+      setActive(resolved);
+      if (resolved !== "dashboard") setDashboardSelection(null);
       setMobile(false); closeMenus();
     };
     route(); window.addEventListener("hashchange", route);
@@ -174,12 +186,13 @@ export default function Home() {
   const destination = onSettings ? {id:SETTINGS_ROUTE, label:translate(personal.language, "settings"), view:"settings", description:undefined} : onProfile ? {id:PROFILE_ROUTE, label:translate(personal.language, "profile"), view:"profile", description:undefined} : destinations.find(item => item.id === active) ?? destinations[0];
   const menu = orderMenu(config.menu, personal.navOrder);
   const provider = config.providers.find(item => item.id === destination?.provider);
-  const navigate = (route?: string) => { if (route) setActive(route); setMobile(false); closeMenus(); };
+  const navigate = (_route?: string) => { setMobile(false); closeMenus(); };
   return <>
     <a className="skip" href="#workspace">Ga naar inhoud</a>
     <header className="topbar">
       <a className="brand" href={`#${firstRoute(config.menu) ?? destinations[0]?.id}`}><img src={site.logo} alt="" className="logo" /><span><h1>{site.title}</h1><span className="subtitle">{site.subtitle}</span></span></a>
       <div className="tools">
+        <GlobalSearch key={`${auth.user?.email}:${config.modules.map(module => module.id).join(",")}`} csrfToken={auth.csrfToken!} onNavigate={(route, dashboardId) => {if (dashboardId) setDashboardSelection({id: dashboardId, token: Date.now()}); window.location.hash = route;}}/>
         <details ref={userMenu} className="user-menu">
           <summary className="user" aria-label={translate(personal.language, "userMenu")}><span aria-hidden="true">▱</span> <span>{`${auth.user?.firstName ?? ""} ${auth.user?.lastName ?? ""}`.trim() || auth.user?.email}</span><span className="chevron" aria-hidden="true">⌄</span></summary>
           <div className="user-dropdown">
@@ -207,8 +220,8 @@ export default function Home() {
           }}><summary className={selected ? "nav-item active" : "nav-item"}>{contents}<span className="chevron" aria-hidden="true">⌄</span></summary><div className="submenu">{item.children.map(child => <a key={child.id} href={href(child)} aria-current={child.route === active ? "page" : undefined} onClick={() => navigate(child.route)}>{child.label}</a>)}</div></details> : <a className={selected ? "nav-item active" : "nav-item"} key={item.id} href={href(item)} aria-current={selected ? "page" : undefined} onClick={() => navigate(item.route)}>{contents}</a>;
         })}
       </nav>
-      <main id="workspace" tabIndex={-1} className={destination?.view === "empty" ? "workspace" : "workspace module"}>
-        {destination?.view === "empty" ? <h2 className="sr-only">{destination.label}</h2> : <>
+      <main id="workspace" tabIndex={-1} className={active === "dashboard" ? "workspace module" : destination?.view === "empty" ? "workspace" : "workspace module"}>
+        {active === "dashboard" && destination ? <><h2>Dashboard</h2><DashboardPage key={auth.user?.email} csrfToken={auth.csrfToken!} onEditingChange={onDashboardEditingChange} sourceAccess={config.modules.some(module => module.id === "bookmarks")} selection={dashboardSelection}/></> : destination?.view === "empty" ? <h2 className="sr-only">{destination.label}</h2> : <>
           <h2>{destination?.label}</h2>
           {onProfile ? <section className="settings-card profile"><p>{translate(personal.language, "profileIntro")}</p><dl>
             <dt>{translate(personal.language, "name")}</dt><dd>{`${auth.user?.firstName ?? ""} ${auth.user?.lastName ?? ""}`.trim() || "—"}</dd>

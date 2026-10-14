@@ -2,6 +2,25 @@
 
 Datum: 5 oktober 2026. Onderstaande controles zijn per versie vastgelegd; oudere secties beschrijven de toenmalige grenzen.
 
+## 14 oktober 2026 — Appverwijzingen en zoeken, vervolg
+
+- Python: 489 geslaagd, 8 overgeslagen. Frontend: 160 geslaagd. TypeScript, statische productiebuild en whitespacecontrole geslaagd.
+- Nieuwe bron- en zoektests controleren naam/adreswijzigingen, verwijderen, bronuitval, opgeslagen samenvattingen zonder credentials, directe bronrechten, eigen dashboards en de afwezigheid van zoekresultaten uit andere accounts of verborgen modules.
+- Persoonlijke zoekmachines zijn getest op aanmaken/wijzigen/verwijderen, herstart, eigenaarisolatie inclusief admins, CSRF, revisieconflicten, grenzen, onveilige URL's en injectie via zoektermen. Schema-upgrades behouden bestaande dashboards en maken een echte herstelkopie.
+- Regressie voor hergebruik van verwijderde app-ID's is eerst falend en daarna geslaagd uitgevoerd. De blijvende nummerregistratie houdt rekening met actuele bronnen, opgeslagen verwijzingen, integraties en de vorige linkversie. HEAD op Homepage is met een eerst falende en daarna geslaagde regressie als alleen-lezen vastgelegd.
+- Browsercontrole met synthetische private fixtures: bestaande Jellyfin-app kiezen, opgeslagen cijfers tonen, naamwijziging via de echte Bookmarks-bediening terugzien op het dashboard, zoeken met Ctrl+K, persoonlijk dashboard openen uit een zoekresultaat, SearXNG-sjabloon aanmaken en de correct gecodeerde externe link controleren. Er is niet daadwerkelijk naar de externe voorbeeldzoekmachine genavigeerd.
+- De drie door Camiel bevestigde Proxmox-hosts leverden vanuit deze omgeving geen SSH-inventaris op en waren niet bereikbaar op API-poort 8006. Er is geen live dienstinventaris geclaimd en er zijn geen hosts geherconfigureerd.
+- Dienstenlijst en SSO-keuze zijn verwerkt zonder aangeleverde wachtwoorden/API-sleutels op te slaan. Geen live vaultwijzigingen, push, nieuwe release of deployment voor dit vervolg.
+
+## 14 oktober 2026 — Lokale dashboarduitbreiding
+
+- Python: 449 geslaagd, 8 overgeslagen. Frontend: 142 geslaagd. TypeScript en statische productiebuild: geslaagd. De overgeslagen tests zijn geen live integratiebewijs.
+- Nieuwe tests dekken dashboarddocumenten, rastergrenzen, transacties/revisieconflicten, persoonlijke toegang, modulerechten, CSRF, accountrevocatie, verwijderen tot een lege lijst en een echte leesherstelproef van de SQLite-migratiebackup.
+- Benoemde regressietests zijn eerst falend en daarna geslaagd uitgevoerd voor de Windows-vaultinterpreter, het overschrijven van handmatig ingestelde nieuwe tegelposities en HEAD-verzoeken die onterecht als schrijfactie werden behandeld.
+- Browsercontrole van de statische build via een tijdelijke loopbackservice met uitsluitend synthetische accounts/data: app-link toevoegen, handmatige kolomkeuze behouden, opslaan/herladen, rechterpaneel toevoegen, slepen, vergroten met toetsenbord én pointer, navigatie weigeren bij een onopgeslagen bewerking, dupliceren en standaarddashboard na herladen. Geen testloginroute toegevoegd aan de productieapplicatie.
+- Camiels Infisical-clientbron en CLI-contract onderzocht; mapinstellingen en afgeschermde stdin-overdracht getest. Geen echte vaultgegevens uitgelezen of gewijzigd. Providergeheimen zijn nog niet volledig naar vaultreferenties gemigreerd.
+- De herstelpunttag is naar GitHub gepusht en op commit geverifieerd. Deze nieuwe applicatiewijzigingen zijn lokaal; CI, Docker, LXC-deployment en echte Google/LDAP/externedienstverbindingen zijn voor deze uitbreiding niet uitgevoerd. Het volledige geselecteerde MVP is nog niet af.
+
 ## Uitgevoerde controles
 
 - Lokale Python-tests voor health, readiness en verhinderen van padtraversal: geslaagd.

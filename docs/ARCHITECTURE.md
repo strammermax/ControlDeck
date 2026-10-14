@@ -2,7 +2,9 @@
 
 ## Huidige runtime
 
-De frontend wordt met Next.js, React en TypeScript gebouwd als statische export. Flask serveert de bestanden en `/health` en `/ready`. Gunicorn draait in productie met één worker en twee threads. Google OIDC verzorgt de login. ControlDeck valideert JSON-configuratie en accounts serverzijdig, slaat gebruikersidentiteiten en voorkeuren op in SQLite en biedt admin-only profielbeheer. Providercollectors en infrastructuuracties volgen later.
+De frontend wordt met Next.js, React en TypeScript gebouwd als statische export. Flask serveert de bestanden en `/health` en `/ready`. Gunicorn draait in productie met één worker en twee threads. Google OIDC en optioneel Cloudflare Access verzorgen de login. ControlDeck valideert configuratie en accounts serverzijdig en slaat identiteiten, voorkeuren, persoonlijke dashboards en versleutelde Homepage-koppelingen op in SQLite. Proxmox, ProxMenux, Linkwarden, Homepage-integraties, Terminal en Cronjobs hebben eigen backendmodules. Bestaande rol- en modulerechten blijven de basis voor toegang.
+
+De dashboardeditor, appverwijzingen, lokale zoekfunctie en persoonlijke zoekmachines zijn beschreven in [DASHBOARD.md](DASHBOARD.md). Dashboards bewaren app-ID's; `dashboard_apps.py` projecteert toegestane brongegevens en opgeslagen integratiecijfers. `search.py` combineert lokale resultaten; externe zoeklinks worden pas in de browser geopend. De componenten gebruiken bestaande stylesheetvariabelen zodat een toekomstig gedeeld huisstijlproject kan aansluiten. Centrale instellingen en geheimen gebruiken waar al aangesloten de bestaande Infisical-client; [VAULT.md](VAULT.md) beschrijft de resterende migratie. Node.js blijft uitsluitend een builddependency.
 
 ```text
 Browser → Flask/Gunicorn → vooraf gebouwde frontend

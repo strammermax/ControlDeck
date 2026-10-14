@@ -2,6 +2,19 @@
 
 Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.mm.dd.<build>` (zie [CI-CD.md](CI-CD.md)). De changelog groepeert wijzigingen per dag.
 
+## 2026.10.14 — In ontwikkeling: persoonlijke dashboards
+
+- Bestaande Homepage-apps als bronverwijzing op dashboards, met lokale iconen en opgeslagen Seerr/Jellyfin-cijfers. Geen gekopieerde bronmetadata; Bookmarks-rechten blijven bepalend.
+- Centrale zoekfunctie via bovenbalk en Ctrl/Cmd+K voor toegestane onderdelen, eigen dashboards en Homepage-apps. Persoonlijke zoekmachines, waaronder SearXNG, met externe zoeklinks na expliciete keuze.
+- Schemas v2/v3: persoonlijke zoekmachines en blijvende Homepage-appnummers. Regressie opgelost waarbij verwijderen van de hoogste app-ID een oude dashboardverwijzing naar een nieuwe app kon laten wijzen. HEAD op Homepage-links is nu ook alleen-lezen.
+- SSO-scope verduidelijkt: bestaande Google-SSO; geen nieuwe LDAP-/lokale wachtwoordlogin. Gekozen diensten en ARR-suite staan in [INTEGRATION-PLAN.md](INTEGRATION-PLAN.md), zonder aangeleverde geheimen.
+
+- Eerste dashboardeditor: Werk/Homelab, meerdere persoonlijke indelingen, dupliceren, standaardkeuze, groepen, vaste zijpanelen, app-links, slepen en vergroten. Opslaan bewaart revisies en voorkomt het overschrijven van gelijktijdige wijzigingen. Dit is een eerste onderdeel van de gekozen MVP; zie [DASHBOARD.md](DASHBOARD.md).
+- Private SQLite-backup vóór dashboardschema v1; tests voor opslag, herstel, eigenaarisolatie, modulerechten, CSRF, grenzen en afwijzingen.
+- Infisical-koppeling gebruikt Camiels clientinstellingen voor app- en gedeelde mappen. Windows-regressie opgelost: de actieve Python-interpreter wordt gebruikt in plaats van een geraden executable naast de CLI. Zie [VAULT.md](VAULT.md).
+- Regressies: nieuwe tegel negeerde handmatige positie door onterechte automatische plaatsing; HEAD op een dashboard werd behandeld als schrijfactie. Beide krijgen een benoemde test.
+- Dashboardopmaak gebruikt bestaande ControlDeck-tokens als voorbereiding op een afzonderlijk gedeeld huisstijlproject. Releaseversies blijven `yyyy.mm.dd.buildnr` uit CI.
+
 ## 2026.10.05 — Instellingen, Proxmox, ProxMenux, Modulebeheer en Linkwarden
 
 - Homepage: **Link toevoegen** en **Aanpassen** openen in een popup (`<dialog>`: focus, Escape en achtergrond afgeschermd).

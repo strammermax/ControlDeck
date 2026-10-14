@@ -6,6 +6,10 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | --- | --- |
 | [visie.md](visie.md) | Doel, principes en toekomstbeeld |
 | [functioneel-ontwerp.md](functioneel-ontwerp.md) | Modules, gebruikersprocessen en navigatie |
+| [DASHBOARD.md](DASHBOARD.md) | Persoonlijke dashboards, appverwijzingen, zoeken, zoekmachines en herstel |
+| [PVA-DASHBOARD.md](PVA-DASHBOARD.md) | Plan van aanpak: codeonderzoek ControlDeck/Homarr, MVP-scope, bouwfasen en acceptatie |
+| [VAULT.md](VAULT.md) | Centrale instellingen via Camiels Infisical-client, minimale bootstrap en migratierichting |
+| [INTEGRATION-PLAN.md](INTEGRATION-PLAN.md) | Gekozen diensten, ARR-suite, Homarr-bronnen en adaptervolgorde |
 | [technisch-ontwerp.md](technisch-ontwerp.md) | Architectuur en technische richting |
 | [CONFIGURATION.md](CONFIGURATION.md) | JSON-menu, modules, providers en widgetdefinities |
 | [AUTHENTICATION.md](AUTHENTICATION.md) | Google-login, accountprofielen, rechten en voorkeuren |

@@ -59,7 +59,7 @@ Een integration-module toont het ingestelde adres en een knop die de toepassing 
 
 Menu-items hebben `id`, `label`, optionele `icon` en precies één van `route`, `url` of `children`. `enabled: false` verbergt het item. Modules en providers kunnen afzonderlijk worden uitgeschakeld; onbeschikbare routes verdwijnen uit het menu en lege dropdowns worden weggelaten. Pictogrammen: `dashboard`, `virtual-apps`, `bookmarks`, `proxmox`, `media`, `terminal`, `admin`.
 
-Widgets hebben `id`, `enabled`, `title`, `provider` en `route`. Ze worden gevalideerd en alleen voor toegestane modules teruggegeven. **Het Dashboard blijft op verzoek leeg; de widgetweergave volgt later.**
+De statische widgetdefinities hebben `id`, `enabled`, `title`, `provider` en `route`. Ze worden gevalideerd en alleen voor toegestane modules teruggegeven. De persoonlijke [dashboardindelingen](DASHBOARD.md) worden afzonderlijk in private SQLite opgeslagen; de eerste editor ondersteunt eigen app-links en verwijzingen naar bestaande Homepage-apps. Statische widgetdefinities worden daarmee nog niet automatisch tot dashboardwidgets omgezet.
 
 `site` bevat `title`, `subtitle`, `logo` (lokaal absoluut assetpad), `defaultTheme` (dark/light), `refreshSeconds` (5..3600), `footerText`, `supportLabel` en `supportUrl`. Een persoonlijke themavoorkeur gaat vóór het standaardthema.
 
