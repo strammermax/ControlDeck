@@ -1,8 +1,9 @@
 """Dashboard module catalog: references to existing features, never copied credentials."""
+from backend.modules.proxmox import validate_settings as validate_proxmox
 from backend.modules.launch_urls import empty_settings
 from backend.modules.linkwarden import validate_settings as validate_linkwarden
 
-MODULES = {"linkwarden": {"title": "Linkwarden", "permission": "bookmarks", "validate": validate_linkwarden}, "kasm": {"title": "Kasm", "permission": "kasm", "validate": empty_settings}, "nextcloud": {"title": "Nextcloud", "permission": "nextcloud", "validate": empty_settings}}
+MODULES = {"proxmox": {"title": "Proxmox", "permission": "proxmox", "validate": validate_proxmox}, "linkwarden": {"title": "Linkwarden", "permission": "bookmarks", "validate": validate_linkwarden}, "kasm": {"title": "Kasm", "permission": "kasm", "validate": empty_settings}, "nextcloud": {"title": "Nextcloud", "permission": "nextcloud", "validate": empty_settings}}
 
 
 def validate_module(item):

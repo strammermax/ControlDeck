@@ -22,7 +22,15 @@ Schakel de overeenkomstige provider in de private runtimeconfiguratie in en stel
 
 De service moet het publieke HTTPS-adres kunnen bereiken met geldige certificaatcontrole. Er worden geen certificaatcontroles uitgezet of bestaande Google/Cloudflare-beveiligingen veranderd. De live inrichting is nog niet geactiveerd: publieke adressen, vaultverwijzingen, accountkoppeling en de bestaande Google-providerinstelling moeten eerst worden vastgesteld. Lokale tests met synthetische gegevens bewijzen geen echte aanmelding.
 
-## Grenzen en controles
+## Nextcloud met Social Login
+
+Een Nextcloud-installatie kan ook de Social Login-app gebruiken voor Google. Bewaar de OAuth-client in Infisical onder `/Nextcloud` met `NEXTCLOUD_GOOGLE_CLIENT_ID`, `NEXTCLOUD_GOOGLE_CLIENT_SECRET` en `NEXTCLOUD_GOOGLE_REDIRECT_URI`. Configureer de provider via Nextclouds appconfig-API als gevoelige array; geef secrets niet mee in procesargumenten. Maak vooraf een gecontroleerde database- en configuratieback-up.
+
+Gebruik `disable_registration=true`, `allow_login_connect=true`, `hide_default_login=false` en `update_profile_on_login=false`. Bestaande gebruikers melden zich eerst met hun gewone account aan, openen persoonlijke instellingen → Social Login en koppelen daar Google. Niet-gekoppelde Google-accounts mogen geen nieuwe Nextcloud-gebruiker aanmaken. De gewone login blijft als toegang beschikbaar.
+
+Controleer de loginpagina, de redirect naar Google, het exacte geregistreerde terugkeeradres en een aanwezige OAuth-state. Deze controles bewijzen nog geen afgeronde Google-aanmelding: de gebruiker moet de eerste accountkoppeling uitvoeren en daarna opnieuw aanmelden. De bestaande ControlDeck-adapter ondersteunt momenteel alleen `user_oidc`; Social Login in Nextcloud activeren maakt de ControlDeck-startknop nog niet geschikt voor deze route.
+
+## Grenzen en controles (ControlDeck)
 
 `POST /api/app-launches/<module-id>` verwacht uitsluitend `{}` en een geldige sessie met CSRF-token. De server controleert telkens de bestaande modulerechten en leest het doel uit de vault. POST-bodyvelden voor gebruikers, wachtwoorden of doeladressen worden afgewezen. API-sleutels blijven aan de serverkant; alleen de voor de browser bedoelde Kasm-aanmeldlink gaat terug. Deze link wordt niet in dashboards, lokale opslag of logs bewaard. Het antwoord heeft no-store en no-referrer; open de dienst in hetzelfde tabblad om geblokkeerde pop-ups te vermijden.
 

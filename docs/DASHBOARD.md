@@ -88,7 +88,21 @@ De compacte module toont zoeken, vernieuwen, paginering, lege/foutstatus en een 
 
 De modulecatalogus heeft één expliciete registratie per ondersteunde functie, met bestaande modulerechten en beginformaat. Onbekende modules of instellingen, credentials in instellingen, negatieve/ongeldige collectienummers en nieuwe modules zonder bronrechten worden geweigerd. Na intrekken van Bookmarks-toegang wordt geen Linkwarden-component geladen. Verplaatsen/verwijderen van een eerder opgeslagen module blijft mogelijk, maar een andere collectie instellen vraagt opnieuw bronrechten. Bestaande dashboards en persoonlijke links blijven behouden; de module gebruikt het bestaande JSON-schema zonder nieuwe databasetabel.
 
-UX-richting: het dashboard is de persoonlijke werkplek; volledige modulepagina's zijn voor uitgebreid beheer. Nieuwe functies worden eerst herbruikbare modules en daarna via de catalogus beschikbaar, zonder gekopieerde formulieren. Apps en persoonlijke links blijven bestaande tegelopties in dezelfde kiezer. Proxmox en Kasm zijn nog niet als volledige dashboardmodules gebouwd.
+UX-richting: het dashboard is de persoonlijke werkplek; volledige modulepagina's zijn voor uitgebreid beheer. Nieuwe functies worden eerst herbruikbare modules en daarna via de catalogus beschikbaar, zonder gekopieerde formulieren. Apps en persoonlijke links blijven bestaande tegelopties in dezelfde kiezer.
+
+## Proxmox en ProxMenux
+
+Bewerken → Module toevoegen → Proxmox biedt vijf weergaven: nodes (CPU/geheugen), gasten (hoogste CPU-gebruik), taakresultaten, volledig clusteroverzicht en ProxMenux-gezondheid (problemen, temperatuur, CPU-vermogen, load en hostupdates). Meerdere exemplaren bewaren hun eigen weergave. De module bewaart uitsluitend `settings: {view: nodes|guests|tasks|all|health}` en de plaatsing; verbindingsgegevens blijven centraal.
+
+De Proxmox-pagina en dashboardmodules gebruiken dezelfde presentatiecomponenten, bestaande `/api/proxmox/summary`- en `/api/proxmenux/summary`-routes en servercaches. De compacte ProxMenux-weergave toont nodekaarten; uitgebreide schijf-/updatebediening blijft op de bestaande pagina. Ontbrekende verbindingen, laadstatus, onbekende sensoren en verouderde gegevens worden herkenbaar getoond. De module vernieuwt iedere minuut zolang deze gemount is; ProxMenux controleert tijdens het laden van nodes tijdelijk iedere vijf seconden. Ingeklapte groepen worden niet gemount.
+
+De kiezer en presentatie vereisen het bestaande `proxmox`-modulerecht. De API controleert dit opnieuw; een opgeslagen dashboardtegel verleent geen bronrechten. Na intrekken van toegang kan de tegel worden verwijderd, maar kunnen de broninstellingen niet worden gewijzigd. Er zijn geen nieuwe start-, stop- of updateacties toegevoegd.
+
+ProxMenux-brononderzoek: commit `1a8efb96a59676cc652a8d766b2738507af3bb44`. `web/` bevat de documentatiesite; de monitorinterface staat onder `AppImage/components/`, onder meer `system-overview.tsx`, `disk-temperature-card.tsx` en `hardware-monitor.tsx`. Deze zijn onderzocht als referentie voor losse kaarten en beschikbare gegevens. Voor deze batch is geen upstream-code gekopieerd en zijn geen nieuwe grafiek-/UI-pakketten toegevoegd. Historische grafieken en GPU-monitoring zijn nog geen dashboardfunctionaliteit. Het genoemde interne monitoradres kon vanuit de ontwikkelomgeving niet via DNS worden bereikt; deze wijziging claimt geen nieuwe live monitorkoppeling.
+
+Controle via de Proxmox-node: de genoemde monitornaam wordt daar wel gevonden. De HTTPS-controle met zowel de standaard truststore als de interne home-root-CA faalde op certificaatvalidatie. Certificaatcontrole is niet uitgezet en de bestaande monitorconfiguratie is niet gewijzigd. Controleer bij live acceptatie de bestaande koppeling, het certificaat en het ingestelde API-adres afzonderlijk.
+
+Lokale verificatie van deze batch: 562 Python-tests geslaagd, 8 overgeslagen; 178 frontendtests geslaagd; TypeScript en statische productiebuild geslaagd. De nieuwe tests omvatten weergavekeuze, compacte sensorkaarten, lege bronnen, verouderde gegevens, foutmeldingen, ongeldige instellingen, sessie/CSRF, eigenaarschap en ingetrokken bronrechten. De bestaande parser-/API-tests blijven onderdeel van de volledige suite. Er is nog geen release van deze batch gepubliceerd.
 
 ## Aanmeldmodules Kasm en Nextcloud
 

@@ -6,9 +6,10 @@ const levelSymbol = { ok: "✓", warning: "△", error: "✗", unknown: "?", sta
 const diskText = { ok: "OK", warning: "Let op", error: "Fout", unknown: "Onbekend", standby: "Slaapstand" } as const;
 
 /** Node health from ProxMenux Monitor: overall state, temperature, CPU power, disks, ZFS and LXC updates. */
-export function ProxmenuxHealth({ refreshSeconds }: { refreshSeconds: number }) {
+export function ProxmenuxHealth({ refreshSeconds, compact = false }: { refreshSeconds: number; compact?: boolean }) {
   const [nodes, setNodes] = useState<MonitorNode[] | null>(null);
   const [error, setError] = useState("");
+  const [loaded, setLoaded] = useState(false);
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/proxmenux/summary", { cache: "no-store" });
@@ -18,6 +19,7 @@ export function ProxmenuxHealth({ refreshSeconds }: { refreshSeconds: number }) 
       // Alphabetical, so cards do not jump around between refreshes.
       setNodes([...body.nodes].sort((a: MonitorNode, b: MonitorNode) => a.name.localeCompare(b.name))); setError("");
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Nodegezondheid kan niet worden geladen."); }
+    finally { setLoaded(true); }
   }, []);
   const loading = nodes?.some(node => node.loading) ?? false;
   useEffect(() => {
@@ -26,7 +28,13 @@ export function ProxmenuxHealth({ refreshSeconds }: { refreshSeconds: number }) 
     const timer = setInterval(() => void load(), (loading ? 5 : Math.max(15, refreshSeconds)) * 1000);
     return () => clearInterval(timer);
   }, [load, refreshSeconds, loading]);
-  if (!nodes) return error ? <p className="config-error" role="alert">{error}</p> : null;
+  if (!nodes) return error ? <p className="config-error" role="alert">{error}</p> : compact ? <p role="status">{loaded ? "ProxMenux is nog niet gekoppeld. Stel dit in bij Proxmox." : "ProxMenux laden..."}</p> : null;
+  return <ProxmenuxHealthContent nodes={nodes} compact={compact}/>;
+}
+
+/** Shared node cards; dashboard mode leaves detailed management on the Proxmox page. */
+export function ProxmenuxHealthContent({nodes,compact=false}:{nodes:MonitorNode[];compact?:boolean}) {
+  const loading=nodes.some(node=>node.loading);
   const disks = nodes.flatMap(node => (node.disks ?? []).map(disk => ({ node: node.name, ...disk })));
   const pools = nodes.flatMap(node => (node.zfsPools ?? []).map(pool => ({ node: node.name, ...pool })));
   const updates = collectUpdates(nodes.filter(node => !node.loading));
@@ -52,7 +60,8 @@ export function ProxmenuxHealth({ refreshSeconds }: { refreshSeconds: number }) 
         </article>;
       })}
     </div>
-    <div className="widget-grid two">
+    {compact && nodes.length === 0 && <p>Geen monitornodes beschikbaar.</p>}
+    {!compact && <div className="widget-grid two">
       <article className="widget">
         <h3>Schijven <small>SMART, temperatuur en slijtage · slapende schijven worden niet gewekt</small></h3>
         {disks.length ? <div className="task-table plain"><table>
@@ -77,7 +86,7 @@ export function ProxmenuxHealth({ refreshSeconds }: { refreshSeconds: number }) 
         {updates.missing.length > 0 && <p className="health-error" role="status">Geen updategegevens van {updates.missing.join(", ")}; die containers ontbreken in deze lijst.</p>}
         {loading && <p className="health-ok" role="status">Nog niet alle nodes zijn geladen.</p>}
       </article>
-    </div>
+    </div>}
   </section>;
 }
 

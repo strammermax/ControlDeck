@@ -8,6 +8,45 @@ from test_dashboard_apps_search import setup, DOC, H
 MODULE = {"id": "links", "sectionId": "apps", "type": "module", "moduleId": "linkwarden", "settings": {"collectionId": None}, "x": 0, "y": 0, "width": 12, "height": 5}
 
 
+@pytest.mark.parametrize("view", ["nodes", "guests", "tasks", "all", "health"])
+def test_proxmox_module_normal_views(view):
+    item = {**MODULE, "moduleId": "proxmox", "settings": {"view": view}}
+    assert validate_dashboard({**DOC, "items": [item]})["items"] == [item]
+
+
+@pytest.mark.parametrize("settings", [None, {}, {"view": []}, {"view": True}, {"view": "unknown"}, {"view": "nodes", "token": "synthetic"}])
+def test_proxmox_module_failure_rejects_settings_and_credentials(settings):
+    with pytest.raises(ValueError):
+        validate_dashboard({**DOC, "items": [{**MODULE, "moduleId": "proxmox", "settings": settings}]})
+
+
+def test_proxmox_module_permission_persistence_and_revocation(setup):
+    clients, _, accounts, _ = setup
+    rows = json.loads(accounts.read_text())
+    rows[0]["modules"].append("proxmox")
+    accounts.write_text(json.dumps(rows))
+    user = clients()
+    board = user.get("/api/dashboards").json["dashboards"][0]
+    url = "/api/dashboards/" + board["id"]
+    item = {**MODULE, "moduleId": "proxmox", "settings": {"view": "health"}}
+    body = {**DOC, "items": [item], "revision": board["revision"]}
+    saved = user.put(url, json=body, headers=H)
+    assert saved.status_code == 200
+    assert user.get(url).json["dashboard"]["items"] == [item]
+    assert clients(None).get("/api/proxmox/summary").status_code == 401
+    assert clients(None).get("/api/proxmenux/summary").status_code == 401
+    assert clients("other@example.test").get(url).status_code == 404
+    assert user.put(url, json={**body, "revision": saved.json["dashboard"]["revision"]}).status_code == 403
+    rows[0]["modules"].remove("proxmox")
+    accounts.write_text(json.dumps(rows))
+    for endpoint in ("/api/proxmox/summary", "/api/proxmenux/summary"):
+        assert user.get(endpoint).status_code == 403
+    changed = {**body, "revision": saved.json["dashboard"]["revision"], "items": [{**item, "settings": {"view": "nodes"}}]}
+    assert user.put(url, json=changed, headers=H).status_code == 400
+    # A revoked source remains removable without granting access to its data.
+    assert user.put(url, json={**changed, "items": []}, headers=H).status_code == 200
+
+
 @pytest.mark.parametrize("collection", [None, 1, 9999999999])
 def test_linkwarden_module_normal_and_boundary(collection):
     document = validate_dashboard({**DOC, "items": [{**MODULE, "settings": {"collectionId": collection}}]})

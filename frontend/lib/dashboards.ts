@@ -1,6 +1,6 @@
 export type DashboardSection = {id: string; title: string; lane: "left" | "main" | "right"; collapsed: boolean};
 type DashboardPlacement = {icon?: string;id: string; sectionId: string; x: number; y: number; width: number; height: number};
-export type DashboardItem = DashboardPlacement & ({type: "link"; title: string; url: string; description: string} | {type: "app"; appId: number} | {type: "module"; moduleId: "linkwarden" | "kasm" | "nextcloud"; settings: {collectionId?: number | null}});
+export type DashboardItem = DashboardPlacement & ({type: "link"; title: string; url: string; description: string} | {type: "app"; appId: number} | {type: "module"; moduleId: "linkwarden" | "kasm" | "nextcloud" | "proxmox"; settings: {collectionId?: number | null; view?: "nodes" | "guests" | "tasks" | "all" | "health"}});
 export type DashboardApp = {id: number; name: string; url: string; description: string; icon: string; collection: string; summary: {label: string; value: number}[]};
 export type DashboardApps = {apps: DashboardApp[]; available: boolean; warning: string | null};
 export type Dashboard = {id: string; revision: number; title: string; sections: DashboardSection[]; items: DashboardItem[]};
