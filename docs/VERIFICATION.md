@@ -2,6 +2,12 @@
 
 Datum: 5 oktober 2026. Onderstaande controles zijn per versie vastgelegd; oudere secties beschrijven de toenmalige grenzen.
 
+## 14 oktober 2026 — Publicatie dashboarduitbreiding
+
+Op verzoek van de gebruiker gepubliceerd via de bestaande main-workflow. Vooraf opnieuw geslaagd: 489 Python-tests (8 overgeslagen), 160 frontendtests, TypeScript en productiebuild. De volledige geselecteerde MVP is nog in uitvoering.
+
+De latere alleen-lezen Proxmox-inventarisatie is met het bestaande viewertoken op alle drie de hosts gelukt: drie nodes, 15 virtuele machines en 45 containers. Dit corrigeert de eerdere controle met het verkeerde subnet. Inventaris en toegangsgegevens blijven buiten Git.
+
 ## 14 oktober 2026 — Appverwijzingen en zoeken, vervolg
 
 - Python: 489 geslaagd, 8 overgeslagen. Frontend: 160 geslaagd. TypeScript, statische productiebuild en whitespacecontrole geslaagd.
