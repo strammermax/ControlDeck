@@ -175,3 +175,7 @@ Meet op het doelplatform laden, zoeken, geheugengebruik en adaptertimeouts met e
 ## 8. Eerstvolgende uitvoerstap
 
 Begin met fase 1: contracten en migraties voor dashboards en rechten, een editorproef met een groep en vast paneel, en een adaptermatrix met de daadwerkelijk gebruikte diensten. Lever daarna fase 2 als eerste bruikbare dashboardversie binnen de bestaande ControlDeck-shell op. Leg resultaten en resterende acceptatiepunten per fase vast; publiceer geen fase als volledige MVP zolang geselecteerde functies ontbreken.
+
+## Bijstelling: modules als bouwstenen
+
+Op verzoek van de gebruiker wordt de persoonlijke startpagina opgebouwd uit functionele modules. Linkwarden is de eerste concrete uitvoering: één gedeelde implementatie voor Bookmarks en het dashboard, met persoonlijke collectie-instelling en bestaande toegangscontrole. Apps en persoonlijke links staan in dezelfde modulekiezer. Volgende modulekandidaten zijn Proxmox en Kasm; zij worden op dezelfde manier uit bestaande features samengesteld. De compacte dashboardbediening richt zich op kijken, zoeken en openen; volledige instellingen blijven bij de betreffende module. Dit vervangt het uitbouwen van afzonderlijke dashboardversies van dezelfde feature.

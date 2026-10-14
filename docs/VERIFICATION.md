@@ -80,3 +80,15 @@ Na Google-login gebruikte de appservice in een momentopname 52.948.992 bytes (on
 - De vijf wizardstappen, Docker/LXC-keuze en LXC-blokkade zijn in de browser met een afzonderlijk lokaal admin-testprofiel gecontroleerd. Een echte Google-adminlogin is nog niet door de agent doorlopen.
 
 Automatisch aanmaken van een Proxmox LXC is nog niet uitgevoerd of getest: hosttoegang en de uitvoerende Helper-Script-adapter ontbreken. De wizard voorkomt starten van die route. Bestaande WebSocket-verbindingen worden niet voortdurend opnieuw geautoriseerd; nieuwe aanvragen controleren de actuele toegang.
+
+## Gedeelde appiconen — lokale controle
+
+500 Python-tests geslaagd, 8 overgeslagen; 165 frontendtests geslaagd; TypeScript en productiebuild geslaagd. PNG-tests controleren normale afbeeldingen, formaatgrenzen, beschadigde inhoud, verkeerde bestandstypen, opslaan, centrale bronprojectie, CSRF en toegang per gebruiker. Favicon- en uploadtests controleren oorsprongadressen, verkeerde protocollen, verwerking en foutafhandeling. Deze wijziging is nog niet gepubliceerd en is niet ingelogd op productie gecontroleerd.
+
+## 14 oktober 2026 — Herbruikbare Linkwarden-module
+
+- Direct voor publicatie: 517 Python-tests geslaagd, 8 overgeslagen; 169 frontendtests geslaagd; TypeScript, statische productiebuild en whitespacecontrole geslaagd.
+- Modulecontracten controleren opslag, herstart, dupliceren, revisieconflicten, onbekende functies, collectiegrenzen, ontbrekende rechten, eigenaarisolatie, CSRF en het na intrekken van rechten kunnen verplaatsen/verwijderen van bestaande modules. De bestaande persoonlijke Linkwarden-API is aanvullend gecontroleerd met normale, lege en afgewezen providerantwoorden.
+- Browsercontrole op een tijdelijk loopback-testharnas met synthetische gegevens: module kiezen, collectie instellen, opslaan/herladen, zoeken zonder resultaten, Beheren openen, twee modules met verschillende collecties en naast elkaar plaatsen. Op telefoonformaat is geen horizontale pagina-overflow gemeten. Deze controle is geen live Linkwarden-providerproef.
+- De bestaande volledige Bookmarks-pagina gebruikt dezelfde Linkwarden-component. De dashboardweergave biedt compacte bediening en bewaart uitsluitend selectie/plaatsing. Faviconweergave en PNG-upload zijn eveneens gedeeld.
+- Publicatie verloopt via de bestaande workflow, met controles vóór publiceren en deployen. Ingelogde productiecontrole achter Cloudflare vereist een bestaande gebruikerssessie.

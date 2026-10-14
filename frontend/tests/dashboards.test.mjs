@@ -1,3 +1,4 @@
+import {websiteFavicon, uploadDashboardIcon} from '../lib/app-icons.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dashboardRequest, firstSpace, placeItem, removeSection, configureItem, dashboardNavigation, dashboardItemView, filterDashboardApps} from '../lib/dashboards.ts';
@@ -116,4 +117,37 @@ test('dashboard request faal: conflict, malformed error, network failure and uns
     global.fetch=async()=>{throw Error('Offline');};await assert.rejects(()=>dashboardRequest(),/Offline/);
     await assert.rejects(()=>dashboardRequest('/../accounts'),TypeError);
   }finally{global.fetch=previous;}
+});
+
+
+test('website favicon normal and boundary: destination origin only, custom port preserved',()=>{
+ assert.equal(websiteFavicon('https://example.test/path?q=private'),'https://example.test/favicon.ico');
+ assert.equal(websiteFavicon('http://host.test:8080/'),'http://host.test:8080/favicon.ico');
+});
+test('website favicon failure: reject credentials and active URLs',()=>{
+ for(const url of ['', 'javascript:alert(1)', 'https://user:pass@example.test']) assert.equal(websiteFavicon(url),null);
+});
+test('PNG upload failure and boundary: wrong types, empty and oversized files rejected',async()=>{
+ for(const file of [{type:'image/svg+xml',size:10},{type:'image/png',size:0},{type:'image/png',size:2097153}]) await assert.rejects(uploadDashboardIcon(file));
+});
+test('PNG upload normal: normalize and release image resources',async()=>{
+ const oldBitmap=globalThis.createImageBitmap, oldDocument=globalThis.document;
+ let closed=false, drawn=false;
+ globalThis.createImageBitmap=async()=>({width:128,height:64,close(){closed=true;}});
+ globalThis.document={createElement(){return {getContext(){return {drawImage(){drawn=true;}};},toDataURL(){return 'data:image/png;base64,test';}};}};
+ try {assert.equal(await uploadDashboardIcon({type:'image/png',size:100}),'data:image/png;base64,test');assert.ok(closed&&drawn);}
+ finally {globalThis.createImageBitmap=oldBitmap;globalThis.document=oldDocument;}
+});
+
+test('PNG upload boundary and failure: maximum file, image dimensions and decode errors',async()=>{
+ const oldBitmap=globalThis.createImageBitmap,oldDocument=globalThis.document;let closed=0;
+ globalThis.document={createElement(){return {getContext(){return {drawImage(){}};},toDataURL(){return 'data:image/png;base64,test';}};}};
+ try {
+  globalThis.createImageBitmap=async()=>({width:4096,height:4096,close(){closed++;}});
+  assert.equal(await uploadDashboardIcon({type:'image/png',size:2097152}),'data:image/png;base64,test');
+  globalThis.createImageBitmap=async()=>({width:4097,height:1,close(){closed++;}});
+  await assert.rejects(uploadDashboardIcon({type:'image/png',size:100}));assert.equal(closed,2);
+  globalThis.createImageBitmap=async()=>{throw new Error('decode');};
+  await assert.rejects(uploadDashboardIcon({type:'image/png',size:100}));
+ } finally {globalThis.createImageBitmap=oldBitmap;globalThis.document=oldDocument;}
 });

@@ -218,3 +218,59 @@ def test_schema_backup_and_recovery(tmp_path, monkeypatch, case):
             db.execute("UPDATE dashboard_schema SET version=99")
         with pytest.raises(ValueError, match="schemaversie"):
             migrate_dashboards(path)
+
+
+def png_icon(width=1, height=1):
+    import base64, struct, zlib
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    raw = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress((b"\0" + b"\0" * width * 4) * height)) + chunk(b"IEND", b"")
+    return "data:image/png;base64," + base64.b64encode(raw).decode()
+
+
+@pytest.mark.parametrize("size", [1, 256])
+def test_dashboard_png_normal_and_boundary(size):
+    icon = png_icon(size, size)
+    result = validate_dashboard({**DOCUMENT, "items": [{**ITEM, "icon": icon}]})
+    assert result["items"][0]["icon"] == icon
+
+
+@pytest.mark.parametrize("icon", [None, "", "https://example.test/icon.png", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/png;base64,bad!", "data:image/png;base64," + "A" * 44000], ids=["null", "empty", "remote", "svg", "invalid", "oversize"])
+def test_dashboard_png_failure(icon):
+    with pytest.raises(ValueError):
+        validate_dashboard({**DOCUMENT, "items": [{**ITEM, "icon": icon}]})
+
+
+def test_dashboard_png_rejects_corrupt_and_oversize_image():
+    for icon in [png_icon(257), png_icon()[:-8], png_icon().replace("AAAA", "BBBB", 1)]:
+        with pytest.raises(ValueError):
+            validate_dashboard({**DOCUMENT, "items": [{**ITEM, "icon": icon}]})
+
+
+def test_dashboard_png_saved_private_and_csrf_protected(setup):
+    client, _, _ = setup
+    user = client()
+    board = user.get("/api/dashboards").json["dashboards"][0]
+    body = {"revision": board["revision"], **DOCUMENT, "items": [{**ITEM, "icon": png_icon()}]}
+    url = "/api/dashboards/" + board["id"]
+    assert user.put(url, json=body).status_code == 403
+    assert user.put(url, json=body, headers={"X-CSRF-Token": "csrf"}).status_code == 200
+    assert user.get(url).json["dashboard"]["items"][0]["icon"] == png_icon()
+    assert client("other@example.test").get(url).status_code == 404
+    assert client(None).get(url).status_code == 401
+
+
+def test_shared_app_png_normal_boundary_failure_and_permissions(setup):
+    from backend.homepage import validate_homepage_link
+    link = {"name": "Portal", "url": "https://example.test", "collection": "Apps", "icon": png_icon()}
+    assert validate_homepage_link(link)["icon"] == png_icon()
+    assert validate_homepage_link({**link, "icon": png_icon(256, 256)})["icon"]
+    with pytest.raises(ValueError):
+        validate_homepage_link({**link, "icon": "data:image/png;base64,bad!"})
+    client, _, _ = setup
+    admin = client("admin@example.test")
+    response = admin.post("/api/homepage/links", json=link, headers={"X-CSRF-Token": "csrf"})
+    assert response.status_code == 201
+    assert admin.get("/api/dashboards/apps").json["apps"][0]["icon"] == png_icon()
+    assert client().post("/api/homepage/links", json=link, headers={"X-CSRF-Token": "csrf"}).status_code == 403
+    assert admin.post("/api/homepage/links", json=link).status_code == 403

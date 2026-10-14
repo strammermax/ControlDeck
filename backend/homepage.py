@@ -8,11 +8,12 @@ from backend.auth import filter_configuration, database
 from backend.configuration import load_config
 from backend.linkwarden import save_private
 from backend.auth import is_manager
+from backend.app_icons import validate_icon
 
 
 def validate_homepage_link(value):
     if not isinstance(value,dict):raise ValueError('Ongeldige link.')
-    fields={'name':300,'url':2048,'collection':200,'description':1000,'icon':100}
+    fields={'name':300,'url':2048,'collection':200,'description':1000,'icon':44000}
     result={}
     for key,limit in fields.items():
         text=value.get(key,'')
@@ -25,7 +26,9 @@ def validate_homepage_link(value):
         if any(re.search(r'token|api.?key|password|secret',key,re.I) for key,_ in parse_qsl(url.query)):raise ValueError('Geen geheimen in linkadressen.')
         _=url.port
     except ValueError:raise ValueError('Gebruik een HTTP- of HTTPS-adres zonder login of geheimen.') from None
-    if result['icon'] and not re.fullmatch(r'[a-z0-9-]+(?:\.png)?',result['icon']):raise ValueError('Ongeldig icoon.')
+    if result['icon'].startswith('data:'):
+        validate_icon(result['icon'])
+    elif result['icon'] and not re.fullmatch(r'[a-z0-9-]+(?:\.png)?',result['icon']):raise ValueError('Ongeldig icoon.')
     result['tags']=[]
     return result
 

@@ -1,6 +1,6 @@
 export type DashboardSection = {id: string; title: string; lane: "left" | "main" | "right"; collapsed: boolean};
-type DashboardPlacement = {id: string; sectionId: string; x: number; y: number; width: number; height: number};
-export type DashboardItem = DashboardPlacement & ({type: "link"; title: string; url: string; description: string} | {type: "app"; appId: number});
+type DashboardPlacement = {icon?: string;id: string; sectionId: string; x: number; y: number; width: number; height: number};
+export type DashboardItem = DashboardPlacement & ({type: "link"; title: string; url: string; description: string} | {type: "app"; appId: number} | {type: "module"; moduleId: "linkwarden"; settings: {collectionId: number | null}});
 export type DashboardApp = {id: number; name: string; url: string; description: string; icon: string; collection: string; summary: {label: string; value: number}[]};
 export type DashboardApps = {apps: DashboardApp[]; available: boolean; warning: string | null};
 export type Dashboard = {id: string; revision: number; title: string; sections: DashboardSection[]; items: DashboardItem[]};
@@ -9,6 +9,7 @@ export type DashboardList = {dashboards: Dashboard[]; defaultId: string | null};
 /** Resolve only from the current authorized catalog; absent sources never fall back to stale copied fields. */
 export function dashboardItemView(item: DashboardItem, apps: DashboardApp[]) {
   if (item.type === "link") return {title: item.title, url: item.url, description: item.description, icon: "", summary: [] as DashboardApp["summary"], available: true};
+  if (item.type === "module") return {title: "Linkwarden", url: null, description: "Je bookmarks en collecties", icon: "", summary: [] as DashboardApp["summary"], available: true};
   const app = apps.find(value => value.id === item.appId);
   return app ? {title: app.name, url: app.url, description: app.description, icon: app.icon, summary: app.summary, available: true}
     : {title: "App niet beschikbaar", url: null, description: "De app is verwijderd, niet geladen of je hebt geen toegang meer.", icon: "", summary: [] as DashboardApp["summary"], available: false};

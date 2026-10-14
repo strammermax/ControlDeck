@@ -9,6 +9,8 @@ from pathlib import Path
 from flask import g, jsonify, request, session
 from werkzeug.exceptions import RequestEntityTooLarge
 
+from backend.app_icons import validate_icon
+from backend.dashboard_modules import validate_module, validate_module_access
 from backend.auth import database, filter_configuration
 from backend.configuration import load_config
 from backend.homepage import validate_homepage_link
@@ -19,6 +21,7 @@ MAX_ITEMS = 100
 MAX_SECTIONS = 20
 MAX_BODY = 256 * 1024
 LANES = ("left", "main", "right")
+
 
 
 def validate_dashboard(value):
@@ -50,11 +53,13 @@ def validate_dashboard(value):
     item_ids, occupied, result_items = set(), set(), []
     for item in items:
         common = {"id", "sectionId", "type", "x", "y", "width", "height"}
-        if not isinstance(item, dict) or item.get("type") not in ("link", "app"):
+        if not isinstance(item, dict) or item.get("type") not in ("link", "app", "module"):
             raise ValueError("Onbekend tegeltype of ongeldige tegel.")
-        required = common | ({"appId"} if item["type"] == "app" else {"title", "url", "description"})
-        if set(item) != required:
+        required = common | ({"moduleId", "settings"} if item["type"] == "module" else {"appId"} if item["type"] == "app" else {"title", "url", "description"})
+        if set(item) - {"icon"} != required:
             raise ValueError("Ongeldige tegelvelden.")
+        if "icon" in item:
+            validate_icon(item["icon"])
         iid = item["id"]
         if not isinstance(iid, str) or not re.fullmatch(r"[a-zA-Z0-9-]{1,64}", iid) or iid in item_ids:
             raise ValueError("Tegel-ID ontbreekt of is dubbel.")
@@ -68,7 +73,9 @@ def validate_dashboard(value):
         cells = {(item["sectionId"], col, row) for col in range(x, x + width) for row in range(y, y + height)}
         if occupied & cells:
             raise ValueError("Tegels mogen elkaar niet overlappen.")
-        if item["type"] == "app":
+        if item["type"] == "module":
+            result_items.append(validate_module(item))
+        elif item["type"] == "app":
             if type(item["appId"]) is not int or item["appId"] < 1:
                 raise ValueError("Ongeldige appverwijzing.")
             result_items.append(dict(item))
@@ -245,6 +252,7 @@ def setup_dashboards(app, configuration_path, data_dir):
                     db.execute("UPDATE dashboard_preferences SET default_id=? WHERE owner=? AND default_id=?", (next_row[0] if next_row else None, owner(), bid))
                     return jsonify(deleted=True)
                 document = validate_dashboard({key: value for key, value in body.items() if key != "revision"})
+                validate_module_access(document, json.loads(row[2]), {module["id"] for module in filter_configuration(load_config(configuration_path), g.account)["modules"]})
                 if any(item["type"] == "app" for item in document["items"]):
                     previous = json.loads(row[2])
                     added = any(item["type"] == "app" and not any(old["id"] == item["id"] and old.get("appId") == item["appId"] for old in previous["items"]) for item in document["items"])

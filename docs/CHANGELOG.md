@@ -72,3 +72,15 @@ Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.m
 - Centrale documentatie in docs, inclusief visie en ontwerpen.
 
 Authenticatie, providerintegraties en functionele modules volgen in latere releases.
+
+## Gedeelde appiconen
+
+- Bookmarks en Dashboard gebruiken dezelfde faviconweergave en PNG-upload, met een lokaal diensticoon als terugval.
+- Bestaande appverwijzingen volgen het icoon uit de centrale Bookmarks-bron. Persoonlijke dashboardlinks behouden eigen iconen en zijn duidelijk als persoonlijk benoemd.
+- Kleine PNG-afbeeldingen worden gecontroleerd en zonder extra runtimeservice opgeslagen.
+
+## Herbruikbare dashboardmodules
+
+- Linkwarden gebruikt één implementatie op de modulepagina en op persoonlijke dashboards, met de bestaande persoonlijke koppeling en rechten.
+- Eén modulekiezer vervangt afzonderlijke toevoegknoppen. Linkwarden kan per dashboardexemplaar een eigen collectie tonen, met zoeken, vernieuwen en meer laden.
+- De compacte module verwijst voor uitgebreid beheer naar Bookmarks. Plaats en grootte zijn optioneel uitklapbaar; verwijderen wordt pas aangeboden voor bestaande tegels.

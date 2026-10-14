@@ -67,3 +67,25 @@ Geheimen en centrale instellingen lopen via Camiels client volgens [VAULT.md](VA
 ## Runtime
 
 De bestaande opzet blijft behouden: een statische frontend, één Python-service en lokale SQLite. Er komt geen Node.js-server bij in productie.
+
+## Appiconen
+
+Apptegels laden standaard `/favicon.ico` vanaf de website zelf, zonder referrer. Als dat ontbreekt volgt een beschikbaar lokaal diensticoon. Via App-link aanpassen kan de gebruiker een PNG kiezen (maximaal 2 MB en 4096 × 4096 pixels). De browser verkleint deze naar 64 × 64; de server accepteert alleen gecontroleerde PNG-data tot 32 KiB en 256 × 256 pixels. De afbeelding blijft onderdeel van het persoonlijke dashboard, met dezelfde toegangsrechten, revisiecontrole en back-up. Website-icoon gebruiken verwijdert de eigen afbeelding; Opslaan bewaart de wijziging. De totale dashboardlimiet van 256 KiB blijft gelden.
+
+## Gedeelde apps en persoonlijke indeling
+
+Bookmarks bevat twee bronnen: de gedeelde Homepage-appcatalogus met integraties en persoonlijke Linkwarden-bookmarks. Dashboard gebruikt bestaande catalogusapps via `appId`; er wordt geen tweede app of integratie aangemaakt. Naam, adres en icoon van zo'n app worden bij Bookmarks beheerd. Persoonlijke dashboardlinks blijven voor eigen links bestaan en zijn expliciet zo benoemd.
+
+De faviconweergave, PNG-upload en servervalidatie worden nu door Bookmarks en Dashboard gedeeld. Een gewijzigd catalogusicoon volgt vanzelf mee bij het ophalen van de dashboardbronnen. Linkwarden blijft de bron voor persoonlijke verzamelingen en is via de hieronder beschreven module als dashboardbron beschikbaar. De andere overlap (groeperen en zoeken) is deels functioneel: Bookmarks ordent de bronnen, Dashboard bewaart de persoonlijke plaatsing; globaal zoeken vindt modules en dashboards. Verdere samenvoeging vraagt een afzonderlijke navigatiekeuze en migreert bestaande links niet stilzwijgend.
+
+## Modules: Linkwarden
+
+Een dashboard is een samenstelling van herbruikbare functies. De eerste volledige module is Linkwarden: dezelfde `LinkwardenModule` verzorgt de Bookmarks-pagina en de compacte dashboardweergave. Er is geen tweede providerkoppeling, tokenopslag of bookmarkdatabase. De bestaande `/api/linkwarden/*`-endpoints blijven identiteit en Bookmarks-toegang controleren.
+
+Gebruik: Bewerken → Module toevoegen → Linkwarden → kies alle toegankelijke collecties of één collectie → Toepassen → Opslaan. Het dashboarddocument bewaart alleen `type: module`, `moduleId: linkwarden`, `settings: {collectionId: null|positief geheel getal}` en de plaatsing. Meerdere exemplaren mogen verschillende collecties tonen. Collectienummers zijn geen toegangsrechten: de bestaande persoonlijke Linkwarden-koppeling bepaalt wat de gebruiker mag zien.
+
+De compacte module toont zoeken, vernieuwen, paginering, lege/foutstatus en een verwijzing naar Beheren. Toevoegen van bookmarks en beheren van de koppeling blijven op de volledige modulepagina. Een filterselectie tijdens gebruik is tijdelijk; de gekozen standaardcollectie wordt via Module instellen opgeslagen. Bij een vast ingestelde collectie blijft dat filter vast. Moduleplaatsen en -formaten staan achter Plaats en grootte, zodat de eerste instelling zich op de inhoud richt.
+
+De modulecatalogus heeft één expliciete registratie per ondersteunde functie, met bestaande modulerechten en beginformaat. Onbekende modules of instellingen, credentials in instellingen, negatieve/ongeldige collectienummers en nieuwe modules zonder bronrechten worden geweigerd. Na intrekken van Bookmarks-toegang wordt geen Linkwarden-component geladen. Verplaatsen/verwijderen van een eerder opgeslagen module blijft mogelijk, maar een andere collectie instellen vraagt opnieuw bronrechten. Bestaande dashboards en persoonlijke links blijven behouden; de module gebruikt het bestaande JSON-schema zonder nieuwe databasetabel.
+
+UX-richting: het dashboard is de persoonlijke werkplek; volledige modulepagina's zijn voor uitgebreid beheer. Nieuwe functies worden eerst herbruikbare modules en daarna via de catalogus beschikbaar, zonder gekopieerde formulieren. Apps en persoonlijke links blijven bestaande tegelopties in dezelfde kiezer. Proxmox en Kasm zijn nog niet als volledige dashboardmodules gebouwd.
