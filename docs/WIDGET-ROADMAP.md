@@ -11,7 +11,7 @@ De gebruiker heeft het dashboard en deze widgetvolgorde expliciet aangevraagd. A
 | Home Assistant | Eigen dashboard in HTTPS-iframe met apart-openen-optie | Losse login bereikbaar; iframe geweigerd door bestaand SAMEORIGIN-beleid |
 | Agenda | Nextcloud CalDAV, komende zeven dagen | Twee agenda’s bereikbaar; geen afspraken in testvenster |
 | Prefect | Laatste flowruns met status | API bereikbaar, echte runs aanwezig |
-| Koopjesbot | Nieuwste tien persoonlijke, ongelezen aanbiedingen met prijs en link | Exporter geïnstalleerd, timer uit; wacht op expliciet Koopjesbot-account |
+| Koopjesbot | Nieuwste tien persoonlijke, ongelezen aanbiedingen met prijs en link | Exacte accountmatch; export en ontvangst geslaagd, timer actief; account heeft nog geen profielen |
 
 Home Assistant is op verzoek een iframe, geen nieuwe sensor- of bedieningslaag. Koopjesbot toont aanbiedingen in plaats van alleen aantallen. Nextcloud Google-browseraanmelding blijft afzonderlijk uitgesteld in GitHub-issue #10; CalDAV werkt onafhankelijk daarvan.
 
