@@ -97,3 +97,12 @@ Browserregressie **gewone link direct zichtbaar na integratieformulier**: open I
 ## Dashboardmodules
 
 `tests/test_dashboard_modules.py` controleert normale moduleopslag, collectiegrenzen, ongeldige instellingen, herstart/dupliceren, eigenaarisolatie, CSRF en ingetrokken bronrechten. Dezelfde persoonlijke Linkwarden-API wordt met synthetische providerantwoorden getest op normale resultaten, lege collecties en afgewezen identiteit. `frontend/tests/dashboard-modules.test.mjs` controleert de rechtenafhankelijke catalogus en collectie-instellingen. Browserverificatie gebruikt uitsluitend het tijdelijke loopback-testharnas buiten de release.
+
+
+## Dienstwidgets: browseracceptatie en percentage-regressie
+
+Loopbacktest met uitsluitend fictief account en fictieve qBittorrent-bron, zonder netwerkverkeer naar providers: Dashboard Homelab → Bewerken → Module toevoegen → Downloads → bron selecteren → Toepassen → Opslaan. De wachtrij en 42% zijn zichtbaar. Herladen bewaart de widget; terugschakelen naar Werk behoudt de bestaande app. Aanpassen → Plaats en grootte → kolom 6 en hoogte 4 → opslaan bewaart ook plaatsing en formaat. Dezelfde weergave is in lichte en donkere huisstijl gecontroleerd.
+
+Benoemde browserregressie **voortgangspercentage afgekapt door flexverdeling**: het progress-element had `width:100%`, waardoor het naastliggende percentage kromp en de algemene tegelstijl ellipsis toepaste. Controleer bij een halfbrede tegel dat de percentagespan `clientWidth >= scrollWidth` heeft, ook met 0%, 42% en 100%. De falende 42%-controle gaf 21 px beschikbaar bij 23 px tekst. Na herstel krijgt het progress-element de resterende flexruimte en krimpt de tekst niet; de controle gaf 23/23 px. Lege rijen en ongeldige voortgang worden daarnaast door de normale/grens/afwijzingstests in `service-widgets.test.mjs` gecontroleerd.
+
+`tests/test_service_widgets.py` en `tests/test_widget_calendar_export.py` toetsen adapters, kalendergrenzen, persoonlijke selectie, ingetrokken rechten, tokenscope en foutgevallen. De loopback-loginfixture hoort uitsluitend in genegeerd ontwikkelwerk en wordt nooit verpakt of gepubliceerd. Productieauthenticatie blijft verplicht.
