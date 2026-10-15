@@ -104,6 +104,24 @@ Controle via de Proxmox-node: de genoemde monitornaam wordt daar wel gevonden. D
 
 Lokale verificatie van deze batch: 562 Python-tests geslaagd, 8 overgeslagen; 178 frontendtests geslaagd; TypeScript en statische productiebuild geslaagd. De nieuwe tests omvatten weergavekeuze, compacte sensorkaarten, lege bronnen, verouderde gegevens, foutmeldingen, ongeldige instellingen, sessie/CSRF, eigenaarschap en ingetrokken bronrechten. De bestaande parser-/API-tests blijven onderdeel van de volledige suite. Er is nog geen release van deze batch gepubliceerd.
 
+### Live acceptatie ProxMenux, 14 oktober 2026
+
+De deployment van commit `48c1c82` is geslaagd. Na de netwerkregelwijziging en een herstart van uitsluitend de vastgelopen monitorservice op de NAS-node zijn alle drie de monitoren vanuit de ControlDeck-container gecontroleerd met de bestaande API-tokens en cluster-CA. Gezondheid, systeem, hardware, opslag en gasten zijn per node succesvol opgevraagd. De uitgebreide gezondheidscontrole op de Intel-node liep eenmaal tegen de bestaande timeout aan; een herhaalde controle slaagde binnen 13,6 seconden. Dit blijft een aandachtspunt bij live belasting. Wachtwoordbeveiliging en certificaatcontrole zijn behouden; VM's en containers zijn niet herstart.
+
+## Losse systeemwidgets
+
+Via Bewerken → Module toevoegen → Systeemwidget kan iedere tegel CPU-gebruik, geheugen, temperatuur of CPU-vermogen tonen. Kies alle nodes of één node uit de bestaande Proxmox-koppeling. Met meerdere tegels kunnen verschillende metingen en hosts naast elkaar staan; plaatsing, formaat en instellingen worden per tegel bewaard.
+
+CPU/geheugen gebruiken `/api/proxmox/summary`; temperatuur/vermogen gebruiken `/api/proxmenux/summary`. De server controleert het bestaande Proxmox-modulerecht. Het dashboard bewaart alleen `moduleId: system`, `settings: {metric: cpu|memory|temperature|power, node: ""|nodenaam}` en de plaatsing. Er is geen extra geheim of provider nodig. Bron-URL's, tokens en willekeurige velden worden als widgetinstelling afgewezen.
+
+CPU/geheugen krijgen een cirkelmeter met zichtbare waarde en tekst bij hoog gebruik. Temperatuur en CPU-vermogen tonen meetwaarden zonder verzonnen maximum of geschiedenis. CPU-vermogen is expliciet geen totaalverbruik. Onbekende metingen worden geen nul; offline nodes krijgen geen actuele waarde. Verouderde bronnen en fouten blijven zichtbaar; bij ingetrokken bronrechten verdwijnen eerder getoonde meetwaarden na de eerstvolgende controle. Het tijdstip onder de kaarten is het ophaaltijdstip, niet een beloofde nieuwe bronmeting.
+
+De widget vernieuwt iedere minuut met maximaal één lopende aanvraag per exemplaar, een timeout en annulering bij sluiten of een gewijzigde selectie. Meerdere widgets hergebruiken de bestaande servercache. Kleur, kaarten, tekst en randen volgen de bestaande huisstijltokens voor licht en donker. Deze eerste uitvoering gebruikt eigen React/SVG-code; er is geen Homarr-widgetcode of extra grafiekpakket geïmporteerd.
+
 ## Aanmeldmodules Kasm en Nextcloud
 
 De modulecatalogus bevat ook Kasm en Nextcloud als afzonderlijke modules voor het openen van een aangemelde dienst. Zij verschijnen alleen bij de bestaande ingeschakelde provider en bijbehorende modulerechten. De modules hebben lege dashboardinstellingen; doelen, geheimen en accountkoppelingen worden centraal uit Infisical gelezen. Dit zijn aanmeldmodules, nog geen ingebedde werkplekken of Nextcloud-bestandenoverzicht. Zie [APP-LAUNCHES.md](APP-LAUNCHES.md).
+
+## Downloads, media en andere dienstwidgets
+
+De catalogus bevat afzonderlijke modules voor Downloads, Media, Tdarr, een Home Assistant-dashboard, Agenda en Flows en aanbiedingen. Voeg meerdere exemplaren toe om meerdere diensten tegelijk te tonen; kies de bron per tegel. Bronnen en persoonlijke toegang worden centraal in Infisical beheerd. Er is geen dubbel beheerformulier op het dashboard. Zie [SERVICE-WIDGETS.md](SERVICE-WIDGETS.md) voor inrichting, gebruikersisolatie, lege/fouttoestanden en de resterende live controles.

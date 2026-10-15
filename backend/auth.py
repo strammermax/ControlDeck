@@ -303,6 +303,10 @@ def setup_auth(app, data_dir, accounts_path):
                 g.account = None
             if g.account is None:
                 session.clear()
+        # Only this registered POST endpoint performs its own source-scoped bearer authentication.
+        # Unknown paths, other methods and all browser widget reads retain session/CSRF checks.
+        if request.endpoint == "ingest_widget_statistics" and request.method == "POST":
+            return None
         if request.path.startswith("/api/") and request.path != "/api/session":
             if g.account is None:
                 return jsonify(error="Aanmelden vereist."), 401
