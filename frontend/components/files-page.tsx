@@ -1,6 +1,6 @@
 "use client";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {breadcrumbs, downloadUrl, filesPath, filesRequest, FilesRequestError, formatSize, joinPath, MAX_UPLOAD, parentPath, uploadPlan, type FileItem, type FilesConnection} from "../lib/files";
+import {breadcrumbs, downloadUrl, filesPath, filesRequest, FilesRequestError, formatSize, joinPath, MAX_UPLOAD, parentPath, uploadPlan, withRetry, type FileItem, type FilesConnection} from "../lib/files";
 import {useEditMode} from "./edit-mode";
 import "./files.css";
 
@@ -81,7 +81,7 @@ export function FilesPage({csrfToken, isAdmin}: {csrfToken: string; isAdmin: boo
         const started = await filesRequest<{id: string; chunkSize: number}>("/uploads", csrfToken, "POST", {path: target, size: file.size}, controller.signal);
         upload = started.id;
         for (const part of uploadPlan(file.size, started.chunkSize)) {
-          await filesRequest(`/uploads/${upload}/${part.index}?path=${encodeURIComponent(target)}`, csrfToken, "PUT", file.slice(part.start, part.end), controller.signal);
+          await withRetry(() => filesRequest(`/uploads/${upload}/${part.index}?path=${encodeURIComponent(target)}`, csrfToken, "PUT", file.slice(part.start, part.end), controller.signal), controller.signal);
           update({done: part.end});
         }
         const finish = (overwrite: boolean) => filesRequest(`/uploads/${upload}/finish`, csrfToken, "POST", {path: target, size: file.size, overwrite}, controller.signal);

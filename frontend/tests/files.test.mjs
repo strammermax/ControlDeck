@@ -1,6 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {filesPath, joinPath, parentPath, breadcrumbs, formatSize, uploadPlan, downloadUrl, filesRequest, FilesRequestError, MAX_UPLOAD} from '../lib/files.ts';
+import {filesPath, joinPath, parentPath, breadcrumbs, formatSize, uploadPlan, downloadUrl, filesRequest, FilesRequestError, MAX_UPLOAD, retryableUpload, withRetry} from '../lib/files.ts';
+
+test('upload retry normaal: a dropped connection (e.g. a router restart) is retried until it works', async () => {
+  let calls = 0; const pauses = [];
+  const result = await withRetry(async () => { calls++; if (calls < 3) throw new TypeError('NetworkError when attempting to fetch resource.'); return 'ok'; }, undefined, [1, 2, 3], async seconds => { pauses.push(seconds); });
+  assert.equal(result, 'ok'); assert.equal(calls, 3); assert.deepEqual(pauses, [1, 2]);
+});
+
+test('upload retry boundary: gives up after the last pause; gateway and upstream errors count', async () => {
+  let calls = 0;
+  await assert.rejects(() => withRetry(async () => { calls++; throw new FilesRequestError('Files is niet beschikbaar (status 522).', 522); }, undefined, [1, 1], async () => {}), /522/);
+  assert.equal(calls, 3);
+  for (const status of [408, 424, 429, 500, 502, 504, 522]) assert.equal(retryableUpload(new FilesRequestError('x', status)), true, String(status));
+});
+
+test('upload retry faal/autorisatie: refusals, relink and abort are never retried', async () => {
+  for (const failure of [new FilesRequestError('bestaat al', 409), new FilesRequestError('te groot', 413), new FilesRequestError('geen toegang', 403), new FilesRequestError('Koppel opnieuw', 409, true), new FilesRequestError('Aanmelden vereist', 401), new Error('x')]) {
+    assert.equal(retryableUpload(failure), false, failure.message);
+  }
+  let calls = 0;
+  await assert.rejects(() => withRetry(async () => { calls++; throw new FilesRequestError('geen toegang', 403); }, undefined, [1], async () => {}), /geen toegang/);
+  assert.equal(calls, 1);
+  const controller = new AbortController(); controller.abort();
+  calls = 0;
+  await assert.rejects(() => withRetry(async () => { calls++; throw new TypeError('aborted'); }, controller.signal, [1], async () => {}));
+  assert.equal(calls, 1, 'Annuleren stops immediately');
+});
 
 test('files paths normaal: normalise, join, parent and breadcrumbs', () => {
   assert.equal(filesPath('/Docs//2026/'), 'Docs/2026');

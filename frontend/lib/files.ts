@@ -66,3 +66,21 @@ export async function filesRequest<T>(route: string, csrf = "", method = "GET", 
   if (!response.ok) throw new FilesRequestError(typeof result.error === "string" ? result.error : `Files is niet beschikbaar (status ${response.status}).`, response.status, result.relink === true);
   return result as T;
 }
+
+/** Network drops (e.g. a router restart) and gateway/upstream errors are worth retrying; refusals are not. */
+export function retryableUpload(failure: unknown): boolean {
+  if (failure instanceof FilesRequestError) return !failure.relink && (failure.status >= 500 || [408, 424, 429].includes(failure.status));
+  return failure instanceof TypeError;
+}
+
+/** Retry one upload step with growing pauses (about 3 minutes in total); aborting stops at once. */
+export async function withRetry<T>(step: () => Promise<T>, signal?: AbortSignal, delays = [2, 5, 10, 20, 40, 60, 60], sleep = (seconds: number) => new Promise(resolve => setTimeout(resolve, seconds * 1000))): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await step(); }
+    catch (failure) {
+      if (signal?.aborted || attempt >= delays.length || !retryableUpload(failure)) throw failure;
+      await sleep(delays[attempt]);
+      if (signal?.aborted) throw failure;
+    }
+  }
+}

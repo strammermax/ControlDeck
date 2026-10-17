@@ -64,7 +64,7 @@ Alle routes vereisen aanmelding en recht op module `files`; schrijfacties vereis
 ### Grote bestanden
 
 - **Streaming**: up- en downloads gaan in blokken door, nooit volledig in het geheugen (LXC 164 heeft weinig RAM).
-- **Cloudflare** begrenst een verzoek op 100 MB. Uploads gebruiken daarom Nextcloud **chunked upload v2**: de browser stuurt delen van 32 MB, ControlDeck zet ze door naar `/remote.php/dav/uploads/...` en laat Nextcloud ze samenvoegen. Voortgangsbalk en hervatten per deel.
+- **Cloudflare** begrenst een verzoek op 100 MB. Uploads gebruiken daarom Nextcloud **chunked upload v2**: de browser stuurt delen van 32 MB, ControlDeck zet ze door naar `/remote.php/dav/uploads/...` en laat Nextcloud ze samenvoegen. Voortgangsbalk; een deel dat mislukt door een netwerkonderbreking of gateway-/upstreamfout (5xx, 408, 424, 429) wordt tot ongeveer 3 minuten lang automatisch opnieuw verstuurd. Weigeringen (bijvoorbeeld 403, 409, 413) en Annuleren worden niet herhaald.
 - De globale aanvraaglimiet van ControlDeck (16 KiB) geldt niet voor de upload-route; daar geldt de deelgrootte (32 MB) als maximum, onder nginx `client_max_body_size 50m`. Nginx buffert `/api/files/` niet (`proxy_request_buffering off`, `proxy_buffering off`, time-outs 900 s).
 - **Capaciteit**: Een lange download houdt een Gunicorn-thread bezet; daarom draait Gunicorn nu met 6 in plaats van 2 threads. Downloads gaan in blokken van 1 MB door Python. Als dat in de praktijk te zwaar blijkt, laat nginx de download zelf doen via `X-Accel-Redirect` (Python controleert dan alleen rechten en pad).
 
