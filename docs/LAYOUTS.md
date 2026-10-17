@@ -24,7 +24,7 @@ Tegels kunnen elkaar niet overlappen; een beweging naar een bezette plaats wordt
 
 | Pagina | Wat is verplaatsbaar | Raster |
 |---|---|---|
-| Bookmarks → Homepage | Links **binnen** hun groep. De groep van een link blijft gedeeld beheer (alleen admins, via **Aanpassen**). | 2 kolommen per groep, tegel 1–4 rijen hoog |
+| Bookmarks → Homepage | Links binnen hun groep en, net als op het Dashboard, **naar een andere groep** (slepen met ⠿ op een andere groep). Dat is persoonlijk: de gedeelde groep van de link verandert niet (die beheren admins via **Aanpassen**). Tijdens het bewerken blijven lege groepen zichtbaar als doel. | 2 kolommen per groep, tegel 1–4 rijen hoog |
 | Proxmox | ProxMenux-gezondheid, gasten, nodes CPU/geheugen, taken per categorie/node, SDN-zones en de takenlijst | 12 kolommen, tegel 1–12 rijen hoog |
 
 Tijdens zoeken in Homepage wordt geen raster getoond; de resultaten volgen wel je persoonlijke volgorde. Nieuwe links of widgets komen automatisch op de eerste vrije plaats; verwijderde links verdwijnen uit je indeling.

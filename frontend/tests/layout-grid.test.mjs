@@ -2,7 +2,42 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {cellsOverlap, placeCell, firstFreeCell, resizedCell, pointerCell, mergeLayout, layoutOrder, layoutRows} from '../lib/layout-grid.ts';
 import {groupCells, withGroupCells, pageLayoutRequest} from '../lib/page-layouts.ts';
-import {bookmarkLayout, orderedLinks, groupBookmarks} from '../lib/bookmark-layout.ts';
+import {bookmarkLayout, orderedLinks, groupBookmarks, personalGroups, moveBookmark} from '../lib/bookmark-layout.ts';
+
+const shared = () => groupBookmarks([
+  {id: 1, name: 'Plex', url: 'https://plex.example.test', collection: 'Media', description: '', tags: []},
+  {id: 2, name: 'Jellyfin', url: 'https://jf.example.test', collection: 'Media', description: '', tags: []},
+  {id: 3, name: 'Proxmox', url: 'https://pve.example.test', collection: 'Infra', description: '', tags: []},
+]);
+
+test('bookmark move normaal: a link dragged to another group shows there, personally', () => {
+  const cells = bookmarkLayout(shared(), []);
+  const moved = moveBookmark(cells, '1', 'Infra', {x: 0, y: 0});
+  assert.deepEqual(moved.find(cell => cell.id === '1'), {id: '1', group: 'Infra', width: 2, height: 1, x: 0, y: 1}, 'wanted spot taken: first free place');
+  const groups = personalGroups(shared(), moved);
+  assert.deepEqual(groups.map(group => [group.name, group.links.map(link => link.id).sort()]), [['Media', [2]], ['Infra', [1, 3]]]);
+  assert.equal(shared()[0].links.length, 2, 'the shared collection is unchanged');
+  const merged = bookmarkLayout(shared(), moved);
+  assert.equal(merged.find(cell => cell.id === '1').group, 'Infra');
+});
+
+test('bookmark move boundary: free wanted spot, emptied group and clamped size', () => {
+  const cells = bookmarkLayout(shared(), []);
+  const once = moveBookmark(cells, '3', 'Media', {x: 1, y: 5});
+  assert.deepEqual(once.find(cell => cell.id === '3'), {id: '3', group: 'Media', width: 2, height: 1, x: 0, y: 5}, 'x clamped so a 2-wide tile fits');
+  assert.deepEqual(personalGroups(shared(), once).map(group => group.links.length), [3, 0], 'empty group stays as a drop target');
+  const wide = moveBookmark([{id: '1', group: 'Media', x: 0, y: 0, width: 2, height: 4}], '1', 'Infra');
+  assert.deepEqual(wide[0], {id: '1', group: 'Infra', width: 2, height: 4, x: 0, y: 0});
+});
+
+test('bookmark move faal: unknown link, unknown group and stale saved groups', () => {
+  const cells = bookmarkLayout(shared(), []);
+  assert.throws(() => moveBookmark(cells, '99', 'Infra'), /Onbekende bookmark/);
+  assert.throws(() => moveBookmark(cells, '1', ''), /Onbekende groep/);
+  const stale = [{id: '1', group: 'Verwijderde groep', x: 0, y: 0, width: 2, height: 1}];
+  assert.deepEqual(personalGroups(shared(), stale)[0].links.map(link => link.id), [1, 2], 'a group that no longer exists falls back to the shared group');
+  assert.deepEqual(personalGroups(shared(), null).map(group => group.links.length), [2, 1]);
+});
 import {proxmoxPageCells} from '../lib/proxmox-layout.ts';
 import {showEditControls, storedEditMode} from '../lib/edit-mode.ts';
 

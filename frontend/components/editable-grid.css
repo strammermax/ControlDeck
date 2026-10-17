@@ -10,3 +10,4 @@
 /* Narrow screens: one column in reading order; editing keeps the real grid so positions stay visible. */
 @media(max-width:600px){.cd-layout-grid:not([data-editing=true]){display:flex;flex-direction:column}.cd-layout-grid:not([data-editing=true]) .cd-layout-content>*{height:auto}}
 .cd-layout-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;margin:8px 0 16px}.cd-layout-toolbar span[role=status]{margin-right:auto;color:var(--muted);font-size:13px}.cd-layout-toolbar p{flex-basis:100%;margin:0}.cd-layout-toolbar .cd-layout-primary{background:var(--blue);color:var(--card)}
+.cd-layout-grid[data-drop-target=true]{outline:2px solid var(--blue);outline-offset:4px}.cd-layout-empty{grid-column:1/-1;margin:8px;color:var(--muted);font-size:13px;pointer-events:none}
