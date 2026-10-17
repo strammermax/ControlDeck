@@ -2,6 +2,11 @@
 
 Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.mm.dd.<build>` (zie [CI-CD.md](CI-CD.md)). De changelog groepeert wijzigingen per dag.
 
+## 2026.10.17 — Verplaatsbare en schaalbare pagina's
+
+- Persoonlijke indeling voor Bookmarks (links binnen een groep) en Proxmox (iedere widget): **Indeling aanpassen**, slepen met ⠿, vergroten/verkleinen met ↘ of pijltjestoetsen, Opslaan/Annuleren/Standaard herstellen. Eén gedeelde rastermodule die ook het Dashboard gebruikt; zie [LAYOUTS.md](LAYOUTS.md).
+- Nieuwe API `/api/layouts/<pagina>` met per-gebruiker opslag in private SQLite, modulerechten, CSRF en grenzen. Media-/servicekaarten volgen.
+
 ## 2026.10.14 — In ontwikkeling: persoonlijke dashboards
 
 - Bestaande Homepage-apps als bronverwijzing op dashboards, met lokale iconen en opgeslagen Seerr/Jellyfin-cijfers. Geen gekopieerde bronmetadata; Bookmarks-rechten blijven bepalend.

@@ -42,6 +42,8 @@ Daaronder staat de takenlijst:
 
 De backend haalt de gegevens hooguit eens per 30 seconden op (time-out 5 s). Is Proxmox onbereikbaar, dan blijven de laatst bekende taken zichtbaar met de melding **Verouderd**. Zonder koppeling verwijst de pagina admins naar de wizard.
 
+Iedere widget van het overzicht (ProxMenux-gezondheid, gasten, nodes, taken, SDN en de takenlijst) is een eigen tegel. Met **Indeling aanpassen** verplaats en vergroot je ze voor jezelf; zie [LAYOUTS.md](LAYOUTS.md).
+
 ## API en rechten
 
 | Endpoint | Wie |

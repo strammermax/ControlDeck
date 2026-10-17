@@ -245,3 +245,4 @@ footer .release-link:hover {color:var(--blue);text-decoration:underline}
 .cron-log {background:#111;color:#ddd;border-radius:8px;padding:12px;max-height:55vh;overflow:auto;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
 .fingerprint button,.node-block button {padding:8px 14px;margin-top:6px}
 @media(max-width:600px){.cron-row{grid-template-columns:1fr}}
+.bookmark-cell{position:relative;height:100%}.module .bookmark-cell a.bookmark-tile{height:100%;box-sizing:border-box;overflow:hidden}.bookmark-cell .bookmark-tile-content{min-width:0}.bookmark-grid[data-editing=true] .bookmark-tile{padding-left:40px}

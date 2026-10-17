@@ -7,6 +7,7 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [visie.md](visie.md) | Doel, principes en toekomstbeeld |
 | [functioneel-ontwerp.md](functioneel-ontwerp.md) | Modules, gebruikersprocessen en navigatie |
 | [DASHBOARD.md](DASHBOARD.md) | Persoonlijke dashboards, herbruikbare Linkwarden-module, appiconen, zoeken en herstel |
+| [LAYOUTS.md](LAYOUTS.md) | Persoonlijke pagina-indelingen: tegels verplaatsen en vergroten op Bookmarks en Proxmox |
 | [PVA-DASHBOARD.md](PVA-DASHBOARD.md) | Plan van aanpak: codeonderzoek ControlDeck/Homarr, MVP-scope, bouwfasen en acceptatie |
 | [APP-LAUNCHES.md](APP-LAUNCHES.md) | Modulaire aanmeldadapters voor Kasm en Nextcloud en private vaultinrichting |
 | [VAULT.md](VAULT.md) | Centrale instellingen via Camiels Infisical-client, minimale bootstrap en migratierichting |

@@ -1,0 +1,12 @@
+.cd-layout-grid{display:grid;grid-template-columns:repeat(var(--layout-columns),minmax(0,1fr));grid-template-rows:repeat(var(--layout-rows),var(--layout-row));gap:var(--layout-gap);min-width:0;position:relative}
+.cd-layout-grid[data-editing=true]{background:var(--bg);outline:1px dashed var(--border);outline-offset:4px;border-radius:6px}
+.cd-layout-cell{position:relative;min-width:0;min-height:0}
+.cd-layout-content{height:100%;min-height:0;overflow:auto}
+.cd-layout-content>*{height:100%;box-sizing:border-box;margin:0}
+.cd-layout-grid[data-editing=true] .cd-layout-content{opacity:.85;overflow:hidden}
+.cd-layout-move,.cd-layout-resize{position:absolute;z-index:2;padding:2px 6px;font-size:12px;line-height:1.2;border-radius:4px;touch-action:none;background:var(--card);border:1px solid var(--border)}
+.cd-layout-move{left:4px;top:4px;cursor:grab}.cd-layout-move:active{cursor:grabbing}
+.cd-layout-resize{right:2px;bottom:2px;cursor:nwse-resize}
+/* Narrow screens: one column in reading order; editing keeps the real grid so positions stay visible. */
+@media(max-width:600px){.cd-layout-grid:not([data-editing=true]){display:flex;flex-direction:column}.cd-layout-grid:not([data-editing=true]) .cd-layout-content>*{height:auto}}
+.cd-layout-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;margin:8px 0 16px}.cd-layout-toolbar span[role=status]{margin-right:auto;color:var(--muted);font-size:13px}.cd-layout-toolbar p{flex-basis:100%;margin:0}.cd-layout-toolbar .cd-layout-primary{background:var(--blue);color:var(--card)}

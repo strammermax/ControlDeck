@@ -1,8 +1,8 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { bytes, categoryLabels, meter, type ClusterSummary, type Counts } from "../lib/proxmox";
 import type {ProxmoxView} from "../modules/proxmox/settings";
-type Response = { summary: ClusterSummary; updatedAt: number; stale: boolean; error?: string };
+export type ProxmoxSummaryResponse = { summary: ClusterSummary; updatedAt: number; stale: boolean; error?: string };
 function Meter({ label, value, detail }: { label: string; value: number; detail: string }) {
   const { width, level } = meter(value);
   return <li className="meter-row" title={`${label}: ${value.toFixed(1)} % · ${detail}`}>
@@ -18,9 +18,9 @@ function CountCells({ counts }: { counts: Counts }) {
     <td className={counts.ok ? "count ok" : "count none"}><span aria-hidden="true">✓</span> {counts.ok}<span className="sr-only"> OK</span></td>
   </>;
 }
-/** Cluster widgets above the task list: busiest guests and nodes, task counts and SDN zones. */
-export function ProxmoxSummary({ refreshSeconds, view = "all", embedded = false }: { refreshSeconds: number; view?: Exclude<ProxmoxView,"health">; embedded?: boolean }) {
-  const [data, setData] = useState<Response | null>(null);
+/** Polls the cluster summary; `data` stays at the last known value while errors are shown. */
+export function useProxmoxSummary(refreshSeconds: number) {
+  const [data, setData] = useState<ProxmoxSummaryResponse | null>(null);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const load = useCallback(async () => {
@@ -38,59 +38,58 @@ export function ProxmoxSummary({ refreshSeconds, view = "all", embedded = false 
     const timer = setInterval(() => void load(), Math.max(15, refreshSeconds) * 1000);
     return () => clearInterval(timer);
   }, [load, refreshSeconds]);
+  return { data, error, loaded };
+}
+/** Cluster widgets above the task list: busiest guests and nodes, task counts and SDN zones. */
+export function ProxmoxSummary({ refreshSeconds, view = "all", embedded = false }: { refreshSeconds: number; view?: Exclude<ProxmoxView,"health">; embedded?: boolean }) {
+  const { data, error, loaded } = useProxmoxSummary(refreshSeconds);
   if (!data) return error ? <p className="config-error" role="alert">{error}</p> : embedded ? <p role="status">{loaded ? "Nog geen Proxmox-koppeling. Stel deze in bij Proxmox." : "Proxmox laden…"}</p> : null;
   return <ProxmoxSummaryContent data={data} error={error} view={view} embedded={embedded}/>;
 }
+/** Every summary card as a separate widget, so pages can place and size them individually. */
+export function proxmoxSummaryWidgets(summary: ClusterSummary, view: Exclude<ProxmoxView,"health"> = "all"): {id: string; node: ReactNode}[] {
+  const widgets: {id: string; views: string[]; node: ReactNode}[] = [
+    {id: "guests", views: ["all","guests"], node: <>
+      <h3>Gasten met het hoogste CPU-gebruik</h3>
+      {summary.guests.length ? <ul className="meters">{summary.guests.map(guest => <Meter key={guest.id} label={`${guest.name} (${guest.id}) · ${guest.node}`} value={guest.cpu} detail={`${guest.type === "lxc" ? "container" : "VM"}, ${guest.cpus ?? "?"} CPU`}/>)}</ul> : <p>Geen draaiende gasten.</p>}
+    </>},
+    {id: "nodes-cpu", views: ["all","nodes"], node: <>
+      <h3>Nodes · CPU</h3>
+      <ul className="meters">{summary.nodesByCpu.map(node => <Meter key={node.name} label={node.name} value={node.cpu} detail={`${node.cpus ?? "?"} CPU`}/>)}</ul>
+    </>},
+    {id: "nodes-memory", views: ["all","nodes"], node: <>
+      <h3>Nodes · geheugen</h3>
+      <ul className="meters">{summary.nodesByMemory.map(node => <Meter key={node.name} label={node.name} value={node.memory} detail={`${bytes(node.memoryUsed)} van ${bytes(node.memoryTotal)}`}/>)}</ul>
+    </>},
+    {id: "task-categories", views: ["all","tasks"], node: <>
+      <h3>Taken per categorie <small>laatste {summary.windowHours} u</small></h3>
+      <table className="count-table"><thead><tr><th>Categorie</th><th>Fout</th><th>Waarsch.</th><th>OK</th></tr></thead>
+        <tbody>{Object.entries(summary.taskCategories).filter(([name, counts]) => name !== "other" || counts.ok + counts.warning + counts.error > 0).map(([name, counts]) => <tr key={name}><td>{categoryLabels[name] ?? name}</td><CountCells counts={counts}/></tr>)}</tbody></table>
+    </>},
+    {id: "task-nodes", views: ["all","tasks"], node: <>
+      <h3>Taken per node <small>laatste {summary.windowHours} u, meeste fouten eerst</small></h3>
+      <table className="count-table"><thead><tr><th>Node</th><th>Fout</th><th>Waarsch.</th><th>OK</th></tr></thead>
+        <tbody>{Object.entries(summary.taskNodes).map(([name, counts]) => <tr key={name}><td>{name}</td><CountCells counts={counts}/></tr>)}</tbody></table>
+    </>},
+    {id: "sdn", views: ["all"], node: <>
+      <h3>SDN-zones</h3>
+      {summary.sdnZones.total ? <table className="count-table"><tbody>
+        <tr><td><span className="count ok">✓</span> Beschikbaar</td><td>{summary.sdnZones.available}</td></tr>
+        <tr><td><span className={summary.sdnZones.error ? "count error" : "count none"}>✗</span> Fout</td><td>{summary.sdnZones.error}</td></tr>
+        <tr><td><span className="count none">◌</span> In behandeling</td><td>{summary.sdnZones.pending}</td></tr>
+        <tr><td>Totaal</td><td>{summary.sdnZones.total}</td></tr>
+      </tbody></table> : <p>Geen SDN-zones ingericht.</p>}
+    </>},
+  ];
+  return widgets.filter(widget => widget.views.includes(view)).map(({id, node}) => ({id, node}));
+}
 /** Shared presentation for the Proxmox page and dashboard modules. */
-export function ProxmoxSummaryContent({data,error="",view="all",embedded=false}:{data:Response;error?:string;view?:Exclude<ProxmoxView,"health">;embedded?:boolean}) {
+export function ProxmoxSummaryContent({data,error="",view="all",embedded=false}:{data:ProxmoxSummaryResponse;error?:string;view?:Exclude<ProxmoxView,"health">;embedded?:boolean}) {
   const summary = data.summary;
   return <section className="cluster-summary" aria-label="Clusteroverzicht">
     {(error || data.stale) && <p className="config-error" role="alert">{error || data.error} De laatst bekende gegevens blijven zichtbaar.</p>}
     {summary.offlineNodes.length > 0 && <p className="config-error" role="alert">✗ Offline: {summary.offlineNodes.join(", ")}</p>}
-    <div className="widget-grid">
-      {(view === "all" || view === "guests") && <>
-      <article className="widget">
-        <h3>Gasten met het hoogste CPU-gebruik</h3>
-        {summary.guests.length ? <ul className="meters">{summary.guests.map(guest => <Meter key={guest.id} label={`${guest.name} (${guest.id}) · ${guest.node}`} value={guest.cpu} detail={`${guest.type === "lxc" ? "container" : "VM"}, ${guest.cpus ?? "?"} CPU`}/>)}</ul> : <p>Geen draaiende gasten.</p>}
-      </article>
-      </>}
-      {(view === "all" || view === "nodes") && <>
-      <article className="widget">
-        <h3>Nodes · CPU</h3>
-        <ul className="meters">{summary.nodesByCpu.map(node => <Meter key={node.name} label={node.name} value={node.cpu} detail={`${node.cpus ?? "?"} CPU`}/>)}</ul>
-      </article>
-      </>}
-      {(view === "all" || view === "nodes") && <>
-      <article className="widget">
-        <h3>Nodes · geheugen</h3>
-        <ul className="meters">{summary.nodesByMemory.map(node => <Meter key={node.name} label={node.name} value={node.memory} detail={`${bytes(node.memoryUsed)} van ${bytes(node.memoryTotal)}`}/>)}</ul>
-      </article>
-      </>}
-      {(view === "all" || view === "tasks") && <>
-      <article className="widget">
-        <h3>Taken per categorie <small>laatste {summary.windowHours} u</small></h3>
-        <table className="count-table"><thead><tr><th>Categorie</th><th>Fout</th><th>Waarsch.</th><th>OK</th></tr></thead>
-          <tbody>{Object.entries(summary.taskCategories).filter(([name, counts]) => name !== "other" || counts.ok + counts.warning + counts.error > 0).map(([name, counts]) => <tr key={name}><td>{categoryLabels[name] ?? name}</td><CountCells counts={counts}/></tr>)}</tbody></table>
-      </article>
-      </>}
-      {(view === "all" || view === "tasks") && <>
-      <article className="widget">
-        <h3>Taken per node <small>laatste {summary.windowHours} u, meeste fouten eerst</small></h3>
-        <table className="count-table"><thead><tr><th>Node</th><th>Fout</th><th>Waarsch.</th><th>OK</th></tr></thead>
-          <tbody>{Object.entries(summary.taskNodes).map(([name, counts]) => <tr key={name}><td>{name}</td><CountCells counts={counts}/></tr>)}</tbody></table>
-      </article>
-      </>}
-      {(view === "all") && <>
-      <article className="widget">
-        <h3>SDN-zones</h3>
-        {summary.sdnZones.total ? <table className="count-table"><tbody>
-          <tr><td><span className="count ok">✓</span> Beschikbaar</td><td>{summary.sdnZones.available}</td></tr>
-          <tr><td><span className={summary.sdnZones.error ? "count error" : "count none"}>✗</span> Fout</td><td>{summary.sdnZones.error}</td></tr>
-          <tr><td><span className="count none">◌</span> In behandeling</td><td>{summary.sdnZones.pending}</td></tr>
-          <tr><td>Totaal</td><td>{summary.sdnZones.total}</td></tr>
-        </tbody></table> : <p>Geen SDN-zones ingericht.</p>}
-      </article>
-      </>}
+    <div className="widget-grid">{proxmoxSummaryWidgets(summary, view).map(widget => <article className="widget" key={widget.id}>{widget.node}</article>)}
     </div>
     {embedded && <p className="cd-proxmox-updated">Bijgewerkt: {new Date(data.updatedAt * 1000).toLocaleTimeString("nl-NL")} · Vernieuwt iedere minuut</p>}
   </section>;
