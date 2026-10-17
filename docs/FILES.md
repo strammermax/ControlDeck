@@ -86,7 +86,7 @@ Alle routes vereisen aanmelding en recht op module `files`; schrijfacties vereis
 
 ## Inrichting
 
-1. Deploy van deze versie, en eenmalig als root de installatiewizard draaien zodat de nieuwe nginx-locatie (`deploy/termix-gateway.conf`) en de service met 6 threads (`deploy/controldeck.service`) worden geplaatst.
+1. Eenmalig als root de nieuwe nginx-locatie en de service met 6 threads plaatsen. De installatiewizard doet dit **niet** (die kopieert alleen naar de installatiemap): installeer `deploy/termix-gateway.conf` als `/etc/nginx/conf.d/controldeck-termix.conf` en `deploy/termix-app.conf` als `/etc/systemd/system/controldeck.service.d/termix.conf`, daarna `nginx -t`, `systemctl reload nginx`, `systemctl daemon-reload` en `systemctl restart controldeck`.
 2. Als admin: **Files** openen en het Nextcloud-adres invullen (`https://cloud.vanburik.info`). Dit wordt opgeslagen in `<data-dir>/files/server.json`.
 3. Iedere gebruiker: **Koppelen met Nextcloud**, aanmelden in het nieuwe venster en de toegang goedkeuren.
 
