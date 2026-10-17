@@ -2,6 +2,8 @@
 import "./editable-grid.css";
 import {useCallback, useEffect, useState} from "react";
 import {pageLayoutRequest, type LayoutPage, type PageLayoutCell} from "../lib/page-layouts";
+import {useEditMode} from "./edit-mode";
+import {showEditControls} from "../lib/edit-mode";
 
 /** Personal layout of one page: view mode uses the saved cells, edit mode a draft saved with Opslaan. */
 export function usePageLayout(page: LayoutPage, csrfToken: string) {
@@ -38,6 +40,9 @@ export function usePageLayout(page: LayoutPage, csrfToken: string) {
 }
 
 export function LayoutToolbar({editing, busy, error, onEdit, onSave, onCancel, onReset}: {editing: boolean; busy: boolean; error: string; onEdit: () => void; onSave: () => void; onCancel: () => void; onReset: () => void}) {
+  const editMode = useEditMode();
+  // User mode hides the button; an unsaved draft keeps its Opslaan/Annuleren until finished.
+  if (!showEditControls(editMode, editing)) return error ? <p role="alert" className="config-error">{error}</p> : null;
   return <div className="cd-layout-toolbar">
     {editing ? <>
       <span role="status">Bewerkmodus · sleep ⠿ om te verplaatsen en ↘ om te vergroten of verkleinen.</span>

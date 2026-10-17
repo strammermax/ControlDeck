@@ -2,9 +2,21 @@
 
 Naast het [Dashboard](DASHBOARD.md) kan iedere gebruiker de indeling van **Bookmarks** en **Proxmox** aanpassen: tegels verplaatsen en groter of kleiner maken. De indeling is **persoonlijk**: andere gebruikers zien hun eigen indeling, en de gedeelde inhoud (links, groepen, Proxmox-gegevens) verandert niet.
 
+## Gebruikersmodus en bewerkmodus
+
+ControlDeck start in **gebruikersmodus**: knoppen om te bewerken en te beheren zijn verborgen, zodat pagina's rustig blijven. Zet in het gebruikersmenu (rechtsboven, onder **Profiel**) de schakelaar **Bewerkmodus** aan om ze te tonen. De keuze is persoonlijk en wordt bewaard als voorkeur (`editMode`); alleen de waarde `true` zet de bewerkmodus aan.
+
+In gebruikersmodus verborgen:
+
+- **Indeling aanpassen** op Bookmarks en Proxmox.
+- Op het Dashboard: **Nieuw dashboard**, **Bewerken**, **Dupliceren**, **Als standaard** en **Dashboard verwijderen**. Het kiezen van een dashboard blijft mogelijk.
+- Op Bookmarks (admins/editors): **Link toevoegen**, **Aanpassen** per link en het beheer van koppelingen.
+
+Wie de bewerkmodus uitzet terwijl een wijziging nog niet is opgeslagen, houdt **Opslaan** en **Annuleren** zichtbaar tot die wijziging is afgerond. De schakelaar is alleen weergave: rechten worden altijd door de server gecontroleerd.
+
 ## Gebruik
 
-1. Kies **Indeling aanpassen** boven de pagina.
+1. Zet de **Bewerkmodus** aan en kies **Indeling aanpassen** boven de pagina.
 2. Sleep **⠿** (linksboven op een tegel) om de tegel te verplaatsen. Sleep **↘** (rechtsonder) om hem groter of kleiner te maken. Met het toetsenbord: focus op ⠿ of ↘ en gebruik de pijltjestoetsen.
 3. **Opslaan** bewaart de indeling; **Annuleren** verwerpt de wijzigingen; **Standaard herstellen** verwijdert je eigen indeling van die pagina.
 

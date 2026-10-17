@@ -5,6 +5,7 @@ Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.m
 ## 2026.10.17 — Verplaatsbare en schaalbare pagina's
 
 - Persoonlijke indeling voor Bookmarks (links binnen een groep) en Proxmox (iedere widget): **Indeling aanpassen**, slepen met ⠿, vergroten/verkleinen met ↘ of pijltjestoetsen, Opslaan/Annuleren/Standaard herstellen. Eén gedeelde rastermodule die ook het Dashboard gebruikt; zie [LAYOUTS.md](LAYOUTS.md).
+- Schakelaar **Bewerkmodus** in het gebruikersmenu: standaard gebruikersmodus zonder bewerk- en beheerknoppen op Dashboard, Bookmarks en Proxmox; persoonlijke voorkeur `editMode`.
 - Nieuwe API `/api/layouts/<pagina>` met per-gebruiker opslag in private SQLite, modulerechten, CSRF en grenzen. Media-/servicekaarten volgen.
 
 ## 2026.10.14 — In ontwikkeling: persoonlijke dashboards

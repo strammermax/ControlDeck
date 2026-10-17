@@ -4,6 +4,16 @@ import {cellsOverlap, placeCell, firstFreeCell, resizedCell, pointerCell, mergeL
 import {groupCells, withGroupCells, pageLayoutRequest} from '../lib/page-layouts.ts';
 import {bookmarkLayout, orderedLinks, groupBookmarks} from '../lib/bookmark-layout.ts';
 import {proxmoxPageCells} from '../lib/proxmox-layout.ts';
+import {showEditControls, storedEditMode} from '../lib/edit-mode.ts';
+
+test('edit mode normaal/boundary/faal: user mode hides controls, an open draft keeps them, only true enables', () => {
+  assert.equal(showEditControls(true, false), true);
+  assert.equal(showEditControls(false, false), false);
+  assert.equal(showEditControls(false, true), true, 'switching to user mode never strands an unsaved draft');
+  assert.equal(storedEditMode({editMode: true}), true);
+  for (const value of [{}, null, undefined, {editMode: 'true'}, {editMode: 1}, 'editMode']) assert.equal(storedEditMode(value), false);
+  assert.equal(showEditControls('true', false), false);
+});
 
 const bounds = {columns: 12, maxHeight: 6, maxRows: 20};
 const a = {id: 'a', x: 0, y: 0, width: 4, height: 2};

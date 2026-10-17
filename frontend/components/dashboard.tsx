@@ -6,6 +6,7 @@ import {AppIcon, AppIconPicker} from "./app-icon";
 import {DashboardModule, DashboardModuleSettings} from "./dashboard-module";
 import {moduleOptions} from "../lib/dashboard-modules";
 import {Modal} from "./modal";
+import {useEditMode} from "./edit-mode";
 import "./dashboard.css";
 
 type Dialog = {kind: "picker"} | {kind: "create" | "duplicate"; title: string} | {kind: "item"; item: DashboardItem} | {kind: "section"; section: DashboardSection} | {kind: "apps"; appId: number | null; sectionId: string; query: string} | null;
@@ -28,6 +29,7 @@ export function DashboardPage({csrfToken, onEditingChange, modulePermissions, se
   const resize = useRef<{board: Dashboard; item: DashboardItem; x: number; y: number; pitch: number} | null>(null);
   const board = draft ?? boards.find(value => value.id === activeId) ?? null;
   const editing = !!draft;
+  const editMode = useEditMode();
   useEffect(() => { onEditingChange(editing); return () => onEditingChange(false); }, [editing, onEditingChange]);
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError("");
@@ -119,7 +121,7 @@ export function DashboardPage({csrfToken, onEditingChange, modulePermissions, se
         {!boards.length && <option value="">Geen dashboards</option>}{boards.map(value => <option key={value.id} value={value.id}>{value.title}{value.id === defaultId ? " · standaard" : ""}</option>)}
       </select></label>
       <div className="cd-dashboard-actions">
-        {draft ? <><button disabled={busy} onClick={() => setDialog({kind: "picker"})}>Module toevoegen</button><button disabled={busy || draft.sections.length >= 20} onClick={() => setDialog({kind: "section", section: {id: crypto.randomUUID(), title: "", lane: "main", collapsed: false}})}>Groep toevoegen</button><button className="cd-dashboard-primary" disabled={busy} onClick={() => void save()}>{busy ? "Opslaan…" : "Opslaan"}</button><button disabled={busy} onClick={() => {if (window.confirm("Bewerkingen verwerpen?")) {setDraft(null); setError("");}}}>Annuleren</button></> : <>
+        {draft ? <><button disabled={busy} onClick={() => setDialog({kind: "picker"})}>Module toevoegen</button><button disabled={busy || draft.sections.length >= 20} onClick={() => setDialog({kind: "section", section: {id: crypto.randomUUID(), title: "", lane: "main", collapsed: false}})}>Groep toevoegen</button><button className="cd-dashboard-primary" disabled={busy} onClick={() => void save()}>{busy ? "Opslaan…" : "Opslaan"}</button><button disabled={busy} onClick={() => {if (window.confirm("Bewerkingen verwerpen?")) {setDraft(null); setError("");}}}>Annuleren</button></> : editMode && <>
           <button disabled={busy || loading || boards.length >= 20} onClick={() => setDialog({kind: "create", title: ""})}>Nieuw dashboard</button>
           {board && <><button disabled={busy || loading} onClick={() => {setDraft(structuredClone(board)); setError(""); setNotice("");}}>Bewerken</button><button disabled={busy || boards.length >= 20} onClick={() => setDialog({kind: "duplicate", title: `${board.title} kopie`.slice(0,100)})}>Dupliceren</button><button disabled={busy || defaultId === board.id} onClick={() => void perform(async () => {await dashboardRequest("/default", csrfToken, "PUT", {id: board.id}); setDefaultId(board.id); setNotice("Standaarddashboard ingesteld.");})}>Als standaard</button></>}
         </>}
@@ -131,7 +133,7 @@ export function DashboardPage({csrfToken, onEditingChange, modulePermissions, se
     {!loading && !board && !error && <p>Maak een dashboard aan om je toepassingen bij elkaar te zetten.</p>}
     {board && <div inert={busy}>
       <div className="cd-dashboard-heading">{draft ? <label>Dashboardnaam<input maxLength={100} required value={draft.title} onChange={event => setDraft({...draft, title: event.target.value})}/></label> : <h3>{board.title}</h3>}
-        {!draft && <button disabled={busy} onClick={() => {if (window.confirm(`Dashboard ‘${board.title}’ verwijderen? De apps zelf blijven bestaan.`)) void perform(async () => {await dashboardRequest(`/${board.id}`, csrfToken, "DELETE", {revision: board.revision}); setBoards(values => values.filter(value => value.id !== board.id)); setActiveId(null); await load();});}}>Dashboard verwijderen</button>}
+        {!draft && editMode && <button disabled={busy} onClick={() => {if (window.confirm(`Dashboard ‘${board.title}’ verwijderen? De apps zelf blijven bestaan.`)) void perform(async () => {await dashboardRequest(`/${board.id}`, csrfToken, "DELETE", {revision: board.revision}); setBoards(values => values.filter(value => value.id !== board.id)); setActiveId(null); await load();});}}>Dashboard verwijderen</button>}
       </div>
       <div className="cd-dashboard-lanes" data-left={board.sections.some(section => section.lane === "left")} data-right={board.sections.some(section => section.lane === "right")}>
         {lanes.map(lane => <div key={lane.id} className={`cd-dashboard-lane cd-dashboard-lane-${lane.id}`} aria-label={lane.title}>

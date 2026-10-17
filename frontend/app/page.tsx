@@ -11,6 +11,8 @@ import { Terminal } from "../components/terminal";
 import { Bookmarks } from "../components/bookmarks";
 import { Accounts } from "../components/accounts";
 import { ProxmoxPage } from "../components/proxmox-page";
+import { EditModeContext, EditModeSwitch } from "../components/edit-mode";
+import { storedEditMode } from "../lib/edit-mode";
 import { CronjobsPage } from "../components/cronjobs-page";
 import { AppLaunch } from "../components/app-launch";
 import { DashboardPage } from "../components/dashboard";
@@ -18,7 +20,7 @@ import { dashboardNavigation } from "../lib/dashboards";
 import { GlobalSearch } from "../components/global-search";
 
 type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string; ssoType?: string } | null; csrfToken: string | null; logoutUrl?: string | null };
-type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string; language?: "nl" | "en"; navOrder?: string[] };
+type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string; language?: "nl" | "en"; navOrder?: string[]; editMode?: boolean };
 /** Personal settings page; available to every signed-in user, independent of module grants. */
 const SETTINGS_ROUTE = "settings";
 const PROFILE_ROUTE = "profile";
@@ -51,6 +53,7 @@ export default function Home() {
   const [status, setStatus] = useState("Checking");
   const [refreshing, setRefreshing] = useState(false);
   const [personal, setPersonal] = useState<PersonalSettings>({language:"nl", navOrder:[]});
+  const [editMode, setEditMode] = useState(false);
   const nav = useRef<HTMLElement>(null);
   const request = useRef<AbortController | null>(null);
   const hamburger = useRef<HTMLButtonElement>(null);
@@ -80,6 +83,7 @@ export default function Home() {
         if (!current()) return;
         preferences.current = values; savedPreferences.current = JSON.stringify({theme:values.theme, lastRoute:values.lastRoute});
         setPersonal({language: values.language === "en" ? "en" : "nl", navOrder: Array.isArray(values.navOrder) ? values.navOrder : []});
+        setEditMode(storedEditMode(values));
         preferenceUser.current = session.user.email; setThemeReady(false);
       }
       await Promise.all([
@@ -196,6 +200,7 @@ export default function Home() {
           <summary className="user" aria-label={translate(personal.language, "userMenu")}><span aria-hidden="true">▱</span> <span>{`${auth.user?.firstName ?? ""} ${auth.user?.lastName ?? ""}`.trim() || auth.user?.email}</span><span className="chevron" aria-hidden="true">⌄</span></summary>
           <div className="user-dropdown">
             <a href={`#${PROFILE_ROUTE}`} aria-current={onProfile ? "page" : undefined} onClick={closeMenus}><Icon name="profile"/>{translate(personal.language, "profile")}</a>
+            <EditModeSwitch on={editMode} label={translate(personal.language, "editMode")} onChange={on => { setEditMode(on); preferences.current = {...preferences.current, editMode: on}; void fetch("/api/preferences", {method:"PUT", headers:{"Content-Type":"application/json", "X-CSRF-Token":auth.csrfToken!}, body:JSON.stringify({editMode: on})}).then(response => setPreferencesError(!response.ok)).catch(() => setPreferencesError(true)); }}/>
             <a href={`#${SETTINGS_ROUTE}`} aria-current={onSettings ? "page" : undefined} onClick={closeMenus}><Icon name="settings"/>{translate(personal.language, "settings")}</a>
             <button type="button" className="separated" onClick={async () => { closeMenus(); const response = await fetch("/api/logout", {method:"POST", headers:{"X-CSRF-Token":auth.csrfToken!}}); if (response.ok) { if (auth.logoutUrl) {window.location.assign(auth.logoutUrl); return;} setAuth(null); setConfig(null); void refresh();} }}><Icon name="logout"/>{translate(personal.language, "logout")}</button>
           </div>
@@ -219,7 +224,7 @@ export default function Home() {
           }}><summary className={selected ? "nav-item active" : "nav-item"}>{contents}<span className="chevron" aria-hidden="true">⌄</span></summary><div className="submenu">{item.children.map(child => <a key={child.id} href={href(child)} aria-current={child.route === active ? "page" : undefined} onClick={() => navigate(child.route)}>{child.label}</a>)}</div></details> : <a className={selected ? "nav-item active" : "nav-item"} key={item.id} href={href(item)} aria-current={selected ? "page" : undefined} onClick={() => navigate(item.route)}>{contents}</a>;
         })}
       </nav>
-      <main id="workspace" tabIndex={-1} className={active === "dashboard" ? "workspace module" : destination?.view === "empty" ? "workspace" : "workspace module"}>
+      <EditModeContext.Provider value={editMode}><main id="workspace" tabIndex={-1} className={active === "dashboard" ? "workspace module" : destination?.view === "empty" ? "workspace" : "workspace module"}>
         {active === "dashboard" && destination ? <><h2>Dashboard</h2><DashboardPage key={auth.user?.email} csrfToken={auth.csrfToken!} onEditingChange={onDashboardEditingChange} modulePermissions={config.modules.map(module => module.id)} selection={dashboardSelection}/></> : destination?.view === "empty" ? <h2 className="sr-only">{destination.label}</h2> : <>
           <h2>{destination?.label}</h2>
           {onProfile ? <section className="settings-card profile"><p>{translate(personal.language, "profileIntro")}</p><dl>
@@ -232,7 +237,7 @@ export default function Home() {
             {provider?.url && <><p>Adres: <a href={provider.url}>{provider.url}</a></p><a className="provider-open" href={provider.url} target="_blank" rel="noopener noreferrer">Open {provider.label} ↗</a><p>Deze koppeling opent de toepassing. Gegevens uit de toepassing volgen later.</p></>}
           </>}
         </>}
-      </main>
+      </main></EditModeContext.Provider>
       <footer><p>{(() => { const label = `${site.footerText}${health?.version ? ` v${health.version}` : ""}`; const notes = releaseNotesUrl(site.supportUrl, health?.version); return notes ? <a className="release-link" href={notes} target="_blank" rel="noopener noreferrer" title="Release notes van deze versie">{label}</a> : label; })()}</p><a href={site.supportUrl}>{site.supportLabel}</a></footer>
     </div>
   </>;

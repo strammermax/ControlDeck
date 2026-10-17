@@ -11,10 +11,14 @@ import {AppIconPicker} from './app-icon';
 import {homepageDialogTitle} from '../lib/homepage-dialog';
 import {bookmarkLayout,groupBookmarks} from '../lib/bookmark-layout';
 import {LayoutToolbar,usePageLayout} from './page-layout';
+import {useEditMode} from './edit-mode';
 
 type HomeLink=Bookmark&{icon?:string};
 const blank={name:'',url:'',collection:'',description:'',icon:''};
-export function HomepageLinks({csrfToken,isAdmin}:{csrfToken:string;isAdmin:boolean}) {
+export function HomepageLinks({csrfToken,isAdmin:admin}:{csrfToken:string;isAdmin:boolean}) {
+  // Managing shared links is an edit-mode action; user mode only opens and searches.
+  const editMode=useEditMode();
+  const isAdmin=admin&&editMode;
   const [integrations,setIntegrations]=useState<Integration[]>([]);
   const [picking,setPicking]=useState(false);
   const [selectedApp,setSelectedApp]=useState<AppChoice|null>(null);
