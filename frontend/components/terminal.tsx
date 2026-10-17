@@ -32,5 +32,5 @@ export function Terminal({enabled, csrfToken, theme}: {enabled: boolean; csrfTok
   if (!enabled) return <p>Termix is nog niet geïnstalleerd of ingeschakeld. Je beheerder kan de Terminal-provider inrichten.</p>;
   if (state === "loading") return <p role="status">Je beveiligde terminal wordt geopend…</p>;
   if (state === "failed") return <div role="alert"><p>Termix kon niet worden geopend.</p><button onClick={() => setAttempt(attempt + 1)}>Opnieuw proberen</button></div>;
-  return <section className="terminal-panel"><div className="terminal-toolbar"><span>Termix · SSH-verbindingen en bestanden</span><a href="/termix/" target="_blank" rel="noopener noreferrer">Open in nieuw venster ↗</a></div><iframe ref={frame} onLoad={() => setFrameLoad(value => value + 1)} className="terminal-frame" src="/termix/" title="Termix terminal" allow="clipboard-read; clipboard-write" referrerPolicy="same-origin"/></section>;
+  return <section className="terminal-panel"><div className="terminal-toolbar"><span>Termix</span><a href="/termix/" target="_blank" rel="noopener noreferrer">Open in nieuw venster ↗</a></div><iframe ref={frame} onLoad={() => setFrameLoad(value => value + 1)} className="terminal-frame" src="/termix/" title="Termix terminal" allow="clipboard-read; clipboard-write" referrerPolicy="same-origin"/></section>;
 }

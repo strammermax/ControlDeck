@@ -48,15 +48,15 @@ Op desktop staat de navigatie naast de inhoud; op kleinere schermen is zij inkla
 
 | ID | Module | Eerste invulling | Latere verdieping |
 | --- | --- | --- | --- |
-| F-01 | Dashboard | Startpagina met favoriete diensten en geconfigureerde kaarten | Statuswidgets, capaciteit, waarschuwingen en persoonlijke indeling |
-| F-02 | Proxmox | Links naar toegestane beheeromgevingen | Nodes, VM's, containers en opslag bekijken; geselecteerde start- en afsluitacties |
-| F-03 | Terminal | Links naar toegestane bestaande terminalvoorzieningen | Beveiligde sessies via een afzonderlijke gateway |
-| F-04 | Files | Overzicht van opslaglocaties en bestandsapplicaties | Capaciteit, bladeren, uploaden, downloaden en begrensde wijzigingen |
-| F-05 | Media | Catalogus van media-applicaties | Bibliotheekinformatie en relevante activiteit per provider |
+| F-01 | Dashboard | Eigen, persoonlijk dashboard waarop de gebruiker alles kan plaatsen: elementen uit Bookmarks, Proxmox, Media en andere modules | Statuswidgets, capaciteit, waarschuwingen en persoonlijke indeling |
+| F-02 | Proxmox | Overzicht (dashboard) van alle infrastructuurzaken | Nog uit te werken: nodes, VM's, containers en opslag; geselecteerde start- en afsluitacties |
+| F-03 | Terminal | Termix-plugin voor alle SSH-werk (in gebruik) | Beveiligde sessies via een afzonderlijke gateway |
+| F-04 | Files | Webbestandsbeheer: bestanden uploaden en downloaden, bij voorkeur via Nextcloud geïntegreerd in ControlDeck | Bladeren, capaciteit en begrensde wijzigingen |
+| F-05 | Media | Overzicht (dashboard) van alle mediazaken | Submenu's Downloads, Requests, Movies, Series, Audio, Plex en Jellyfin |
 | F-06 | Network | Netwerkdiensten en beheerlinks | DNS-, netwerk- en bereikbaarheidsinformatie; later gecontroleerde wijzigingen |
 | F-07 | Monitoring | Links naar monitoringomgevingen | Beschikbaarheid, meldingen en meetgegevens met doorklik naar de bron |
 | F-08 | Bookmarks | Gedeelde links, categorieën, tags en persoonlijke favorieten | Persoonlijke verzamelingen en een bookmark-provider |
-| F-09 | Virtual Apps | Catalogus met links naar bestaande applicatieportalen | Sessies starten, actieve sessies tonen en beëindigen indien ondersteund |
+| F-09 | Virtual Apps | Overzicht van alle virtual apps die de gebruiker kan starten | Actieve sessies tonen en beëindigen indien ondersteund |
 
 De eerste release presenteert een link niet als gemeten beschikbaarheid. Een kaart zonder statuskoppeling vermeldt dat geen statusinformatie beschikbaar is.
 
@@ -75,6 +75,17 @@ Deze modules voeren uitsluitend handelingen uit op toegewezen doelen. Bij sessie
 ### Media, Network en Bookmarks
 
 Media presenteert relevante toepassingen zonder gevoelige gebruiksinformatie breed te delen. Network begint met inzicht; wijzigingen vragen een afzonderlijk ontwerp. Bookmarks biedt categorieën en tags zodat interne beheerlinks en externe documentatie herkenbaar zijn.
+
+### Aangepaste eisen per categorie (2026-10-17)
+
+| Categorie | Eis |
+| --- | --- |
+| Terminal | Termix is de SSH-omgeving en werkt naar behoren. De werkbalk toont alleen "Termix". |
+| Media | Een overzicht (dashboard) van alle mediazaken. Later komen submenu's: Downloads, Requests, Movies, Series, Audio, Plex en Jellyfin. |
+| Proxmox | Een overzicht (dashboard) van alle infrastructuurzaken. De verdere invulling moet nog worden uitgedacht. |
+| Virtual Apps | Een overzicht van alle virtual apps die je kunt starten. |
+| Dashboard | Je eigen dashboard waarop je alles kunt plaatsen, inclusief elementen uit Bookmarks, Proxmox en andere modules. |
+| Files | Webbestandsbeheer om bestanden te downloaden en te uploaden. Voorkeur: Nextcloud geïntegreerd in ControlDeck. |
 
 ## 5. Belangrijkste gebruikersprocessen
 
