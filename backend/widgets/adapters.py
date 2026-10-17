@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit
 import re
 from .transport import ProviderError
+from .presentation import display_url, website
 
 
 def text(value, limit=300):
@@ -71,11 +72,24 @@ def sabnzbd(t, s):
 def plex(t, s):
     payload = t.call("/status/sessions", headers={"X-Plex-Token": s["apiKey"], "Accept": "application/json"})["MediaContainer"]
     rows = records(payload.get("Metadata", []), 1000)
+    machine = payload.get("machineIdentifier")
+    if not machine and any(re.fullmatch(r"[0-9]{1,10}", str(r.get("ratingKey", ""))) for r in rows):
+        try:
+            machine = t.call("/", headers={"X-Plex-Token": s["apiKey"], "Accept": "application/json"})["MediaContainer"].get("machineIdentifier")
+        except (ProviderError, KeyError, TypeError):
+            pass
     values = []
     for r in rows:
         player = r.get("Player", {})
         progress = number(r.get("viewOffset", 0)) / number(r["duration"]) * 100 if r.get("duration") else None
         values.append(item(r.get("sessionKey", r.get("ratingKey")), r.get("title"), r.get("grandparentTitle", ""), player.get("state", ""), min(progress, 100) if progress is not None else None))
+        if re.fullmatch(r"[0-9]{1,10}", str(r.get("ratingKey", ""))):
+            values[-1]["imageId"] = str(r["ratingKey"])
+            if isinstance(machine, str) and re.fullmatch(r"[A-Za-z0-9-]{1,128}", machine):
+                base = website(s) or t.url + "/web"
+                if base.endswith("/web"):
+                    base += "/index.html"
+                values[-1]["url"] = base.rstrip("/") + "#!/server/" + machine + "/details?key=%2Flibrary%2Fmetadata%2F" + str(r["ratingKey"])
     return result(values, [{"label": "Actieve streams", "value": str(len(values))}])
 
 
@@ -88,15 +102,21 @@ def seerr(t, s):
     for index, r in enumerate(rows):
         media = r.get("media") or {}
         title = media.get("title")
+        poster = media.get("posterPath")
         kind, identifier = r.get("type"), media.get("tmdbId")
         # Enrich only a few missing titles, with a short timeout and an honest ID fallback.
-        if not title and index < 5 and kind in ("movie", "tv") and type(identifier) is int and identifier > 0:
+        if (not title or not poster) and index < 10 and kind in ("movie", "tv") and type(identifier) is int and identifier > 0:
             try:
                 details = t.call(f"/api/v1/{kind}/{identifier}", headers=headers, timeout=1.5)
-                title = details.get("title") or details.get("name")
+                title = title or details.get("title") or details.get("name")
+                poster = poster or details.get("posterPath")
             except ProviderError:
                 pass
         values.append(item(r["id"], title or f"{text(kind)} #{text(identifier)}", "", statuses.get(r["status"], "Onbekend"), date=r.get("createdAt")))
+        if kind in ("movie", "tv") and type(identifier) is int and identifier > 0:
+            values[-1]["url"] = (website(s) or t.url) + f"/{kind}/{identifier}"
+        if isinstance(poster, str) and re.fullmatch(r"/[A-Za-z0-9_.-]+", poster):
+            values[-1]["imageUrl"] = "https://image.tmdb.org/t/p/w185" + poster
     return result(values)
 
 
@@ -131,7 +151,7 @@ def statistics_payload(payload):
         raise ProviderError("Ongeldige statistieken.")
     values = []
     for offer in records(payload["offers"], 10):
-        if set(offer) != {"id", "title", "url", "priceCents", "currency", "firstSeenAt", "site"}:
+        if set(offer) - {"imageUrl"} != {"id", "title", "url", "priceCents", "currency", "firstSeenAt", "site"}:
             raise ProviderError("Ongeldige aanbieding.")
         url = offer["url"]
         if not isinstance(url, str) or len(url) > 1024 or any(ord(c) < 33 for c in url) or "\\" in url:
@@ -149,6 +169,11 @@ def statistics_payload(payload):
             if not isinstance(offer[field], str) or not 1 <= len(offer[field]) <= limit:
                 raise ProviderError("Ongeldige aanbieding.")
         value = dict(offer)
+        if "imageUrl" in offer:
+            image = display_url(offer["imageUrl"], image=True)
+            if image is None:
+                raise ProviderError("Ongeldige productafbeelding.")
+            value["imageUrl"] = image
         value["firstSeenAt"] = timestamp(offer["firstSeenAt"])
         values.append(value)
     if len({o["id"] for o in values}) != len(values):

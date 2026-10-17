@@ -6,7 +6,7 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qsl
 from ipaddress import ip_address
 import requests
 
@@ -17,7 +17,9 @@ def export_offers(database, email):
     path = Path(database).resolve(strict=True)
     with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as db:
         db.row_factory = sqlite3.Row
-        rows = db.execute("""SELECT a.id, a.title, a.url, a.price_cents, a.currency, a.first_seen_at, a.site
+        has_image = "thumbnail_url" in {r[1] for r in db.execute("PRAGMA table_info(ads)")}
+        image_column = "a.thumbnail_url" if has_image else "NULL"
+        rows = db.execute(f"""SELECT a.id, a.title, a.url, a.price_cents, a.currency, a.first_seen_at, a.site, {image_column} AS thumbnail_url
             FROM ads a JOIN profiles p ON p.id=a.profile_id JOIN users u ON u.id=p.user_id
             WHERE lower(u.email)=? AND a.is_active=1 AND a.is_hidden=0
               AND p.is_results_hidden=0 AND a.viewed_at IS NULL
@@ -32,6 +34,11 @@ def export_offers(database, email):
         stamp = stamp.replace(tzinfo=timezone.utc) if stamp.tzinfo is None else stamp
         values.append({"id": str(row["id"]), "title": row["title"][:200], "url": row["url"], "priceCents": row["price_cents"],
                        "currency": row["currency"] or "EUR", "firstSeenAt": stamp.astimezone(timezone.utc).isoformat(), "site": row["site"][:80]})
+        image = row["thumbnail_url"]
+        if isinstance(image, str) and len(image) <= 2048 and not any(ord(c) < 33 for c in image) and "\\" not in image:
+            parsed = urlsplit(image)
+            if parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password and not any(k.casefold() in {"token", "access_token", "apikey", "api_key", "password", "secret", "signature", "sig", "x-amz-signature", "x-amz-credential"} for k, _ in parse_qsl(parsed.query)):
+                values[-1]["imageUrl"] = image
     return {"schemaVersion": 1, "offers": values, "generatedAt": datetime.now(timezone.utc).isoformat()}
 
 

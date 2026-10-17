@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {loadBindings,transform} from 'next/dist/build/swc/index.js';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {serviceWidgets,widgetPath,safeEmbed,offerLink,widgetDate,widgetRequest,validateWidgetData,validateWidgetSources} from '../lib/service-widgets.ts';
+import {serviceWidgets,widgetPath,safeEmbed,offerLink,widgetDate,widgetRequest,validateWidgetData,validateWidgetSources,safeImage,mediaSourceRows} from '../lib/service-widgets.ts';
 import {moduleOptions} from '../lib/dashboard-modules.ts';
 
 await loadBindings();
@@ -58,4 +58,25 @@ test('widget API normal, boundary and authorization failures are safe and never 
  for(const status of [401,403,404,503])await assert.rejects(widgetRequest('/api/widgets/downloads/source',signal,async()=>new Response('secret credentials',{status})),e=>!e.message.includes('secret')&&e.denied===[401,403,404].includes(status));
  await assert.rejects(widgetRequest('/api/widgets/downloads/source',signal,async()=>new Response('bad json')),/Ongeldig antwoord/);
  await assert.rejects(widgetRequest('/api/widgets/downloads/source',signal,async()=>{throw new Error('secret');}),/niet bereikbaar/);
+});
+
+
+test('object artwork and links normal: image and title open the same item without sending referrers',()=>{
+ const html=render({...empty,items:[{id:'1',title:'Movie',subtitle:'',status:'',url:'https://seerr.example.test/movie/1',imageUrl:'https://images.example.test/movie.jpg'}]});
+ assert.match(html,/<img/);assert.match(html,/referrerPolicy="no-referrer"/);assert.match(html,/aria-label="Open Movie"/);assert.equal((html.match(/href="https:\/\/seerr.example.test\/movie\/1"/g)||[]).length,2);
+ assert.equal(safeImage('/api/widget-images/plex/123'),'/api/widget-images/plex/123');
+});
+test('object artwork boundary: missing image has a stable accessible fallback',()=>{
+ assert.match(render({...empty,items:[{id:'1',title:'No poster',subtitle:'',status:''}]}),/Geen afbeelding voor No poster/);
+ assert.doesNotMatch(render(empty),/<img/);
+});
+test('object artwork rejection: script, credentials, mixed content and arbitrary local paths',()=>{
+ for(const url of ['javascript:alert(1)','http://images.example.test/a.jpg','https://user:pass@host/a','https://host/a?token=secret','/api/accounts','//evil.example.test/a'])assert.throws(()=>safeImage(url));
+ assert.throws(()=>validateWidgetData({...empty,items:[{id:'1',title:'One',subtitle:'',status:'',imageUrl:'javascript:alert(1)'}]}));
+});
+test('Media groups reuse only authorized media families: normal, empty and malformed responses',()=>{
+ const row={id:'one',title:'One',kind:'qbittorrent'};
+ assert.deepEqual(mediaSourceRows([{sources:[row]},{sources:[]},{sources:[]}]),[{...row,family:'downloads'}]);
+ assert.deepEqual(mediaSourceRows([{sources:[]},{sources:[]},{sources:[]}]),[]);
+ assert.throws(()=>mediaSourceRows([]));assert.throws(()=>mediaSourceRows([{sources:[{}]},{sources:[]},{sources:[]}]));
 });

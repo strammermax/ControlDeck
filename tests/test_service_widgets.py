@@ -202,3 +202,13 @@ def test_transport_fixed_tls_bounded_responses_and_safe_errors(monkeypatch, mode
     assert session.request.call_args.kwargs["allow_redirects"] is False
     assert session.request.call_args.kwargs["verify"] is True
     transport.close();session.close.assert_called_once()
+
+
+def test_offer_image_is_optional_but_must_be_safe_https():
+    from backend.widgets.adapters import statistics_payload
+    offer={'id':'1','title':'Offer','url':'https://shop.example.test/item/1','priceCents':None,'currency':'EUR','site':'Shop','firstSeenAt':'2026-10-16T10:00:00Z'}
+    payload={'schemaVersion':1,'generatedAt':'2026-10-16T10:00:00Z','offers':[offer]}
+    assert 'imageUrl' not in statistics_payload(payload)['offers'][0]
+    assert statistics_payload({**payload,'offers':[{**offer,'imageUrl':'https://images.example.test/one.jpg'}]})['offers'][0]['imageUrl'].endswith('/one.jpg')
+    for image in ['http://images.example.test/one.jpg','javascript:alert(1)','https://host/a?token=secret']:
+        with pytest.raises(ProviderError):statistics_payload({**payload,'offers':[{**offer,'imageUrl':image}]})
