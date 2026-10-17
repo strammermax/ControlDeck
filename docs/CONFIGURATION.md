@@ -61,7 +61,7 @@ Menu-items hebben `id`, `label`, optionele `icon` en precies één van `route`, 
 
 De statische widgetdefinities hebben `id`, `enabled`, `title`, `provider` en `route`. Ze worden gevalideerd en alleen voor toegestane modules teruggegeven. De persoonlijke [dashboardindelingen](DASHBOARD.md) worden afzonderlijk in private SQLite opgeslagen; de eerste editor ondersteunt eigen app-links en verwijzingen naar bestaande Homepage-apps. Statische widgetdefinities worden daarmee nog niet automatisch tot dashboardwidgets omgezet.
 
-`site` bevat `title`, `subtitle`, `logo` (lokaal absoluut assetpad), `defaultTheme` (dark/light), `refreshSeconds` (5..3600), `footerText`, `supportLabel` en `supportUrl`. Een persoonlijke themavoorkeur gaat vóór het standaardthema.
+`site` bevat `title`, optioneel `subtitle` (laat weg om alleen de titel te tonen), `logo` (lokaal absoluut assetpad), `defaultTheme` (dark/light), `refreshSeconds` (5..3600), `footerText`, `supportLabel` en `supportUrl`. Een persoonlijke themavoorkeur gaat vóór het standaardthema.
 
 ## Opslag en updates
 

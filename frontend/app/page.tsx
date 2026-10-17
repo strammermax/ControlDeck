@@ -194,7 +194,7 @@ export default function Home() {
   return <>
     <a className="skip" href="#workspace">Ga naar inhoud</a>
     <header className="topbar">
-      <a className="brand" href={`#${firstRoute(config.menu) ?? destinations[0]?.id}`}><img src={site.logo} alt="" className="logo" /><span><h1>{site.title}</h1><span className="subtitle">{site.subtitle}</span></span></a>
+      <a className="brand" href={`#${firstRoute(config.menu) ?? destinations[0]?.id}`}><img src={site.logo} alt="" className="logo" /><span><h1>{site.title}</h1>{site.subtitle && <span className="subtitle">{site.subtitle}</span>}</span></a>
       <div className="tools">
         <GlobalSearch key={`${auth.user?.email}:${config.modules.map(module => module.id).join(",")}`} csrfToken={auth.csrfToken!} onNavigate={(route, dashboardId) => {if (dashboardId) setDashboardSelection({id: dashboardId, token: Date.now()}); window.location.hash = route;}}/>
         <details ref={userMenu} className="user-menu">

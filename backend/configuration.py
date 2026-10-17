@@ -51,9 +51,12 @@ def validate(config):
     fields(config, ["schemaVersion", "site", "modules", "menu", "providers", "widgets"], ["schemaVersion", "site", "modules", "menu"], "config")
     require(type(config["schemaVersion"]) is int and config["schemaVersion"] == 1, "Unsupported schemaVersion")
     site = config["site"]
-    fields(site, ["title", "subtitle", "logo", "defaultTheme", "refreshSeconds", "footerText", "supportLabel", "supportUrl"], ["title", "subtitle", "logo", "defaultTheme", "refreshSeconds", "footerText", "supportLabel", "supportUrl"], "site")
-    for key in ("title", "subtitle", "footerText", "supportLabel"):
+    fields(site, ["title", "subtitle", "logo", "defaultTheme", "refreshSeconds", "footerText", "supportLabel", "supportUrl"], ["title", "logo", "defaultTheme", "refreshSeconds", "footerText", "supportLabel", "supportUrl"], "site")
+    for key in ("title", "footerText", "supportLabel"):
         text(site[key], f"site.{key}")
+    # The subtitle under the title is optional; leave it out to show only the title.
+    if "subtitle" in site:
+        text(site["subtitle"], "site.subtitle")
     text(site["logo"], "site.logo", 2048)
     require(site["logo"].startswith("/") and not site["logo"].startswith("//") and not any(c.isspace() or c == "\\" for c in site["logo"]), "site.logo: expected local absolute asset path")
     require(site["defaultTheme"] in ("dark", "light"), "site.defaultTheme: dark or light required")
