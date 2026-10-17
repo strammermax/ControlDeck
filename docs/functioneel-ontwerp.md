@@ -87,6 +87,17 @@ Media presenteert relevante toepassingen zonder gevoelige gebruiksinformatie bre
 | Dashboard | Je eigen dashboard waarop je alles kunt plaatsen, inclusief elementen uit Bookmarks, Proxmox en andere modules. |
 | Files | Webbestandsbeheer om bestanden te downloaden en te uploaden. Voorkeur: Nextcloud geïntegreerd in ControlDeck. |
 
+Status en vervolgstappen:
+
+| Categorie | Status | Volgende stap |
+| --- | --- | --- |
+| Terminal | Gereed (Termix, zie [TERMIX.md](TERMIX.md)) | Geen |
+| Dashboard | Persoonlijke dashboards met modules, apps en links (zie [DASHBOARD.md](DASHBOARD.md)) | Meer elementen uit modules plaatsbaar maken |
+| Proxmox | Overzicht met verplaatsbare en schaalbare widgets (zie [LAYOUTS.md](LAYOUTS.md)) | Voorstel voor de invulling van het infra-overzicht |
+| Media | Mediawidgets in ontwikkeling | Overzichtsdashboard; daarna submenu's Downloads, Requests, Movies, Series, Audio, Plex en Jellyfin; aansluiten op persoonlijke indeling (pagina-ID `media` is voorbereid) |
+| Virtual Apps | Kasm en Nextcloud starten via app-launches (zie [APP-LAUNCHES.md](APP-LAUNCHES.md)) | Eén overzicht van alle startbare apps |
+| Files | Nog niet gebouwd | Ontwerp: bladeren, uploaden en downloaden via Nextcloud-WebDAV (`cloud.vanburik.info`) met een persoonlijk app-wachtwoord per gebruiker, opgeslagen zoals de Linkwarden-tokens |
+
 ## 5. Belangrijkste gebruikersprocessen
 
 ### 5.1 Een dienst openen
