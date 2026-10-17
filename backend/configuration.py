@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 DEFAULT_PATH = Path(__file__).resolve().parent.parent / "config" / "controldeck.json"
-ICONS = {"dashboard", "virtual-apps", "bookmarks", "proxmox", "media", "terminal", "admin"}
+ICONS = {"dashboard", "virtual-apps", "bookmarks", "proxmox", "media", "files", "terminal", "admin"}
 
 
 class ConfigurationError(ValueError):

@@ -71,11 +71,6 @@
           "route": "proxmox/storage"
         },
         {
-          "id": "files",
-          "label": "Files",
-          "route": "files"
-        },
-        {
           "id": "network",
           "label": "Network",
           "route": "network"
@@ -108,6 +103,12 @@
           "route": "plex"
         }
       ]
+    },
+    {
+      "id": "files",
+      "label": "Files",
+      "icon": "files",
+      "route": "files"
     },
     {
       "id": "terminal",

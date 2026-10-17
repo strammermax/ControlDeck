@@ -6,6 +6,7 @@ const drawings: Record<string, ReactNode> = {
   bookmarks: <><path d="m12 3 5 3-5 3-5-3 5-3Zm-6 7 5 3-5 3-5-3 5-3Zm12 0 5 3-5 3-5-3 5-3ZM1 13v5l5 3 5-3v-5m2 0v5l5 3 5-3v-5M7 6v4m10-4v4"/></>,
   proxmox: <><rect x="3" y="3" width="18" height="7" rx="1"/><rect x="3" y="14" width="18" height="7" rx="1"/><path d="M6 6h1m-1 11h1"/></>,
   media: <><ellipse cx="10" cy="5" rx="7" ry="3"/><path d="M3 5v12c0 2 3 3 7 3M17 5v6M3 11c0 2 3 3 7 3"/><path d="m15 14 6 4-6 4v-8Z"/></>,
+  files: <><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Z"/><path d="M12 11v5m-2.5-2.5L12 16l2.5-2.5"/></>,
   terminal: <><path d="m4 5 6 6-6 6m9 1h7"/></>,
   language: <><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></>,
   layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></>,

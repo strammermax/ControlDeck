@@ -18,7 +18,11 @@ def configuration(tmp_path):
 
 def test_split_configuration_and_private_projection(configuration):
     result = load_config(configuration)
-    assert len(result["menu"]) == 7
+    assert len(result["menu"]) == 8
+    # Files is its own category (requirements 2026-10-17), not hidden in the Proxmox submenu.
+    files = next(item for item in result["menu"] if item["id"] == "files")
+    assert files["route"] == "files" and files["icon"] == "files"
+    assert all(child["id"] != "files" for item in result["menu"] for child in item.get("children", []))
     assert result["widgets"] == []
     assert {provider["id"] for provider in result["providers"]} == {"kasm", "nextcloud", "radarr", "plex", "termix"}
     assert "tokenEnv" not in json.dumps(result)

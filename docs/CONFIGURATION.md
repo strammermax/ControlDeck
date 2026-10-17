@@ -57,7 +57,7 @@ Voorbeeld `modules/kasm.json`:
 
 Een integration-module toont het ingestelde adres en een knop die de toepassing opent. Authenticatie bij die toepassing blijft van de toepassing zelf. `view` kan ook `empty` of `placeholder` zijn. Via `pages` kan een module subpagina's definiëren met `id`, `title` en optionele `description`; de route is dan `module-id/page-id`.
 
-Menu-items hebben `id`, `label`, optionele `icon` en precies één van `route`, `url` of `children`. `enabled: false` verbergt het item. Modules en providers kunnen afzonderlijk worden uitgeschakeld; onbeschikbare routes verdwijnen uit het menu en lege dropdowns worden weggelaten. Pictogrammen: `dashboard`, `virtual-apps`, `bookmarks`, `proxmox`, `media`, `terminal`, `admin`.
+Menu-items hebben `id`, `label`, optionele `icon` en precies één van `route`, `url` of `children`. `enabled: false` verbergt het item. Modules en providers kunnen afzonderlijk worden uitgeschakeld; onbeschikbare routes verdwijnen uit het menu en lege dropdowns worden weggelaten. Pictogrammen: `dashboard`, `virtual-apps`, `bookmarks`, `proxmox`, `media`, `files`, `terminal`, `admin`. Files is een eigen hoofdcategorie tussen Media en Terminal.
 
 De statische widgetdefinities hebben `id`, `enabled`, `title`, `provider` en `route`. Ze worden gevalideerd en alleen voor toegestane modules teruggegeven. De persoonlijke [dashboardindelingen](DASHBOARD.md) worden afzonderlijk in private SQLite opgeslagen; de eerste editor ondersteunt eigen app-links en verwijzingen naar bestaande Homepage-apps. Statische widgetdefinities worden daarmee nog niet automatisch tot dashboardwidgets omgezet.
 
