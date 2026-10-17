@@ -28,7 +28,8 @@ PROPFIND = ('<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resource
 
 
 class FilesError(Exception):
-    status = 502
+    # Not 502: Cloudflare replaces origin 502 responses with its own page, hiding this message.
+    status = 424
 
 
 class RelinkError(FilesError):

@@ -132,12 +132,12 @@ def test_login_flow_faal_wrong_email_foreign_server_and_no_flow(env):
     c, result = link(client, routes, email="user@example.test")
     routes[("GET", SERVER + "/ocs/v2.php/cloud/user")] = reply(200, {"ocs": {"data": {"email": "someone@else.test"}}})
     c.post("/api/files/connection", headers=H)
-    assert c.post("/api/files/connection/poll", headers=H).status_code == 502
+    assert c.post("/api/files/connection/poll", headers=H).status_code == 424
     assert any(method == "DELETE" for method, url, _ in calls), "a mismatching app password is revoked immediately"
     other = client("other@example.test")
     assert other.post("/api/files/connection/poll", headers=H).status_code == 409, "no running flow"
     routes[("POST", SERVER + "/index.php/login/v2")] = reply(200, {"login": "https://evil.test/login", "poll": {"token": "t" * 64, "endpoint": SERVER + "/p"}})
-    assert other.post("/api/files/connection", headers=H).status_code == 502
+    assert other.post("/api/files/connection", headers=H).status_code == 424
 
 
 def test_browse_download_upload_normaal(env):
@@ -196,7 +196,7 @@ def test_files_faal_refusals_and_upstream_errors(env):
     revoked = c.get("/api/files/list")
     assert revoked.status_code == 409 and revoked.get_json()["relink"] is True
     routes[("PROPFIND", SERVER + "/remote.php/dav/files/")] = lambda url, kwargs: files.requests.ConnectionError()
-    assert c.get("/api/files/list").status_code == 502
+    assert c.get("/api/files/list").status_code == 424
 
 
 def test_files_authentication_csrf_and_authorization(env):
@@ -214,3 +214,17 @@ def test_files_authentication_csrf_and_authorization(env):
     admin = client("admin@example.test")
     assert admin.put("/api/files/server", json={"url": "https://other-cloud.example.test"}, headers=H).status_code == 200
     assert client().get("/api/files/connection").get_json()["linked"] is False, "a new server never receives the old password"
+
+
+def test_regression_upstream_errors_are_not_502_so_cloudflare_keeps_the_message(env):
+    """Bug 2026-10-17: a refused link showed only "Files is niet beschikbaar".
+    Cause: Files answered upstream errors with 502, which Cloudflare replaces by its own error page,
+    so the JSON message (here: e-mail mismatch) never reached the browser."""
+    client, routes, calls = env
+    routes[("DELETE", SERVER + "/ocs/v2.php/core/apppassword")] = reply(200, {})
+    c, _ = link(client, routes, email="user@example.test")
+    routes[("GET", SERVER + "/ocs/v2.php/cloud/user")] = reply(200, {"ocs": {"data": {"email": "strammerm@example.test"}}})
+    c.post("/api/files/connection", headers=H)
+    refused = c.post("/api/files/connection/poll", headers=H)
+    assert refused.status_code < 500, "Cloudflare rewrites 5xx origin errors"
+    assert "e-mailadres" in refused.get_json()["error"]
