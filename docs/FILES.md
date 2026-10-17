@@ -2,6 +2,16 @@
 
 Status: **ontwerp, nog niet gebouwd** (2026-10-17). Eis F-04 uit het [functioneel ontwerp](functioneel-ontwerp.md): bestanden bladeren, uploaden en downloaden binnen ControlDeck, met Nextcloud als opslag.
 
+## Hoofddoel
+
+**Vanaf de werkplek bij je eigen bestanden kunnen via ControlDeck** (`https://controldeck.vanburik.info`), zonder VPN, zonder extra software en zonder Nextcloud apart te openen. Gevolgen voor het ontwerp:
+
+- Alles loopt via het bestaande HTTPS-adres achter Cloudflare Access en de ControlDeck-login. Werkplekfirewalls zien alleen gewoon HTTPS-verkeer naar één domein.
+- Begin in de **hele** eigen Nextcloud-map, niet in een submap.
+- Downloaden is het belangrijkste; dat moet ook bij grote bestanden betrouwbaar zijn. De nginx-downloadroute (`X-Accel-Redirect`, zie onder) komt daarom in de eerste versie in plaats van fase 2.
+- Bestanden die nu op de NAS staan, worden in Nextcloud zichtbaar gemaakt met de Nextcloud-app **External storage** (bijvoorbeeld een SMB/NFS-share van pve-nas). ControlDeck hoeft daarvoor niets extra's te kunnen.
+- Op een werkplek-pc blijft niets achter: geen opgeslagen wachtwoorden in de browser, de sessie verloopt na 8 uur.
+
 ## Doel en afbakening
 
 - Per gebruiker toegang tot de **eigen** Nextcloud-bestanden op `cloud.vanburik.info` (LXC 163, pve-nas), zonder Nextcloud apart te openen.
@@ -56,7 +66,7 @@ Alle routes vereisen aanmelding en recht op module `files`; schrijfacties vereis
 - **Streaming**: up- en downloads gaan in blokken door, nooit volledig in het geheugen (LXC 164 heeft weinig RAM).
 - **Cloudflare** begrenst een verzoek op 100 MB. Uploads gebruiken daarom Nextcloud **chunked upload v2**: de browser stuurt delen van 50 MB, ControlDeck zet ze door naar `/remote.php/dav/uploads/...` en laat Nextcloud ze samenvoegen. Voortgangsbalk en hervatten per deel.
 - De globale aanvraaglimiet van ControlDeck (16 KiB) geldt niet voor de upload-route; daar geldt de deelgrootte als maximum. Nginx `client_max_body_size` wordt daarop afgestemd.
-- **Capaciteit**: Gunicorn draait met 1 worker en 2 threads. Een lange download houdt een thread bezet. Fase 2: nginx laat de download zelf doen via `X-Accel-Redirect` naar een interne Nextcloud-locatie (Python controleert alleen rechten en pad), zodat ControlDeck vrij blijft.
+- **Capaciteit**: Gunicorn draait met 1 worker en 2 threads. Een lange download houdt een thread bezet. Eerste versie: nginx laat de download zelf doen via `X-Accel-Redirect` naar een interne Nextcloud-locatie (Python controleert alleen rechten en pad), zodat ControlDeck vrij blijft.
 
 ## Beveiliging
 
@@ -87,7 +97,8 @@ Alle routes vereisen aanmelding en recht op module `files`; schrijfacties vereis
 1. Koppelen via **Login Flow v2** (aanbevolen) of alleen handmatig app-wachtwoord?
 2. Maximale bestandsgrootte voor upload (voorstel: 10 GB via chunks)?
 3. Hoort hernoemen/verplaatsen al in de eerste versie?
-4. Hele Nextcloud-map tonen, of beginnen in een vaste map (bijvoorbeeld `/ControlDeck`)?
+4. ~~Hele map of vaste map~~ Besloten: hele eigen Nextcloud-map.
+5. Op welke plek staan de bestanden die je vanaf je werk wilt bereiken: al in Nextcloud, of (ook) op de NAS? In het tweede geval eerst External storage in Nextcloud inrichten.
 
 ## Bronnen
 
