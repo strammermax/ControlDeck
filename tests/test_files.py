@@ -216,6 +216,34 @@ def test_files_authentication_csrf_and_authorization(env):
     assert client().get("/api/files/connection").get_json()["linked"] is False, "a new server never receives the old password"
 
 
+class _WsgiInput:
+    """Like gunicorn's wsgi.input: readable, but no tell/seek/len."""
+
+    def __init__(self, data):
+        self._data = io.BytesIO(data)
+
+    def read(self, size=-1):
+        return self._data.read(size)
+
+
+def test_upload_body_carries_its_length_without_chunked_encoding(env):
+    """Uploads pass the WSGI body with its known length, so it is never sent chunked; the length is not
+    also given as a second header. (Investigated for the 2026-10-17 upload failure; not its proven cause.)"""
+    import requests as real_requests
+    client, routes, calls = env
+    c, _ = link(client, routes)
+    routes[("PUT", SERVER + "/remote.php/dav/files/")] = reply(201)
+    assert c.put("/api/files/upload?path=a.png", data=b"x" * 50000, headers=H).status_code == 201
+    method, url, kwargs = [call for call in calls if call[0] == "PUT"][-1]
+    assert "Content-Length" not in kwargs["headers"], "the length comes from the body, never as a second header"
+    assert len(kwargs["data"]) == 50000
+    # Rebuild the request as requests sends it, with a gunicorn-like non-seekable stream.
+    body = files.SizedStream(_WsgiInput(b"x" * 50000), 50000)
+    prepared = real_requests.Request("PUT", url, data=body, headers=kwargs["headers"]).prepare()
+    assert prepared.headers.get("Content-Length") == "50000"
+    assert "Transfer-Encoding" not in prepared.headers
+
+
 def test_regression_upstream_errors_are_not_502_so_cloudflare_keeps_the_message(env):
     """Bug 2026-10-17: a refused link showed only "Files is niet beschikbaar".
     Cause: Files answered upstream errors with 502, which Cloudflare replaces by its own error page,

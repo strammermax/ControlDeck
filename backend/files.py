@@ -27,6 +27,19 @@ PROPFIND = ('<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resource
             '<d:getlastmodified/><d:getcontenttype/></d:prop></d:propfind>')
 
 
+class SizedStream:
+    """A request body with a known length, so requests sends it with Content-Length instead of chunked."""
+
+    def __init__(self, stream, length):
+        self.stream, self.length = stream, length
+
+    def __len__(self):
+        return self.length
+
+    def read(self, size=-1):
+        return self.stream.read(size)
+
+
 class FilesError(Exception):
     # Not 502: Cloudflare replaces origin 502 responses with its own page, hiding this message.
     status = 424
@@ -166,13 +179,15 @@ def setup_files(app, configuration_path, data_dir):
     def expect(response, ok, message):
         if response.status_code not in ok:
             response.close()
+            # Status and method only: never URLs with personal paths, headers or credentials.
+            app.logger.warning('Files upstream %s gaf status %s', response.request.method if getattr(response, 'request', None) else '?', response.status_code)
             if response.status_code in (404,):
                 raise FilesError('Bestand of map niet gevonden.')
             if response.status_code in (405, 412):
                 raise ConflictError('Er bestaat al een bestand of map met die naam.')
             if response.status_code == 507:
                 raise FilesError('Onvoldoende opslagruimte in Nextcloud.')
-            raise FilesError(message)
+            raise FilesError(f'{message} (Nextcloud-status {response.status_code})')
         return response
 
     def body_path(name='path', allow_root=False):
@@ -310,7 +325,7 @@ def setup_files(app, configuration_path, data_dir):
         if length is None or length < 0 or length > CHUNK_SIZE:
             raise ValueError(f'Stuur hooguit {CHUNK_SIZE // (1024 * 1024)} MB per verzoek.')
         request.max_content_length = CHUNK_SIZE
-        return request.stream, length
+        return SizedStream(request.stream, length), length
 
     @app.put('/api/files/upload')
     def files_upload():
@@ -320,7 +335,7 @@ def setup_files(app, configuration_path, data_dir):
         except ValueError as error:
             return jsonify(error=str(error)), 400
         overwrite = request.args.get('overwrite') == '1'
-        response, _, _ = dav('PUT', segments, data=stream, headers={'Content-Length': str(length), **({} if overwrite else {'If-None-Match': '*'})})
+        response, _, _ = dav('PUT', segments, data=stream, headers={} if overwrite else {'If-None-Match': '*'})
         expect(response, (201, 204), 'Uploaden mislukt.')
         return jsonify(ok=True), 201
 
@@ -354,7 +369,7 @@ def setup_files(app, configuration_path, data_dir):
         except ValueError as error:
             return jsonify(error=str(error)), 400
         response, _, _ = dav('PUT', [upload, f'{index:05d}'], base='uploads', data=stream,
-                             headers={'Content-Length': str(length), 'Destination': destination(segments)})
+                             headers={'Destination': destination(segments)})
         expect(response, (201, 204), 'Uploaden van een deel mislukt.')
         return jsonify(ok=True), 201
 
