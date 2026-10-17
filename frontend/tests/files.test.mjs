@@ -46,6 +46,11 @@ test('files request faal/autorisatie: CSRF on writes, relink flag and refused ro
     globalThis.fetch = async (url, init) => { calls.push([url, init]); return {ok: false, status: 409, json: async () => ({error: 'Koppel eerst', relink: true})}; };
     await assert.rejects(() => filesRequest('/list'), error => error instanceof FilesRequestError && error.relink && error.status === 409);
     await assert.rejects(() => filesRequest('https://evil.test'), /Ongeldige/);
+    // Regression 2026-10-17: an HTML error page (413 from the server, or Cloudflare) showed only
+    // "Files is niet beschikbaar."; the status is now part of the message.
+    globalThis.fetch = async (url, init) => { calls.push([url, init]); return {ok: false, status: 413, json: async () => { throw new SyntaxError('html'); }}; };
+    await assert.rejects(() => filesRequest('/upload?path=a'), /status 413/);
+    calls.pop();
     assert.equal(calls.length, 1);
     globalThis.fetch = async (url, init) => { calls.push([url, init]); return {ok: true, status: 201, json: async () => ({ok: true})}; };
     await filesRequest('/folder', 'token', 'POST', {path: 'Nieuw'});

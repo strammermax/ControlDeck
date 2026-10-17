@@ -63,6 +63,6 @@ export async function filesRequest<T>(route: string, csrf = "", method = "GET", 
     body: raw ? body as BodyInit | undefined : JSON.stringify(body),
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new FilesRequestError(typeof result.error === "string" ? result.error : "Files is niet beschikbaar.", response.status, result.relink === true);
+  if (!response.ok) throw new FilesRequestError(typeof result.error === "string" ? result.error : `Files is niet beschikbaar (status ${response.status}).`, response.status, result.relink === true);
   return result as T;
 }

@@ -28,16 +28,24 @@ PROPFIND = ('<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resource
 
 
 class SizedStream:
-    """A request body with a known length, so requests sends it with Content-Length instead of chunked."""
+    """A request body with a known length, so requests sends it with Content-Length instead of chunked.
+
+    Reads stop at the declared length and never touch the WSGI stream again. Under gunicorn the input
+    is "terminated" and Werkzeug enforces max_content_length as a hard cap: one more read at exactly
+    the cap raises 413, which broke every 32 MiB upload chunk (bug 2026-10-17)."""
 
     def __init__(self, stream, length):
-        self.stream, self.length = stream, length
+        self.stream, self.length, self.remaining = stream, length, length
 
     def __len__(self):
         return self.length
 
     def read(self, size=-1):
-        return self.stream.read(size)
+        if self.remaining <= 0:
+            return b''
+        data = self.stream.read(self.remaining if size is None or size < 0 else min(size, self.remaining))
+        self.remaining -= len(data)
+        return data
 
 
 class FilesError(Exception):

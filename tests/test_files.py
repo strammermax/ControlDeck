@@ -42,7 +42,9 @@ def env(tmp_path, monkeypatch):
     def fake(method, url, **kwargs):
         calls.append((method, url, kwargs))
         if kwargs.get("data") is not None and hasattr(kwargs["data"], "read"):
-            kwargs["data"].read()
+            # Like urllib3: read blocks until an empty read.
+            while kwargs["data"].read(8192):
+                pass
         for (m, prefix), value in routes.items():
             if m == method and url.startswith(prefix):
                 result = value(url, kwargs) if callable(value) and not isinstance(value, Mock) else value
@@ -242,6 +244,43 @@ def test_upload_body_carries_its_length_without_chunked_encoding(env):
     prepared = real_requests.Request("PUT", url, data=body, headers=kwargs["headers"]).prepare()
     assert prepared.headers.get("Content-Length") == "50000"
     assert "Transfer-Encoding" not in prepared.headers
+
+
+def test_regression_chunk_of_exactly_the_limit_under_terminated_input(env, monkeypatch):
+    """Bug 2026-10-17: every large upload failed on its first 32 MiB chunk with a 413.
+    Cause: gunicorn marks wsgi.input as terminated, so Werkzeug enforces max_content_length as a hard
+    cap; reading until an empty read touched the stream again at exactly the cap and raised 413."""
+    client, routes, calls = env
+    c, _ = link(client, routes)
+    routes[("MKCOL", SERVER + "/remote.php/dav/uploads/camiel/")] = reply(201)
+    routes[("PUT", SERVER + "/remote.php/dav/uploads/camiel/")] = reply(201)
+    monkeypatch.setattr(files, "CHUNK_SIZE", 64 * 1024)
+    upload = c.post("/api/files/uploads", json={"path": "film.mkv", "size": 10 * 64 * 1024}, headers=H).get_json()["id"]
+    exact = c.put(f"/api/files/uploads/{upload}/1?path=film.mkv", data=b"x" * (64 * 1024), headers=H,
+                  environ_overrides={"wsgi.input_terminated": True})
+    assert exact.status_code == 201, exact.get_data(as_text=True)[:200]
+    sent = [kwargs["data"] for method, url, kwargs in calls if method == "PUT"][-1]
+    assert sent.remaining == 0 and len(sent) == 64 * 1024
+
+
+def test_sized_stream_normaal_boundary_faal():
+    class Strict:
+        """Raises like Werkzeug's capped stream when read past its end."""
+        def __init__(self, data):
+            self.data, self.pos = data, 0
+
+        def read(self, size=-1):
+            if self.pos >= len(self.data):
+                raise AssertionError("read past the declared length")
+            end = len(self.data) if size < 0 else self.pos + size
+            chunk = self.data[self.pos:end]
+            self.pos += len(chunk)
+            return chunk
+    stream = files.SizedStream(Strict(b"abcdef"), 6)
+    assert stream.read(4) == b"abcd" and stream.read(4) == b"ef" and stream.read(4) == b"" and stream.read() == b""
+    assert files.SizedStream(Strict(b""), 0).read() == b""
+    whole = files.SizedStream(Strict(b"abc"), 3)
+    assert whole.read() == b"abc" and whole.read(None) == b""
 
 
 def test_regression_upstream_errors_are_not_502_so_cloudflare_keeps_the_message(env):
