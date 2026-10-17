@@ -1,21 +1,21 @@
 # Files — ontwerp Nextcloud-bestandsbeheer in ControlDeck
 
-Status: **ontwerp, nog niet gebouwd** (2026-10-17). Eis F-04 uit het [functioneel ontwerp](functioneel-ontwerp.md): bestanden bladeren, uploaden en downloaden binnen ControlDeck, met Nextcloud als opslag.
+Status: **eerste versie gebouwd** (2026-10-17); nog niet getest tegen de echte Nextcloud. Eis F-04 uit het [functioneel ontwerp](functioneel-ontwerp.md): bestanden bladeren, uploaden en downloaden binnen ControlDeck, met Nextcloud als opslag.
 
 ## Hoofddoel
 
-**Vanaf de werkplek bij je eigen bestanden kunnen via ControlDeck** (`https://controldeck.vanburik.info`), zonder VPN, zonder extra software en zonder Nextcloud apart te openen. Gevolgen voor het ontwerp:
+**Vanaf de werkplek bij je eigen bestanden kunnen via ControlDeck** (`https://controldeck.vanburik.info`), zonder VPN, zonder extra software en zonder Nextcloud apart te openen. Op pc en telefoon draait de Nextcloud-client; op de werklaptop mag waarschijnlijk geen client worden geïnstalleerd. Daarom een webvariant die alleen een browser nodig heeft. Gevolgen voor het ontwerp:
 
 - Alles loopt via het bestaande HTTPS-adres achter Cloudflare Access en de ControlDeck-login. Werkplekfirewalls zien alleen gewoon HTTPS-verkeer naar één domein.
 - Begin in de **hele** eigen Nextcloud-map, niet in een submap.
 - Downloaden is het belangrijkste; dat moet ook bij grote bestanden betrouwbaar zijn. De nginx-downloadroute (`X-Accel-Redirect`, zie onder) komt daarom in de eerste versie in plaats van fase 2.
-- Bestanden die nu op de NAS staan, worden in Nextcloud zichtbaar gemaakt met de Nextcloud-app **External storage** (bijvoorbeeld een SMB/NFS-share van pve-nas). ControlDeck hoeft daarvoor niets extra's te kunnen.
+- Alleen de bestanden in Nextcloud zelf. De NAS wordt bewust niet gekoppeld (keuze 2026-10-17). Mocht dat later toch gewenst zijn, dan kan het met de Nextcloud-app **External storage**; ControlDeck hoeft daarvoor niets extra's te kunnen.
 - Op een werkplek-pc blijft niets achter: geen opgeslagen wachtwoorden in de browser, de sessie verloopt na 8 uur.
 
 ## Doel en afbakening
 
 - Per gebruiker toegang tot de **eigen** Nextcloud-bestanden op `cloud.vanburik.info` (LXC 163, pve-nas), zonder Nextcloud apart te openen.
-- Eerste versie: bladeren, downloaden, uploaden (ook groot), map maken, verwijderen (naar de Nextcloud-prullenbak).
+- Eerste versie: bladeren, downloaden, uploaden (ook groot), map maken, hernoemen, verplaatsen, verwijderen (naar de Nextcloud-prullenbak).
 - Niet in de eerste versie: delen, versies, bewerken in de browser, zoeken, synchronisatie. Daarvoor blijft **Open in Nextcloud** beschikbaar.
 - ControlDeck slaat **geen bestanden** op; Nextcloud blijft de enige bron.
 
@@ -64,9 +64,9 @@ Alle routes vereisen aanmelding en recht op module `files`; schrijfacties vereis
 ### Grote bestanden
 
 - **Streaming**: up- en downloads gaan in blokken door, nooit volledig in het geheugen (LXC 164 heeft weinig RAM).
-- **Cloudflare** begrenst een verzoek op 100 MB. Uploads gebruiken daarom Nextcloud **chunked upload v2**: de browser stuurt delen van 50 MB, ControlDeck zet ze door naar `/remote.php/dav/uploads/...` en laat Nextcloud ze samenvoegen. Voortgangsbalk en hervatten per deel.
-- De globale aanvraaglimiet van ControlDeck (16 KiB) geldt niet voor de upload-route; daar geldt de deelgrootte als maximum. Nginx `client_max_body_size` wordt daarop afgestemd.
-- **Capaciteit**: Gunicorn draait met 1 worker en 2 threads. Een lange download houdt een thread bezet. Eerste versie: nginx laat de download zelf doen via `X-Accel-Redirect` naar een interne Nextcloud-locatie (Python controleert alleen rechten en pad), zodat ControlDeck vrij blijft.
+- **Cloudflare** begrenst een verzoek op 100 MB. Uploads gebruiken daarom Nextcloud **chunked upload v2**: de browser stuurt delen van 32 MB, ControlDeck zet ze door naar `/remote.php/dav/uploads/...` en laat Nextcloud ze samenvoegen. Voortgangsbalk en hervatten per deel.
+- De globale aanvraaglimiet van ControlDeck (16 KiB) geldt niet voor de upload-route; daar geldt de deelgrootte (32 MB) als maximum, onder nginx `client_max_body_size 50m`. Nginx buffert `/api/files/` niet (`proxy_request_buffering off`, `proxy_buffering off`, time-outs 900 s).
+- **Capaciteit**: Een lange download houdt een Gunicorn-thread bezet; daarom draait Gunicorn nu met 6 in plaats van 2 threads. Downloads gaan in blokken van 1 MB door Python. Als dat in de praktijk te zwaar blijkt, laat nginx de download zelf doen via `X-Accel-Redirect` (Python controleert dan alleen rechten en pad).
 
 ## Beveiliging
 
@@ -84,7 +84,15 @@ Alle routes vereisen aanmelding en recht op module `files`; schrijfacties vereis
 - Melding met **Koppelen** als er nog geen koppeling is; **Open in Nextcloud** voor alles wat hier niet kan.
 - Later als dashboardmodule: "Recente bestanden" of een vaste map.
 
-## Tests (bij de bouw)
+## Inrichting
+
+1. Deploy van deze versie, en eenmalig als root de installatiewizard draaien zodat de nieuwe nginx-locatie (`deploy/termix-gateway.conf`) en de service met 6 threads (`deploy/controldeck.service`) worden geplaatst.
+2. Als admin: **Files** openen en het Nextcloud-adres invullen (`https://cloud.vanburik.info`). Dit wordt opgeslagen in `<data-dir>/files/server.json`.
+3. Iedere gebruiker: **Koppelen met Nextcloud**, aanmelden in het nieuwe venster en de toegang goedkeuren.
+
+Hernoemen, verplaatsen, nieuwe map, verwijderen en ontkoppelen staan alleen in de bewerkmodus. Bladeren, downloaden en uploaden altijd.
+
+## Tests
 
 - **Normaal**: koppelen, lijst, download, upload (enkel en chunked), map maken, verwijderen.
 - **Randgevallen**: lege map, spaties/Unicode in namen, precies 50 MB-deel, laatste kleine deel, diepe paden tot de limiet.
@@ -94,11 +102,11 @@ Alle routes vereisen aanmelding en recht op module `files`; schrijfacties vereis
 
 ## Open vragen
 
-1. Koppelen via **Login Flow v2** (aanbevolen) of alleen handmatig app-wachtwoord?
-2. Maximale bestandsgrootte voor upload (voorstel: 10 GB via chunks)?
-3. Hoort hernoemen/verplaatsen al in de eerste versie?
+1. ~~Login Flow v2 of handmatig~~ Besloten: Login Flow v2, handmatig app-wachtwoord als terugvaloptie.
+2. ~~Maximale uploadgrootte~~ Besloten: 10 GB per bestand, in delen van 32 MB.
+3. ~~Hernoemen/verplaatsen~~ Besloten: ja, in de eerste versie (alleen in de bewerkmodus).
 4. ~~Hele map of vaste map~~ Besloten: hele eigen Nextcloud-map.
-5. Op welke plek staan de bestanden die je vanaf je werk wilt bereiken: al in Nextcloud, of (ook) op de NAS? In het tweede geval eerst External storage in Nextcloud inrichten.
+5. ~~Waar staan de bestanden~~ Besloten: alleen Nextcloud. De NAS wordt niet gekoppeld; zo blijven synchronisatie en de NAS-inrichting ongewijzigd.
 
 ## Bronnen
 
