@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
-import {WidgetError,validateWidgetData,validateWidgetSources,widgetPath,widgetRequest,type ServiceFamily,type WidgetSource,type WidgetData} from "../../lib/service-widgets";
+import {WidgetError,offerLink,validateWidgetData,validateWidgetSources,widgetPath,widgetRequest,type ServiceFamily,type WidgetSource,type WidgetData} from "../../lib/service-widgets";
 import type {ModuleViewProps,ModuleSettingsProps} from "../contracts";
 import {ServiceCards} from "./cards";
 
@@ -23,7 +23,7 @@ export function serviceModule(family:ServiceFamily) {
       void load();const timer=setInterval(()=>void load(),60000);
       return()=>{active=false;controller.abort();clearInterval(timer);};
     },[id]);
-    return <section className="cd-service-widget">{!id?<p>Kies een bron via Aanpassen. Verbindingen worden centraal in Infisical ingericht.</p>:<>{data?.sourceTitle&&<p className="cd-widget-source">{data.sourceTitle}</p>}{error&&<p role="alert">{error}</p>}{!data&&!error&&<p role="status">Widget laden…</p>}{data&&<ServiceCards data={data}/>}</>}</section>;
+    return <section className="cd-service-widget">{!id?<p>Kies een bron via Aanpassen. Verbindingen worden centraal in Infisical ingericht.</p>:<>{data?.sourceTitle&&<p className="cd-widget-source">{data.sourceUrl?<a href={offerLink(data.sourceUrl)} target="_blank" rel="noopener noreferrer">{data.sourceTitle} ↗</a>:data.sourceTitle}</p>}{error&&<p role="alert">{error}</p>}{!data&&!error&&<p role="status">Widget laden…</p>}{data&&<ServiceCards data={data}/>}</>}</section>;
   }
   function Settings({settings,onChange}:ModuleSettingsProps) {
     const [sources,setSources]=useState<WidgetSource[]>([]),[error,setError]=useState(""),[loading,setLoading]=useState(true);

@@ -59,7 +59,9 @@ def present(body, source, source_id):
         else:
             row.pop("imageUrl", None)
         rows.append(row)
-    return {**body, "items": rows, "sourceTitle": source["title"], "providerKind": source["kind"]}
+    # The widget heading links to the application; Seerr opens its requests page.
+    heading = (base + "/requests") if base and source["kind"] == "seerr" else base
+    return {**body, "items": rows, "sourceTitle": source["title"], "providerKind": source["kind"], **({"sourceUrl": heading} if heading else {})}
 
 
 def match_artwork(rows, media):
