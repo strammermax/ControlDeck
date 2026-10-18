@@ -54,6 +54,7 @@ The development server listens on localhost only. Production uses Gunicorn. Runt
 ## License
 
 Het clusterbrede ProxMenux-netwerkoverzicht met nodekeuze en interfacekaarten staat beschreven in [Proxmox Network](docs/PROXMOX-NETWORK.md).
+De originele Network Flow-animaties zijn opgenomen in dat overzicht. CPU, moederbord, geheugen en thermische metingen staan op [Proxmox Hardware](docs/PROXMOX-HARDWARE.md).
 
 GPL-3.0. See [LICENSE](LICENSE). ProxMenux Monitor supplies adapted VM, storage and network presentation code; source attribution, modifications and GPL notices are recorded in [third-party documentation](docs/THIRD-PARTY.md) and included in the static export.
 

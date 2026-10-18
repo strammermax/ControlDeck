@@ -9,13 +9,17 @@
 - Bytes zijn cumulatieve tellers sinds de teller-/hoststart. RX/TX in bytes per seconde gebruikt de monitorsnelheid; oudere monitors zonder snelheden krijgen een afgeleide snelheid uit twee opeenvolgende tellermetingen (1–180 seconden). Een tellerreset, te lange pauze of eerste meting geeft geen afgeleide snelheid. Ontbrekende waarden zijn `—`, nul blijft nul. De kaart vermeldt expliciet dat het cumulatieve verkeer betreft.
 - Active Interfaces onderscheidt fysieke poorten, bridges, bonds en VM/LXC-interfaces. Network Status toont fysieke fout- en droptellers; dit is geen berekende end-to-end packet-lossmeting. Historische drops maken een verbinding niet automatisch defect.
 - Gateway Latency toont de meting en het laatste uur per node. De clusterkop is de hoogste beschikbare actuele nodewaarde, geen optelsom. Ontbrekende of verouderde nodes maken de kaart onvolledig.
-- Network Flow toont de door de monitor gemelde fysieke poort → bond → bridge-relaties. Fysieke poorten, bonds, bridges en virtuele interfaces krijgen aparte kaarten. Zoek op interface, node, IP, VM-naam of VMID; zoeken verandert de clustertotalen niet.
+- Network Flow gebruikt nu ook de originele `AppImage/components/network-flow.tsx`: de SVG-geometrie, iconen, desktop-/mobiele plaatsing en bewegende RX/TX-pulsen worden hergebruikt. Cluster toont alle node-diagrammen samen, met NIC → bond → host → bridge → VM/LXC. De host heet de echte nodenaam. Gelijknamige bridges op verschillende nodes blijven afzonderlijk. Ongebruikte bridges blijven zichtbaar. Bij onbekende rates staat `—`; verouderde data animeert niet. `prefers-reduced-motion` schakelt bewegende pulsen uit.
+- Een gastinterface wordt gekoppeld via de gemelde kernelmaster of de ledenlijst van een bridge. Bij ontbrekend bewijs komt zij onder ‘Onbekende bridge’, nooit willekeurig onder de eerste bridge. De clustermap veronderstelt geen fysieke switch-/kabelverbindingen tussen hosts; die zijn niet in deze monitorgegevens aangetoond. Gestopte gastinterfaces worden volgens de upstreamweergave niet als actieve consumenten getekend.
+- Fysieke poorten, bonds, bridges en virtuele interfaces krijgen ook aparte kaarten. Zoek op interface, node, IP, VM-naam of VMID; zoeken verandert de clustertotalen of het volledige diagram niet.
 
 ## API, rechten en uitval
 
 `GET /api/proxmox/network` projecteert alleen nodes uit `/cluster/resources`. `GET /api/proxmenux/network` leest uitsluitend de vaste monitorpaden `network` en `network/latency/history?target=gateway&timeframe=hour`. Beide gebruiken de bestaande sessie en het modulerecht `proxmox`; beheren van de verbinding blijft voor beheerders. De browser kan geen monitoradres of upstream-pad kiezen. Tokens blijven serverzijdig, de cluster-CA blijft verplicht en redirects worden geweigerd.
 
 De monitorcache is gescheiden van gezondheid en opslag, met dezelfde begrensde parallelle achtergrondverversing en expliciete loading/stale/foutstatus. De projector begrenst lijsten en velden, valideert IP-adressen, laat niet-eindige/negatieve getallen weg en levert geen ruwe configuratie of credentials. Een ontbrekende latencybron blokkeert de interface-inventaris niet. Sessieweigering wist frontendgegevens; een mislukte monitorverversing kan geen gezonde volledige clusterstatus opleveren.
+
+De oorspronkelijke SVG-stringinterpolatie wordt vóór rendering XML-geëscaped, inclusief labels, linkteksten en attributen. Alleen begrensde, gevalideerde flowvelden worden geaccepteerd. Zo kunnen gastnamen geen SVG/HTML invoegen. De geanimeerde paden blijven JSX met stabiele sleutels. Een diagram is begrensd op 64 poorten/bonds, 127 bridges plus een onbekende groep en 512 gastinterfaces per node; bij begrenzing verschijnt een melding en de gewone inventaris blijft beschikbaar.
 
 ## Bestaande installatie
 
@@ -25,4 +29,8 @@ Nieuwe configuraties bevatten `network` als pagina onder de Proxmox-module; het 
 
 `tests/test_network_inventory.py` dekt normale inventarisatie, ontbrekende/nulmetingen, ongeldige invoer, veilige projectie, gescheiden cache, gedeeltelijke upstreamuitval en sessie-/modulerechten. `frontend/tests/proxmox-network.test.mjs` test fysiek-only totalen, nodefiltering, onbekende/stale-metingen, schema-afwijzing, echte JSX-kaarten, ontsnapte tekst en lege/foutweergaven. Volledige pytest, frontendtests, TypeScript en build moeten slagen vóór publicatie.
 
+`frontend/tests/proxmox-network-flow.test.mjs` test de echte upstream desktop-/mobiele SVG-layout, NIC/bond/bridge/VM-koppelingen, RX/TX-pulsen, lege/onbekende data, clusternamen, begrenzing en de regressie voor onveilige SVG-interpolatie.
+
 Lokale acceptatie op 18 oktober 2026: 764 Python-tests geslaagd, 8 overgeslagen; 244 frontendtests geslaagd; TypeScript en statische build geslaagd. Browsercontrole met fictieve data bevestigde de vier desktopkaarten, nodekeuze, lege zoekresultaten en een mobiele indeling op 390 pixels zonder horizontale overloop. Productieacceptatie gebeurt met de echte nodegegevens na publicatie.
+
+Browseracceptatie met fictieve data: desktopindeling, nodekeuze en mobiele weergave op 390 pixels zonder horizontale overloop gecontroleerd. Het originele flowdiagram toonde drie aparte hosts, VM-/LXC-iconen en RX/TX-animatiepaden; Hardware volgde de systeem-/geheugen-/sensorindeling van de referentie. Deze voorbeeldmetingen zijn geen productiegegevens.

@@ -21,6 +21,7 @@ from backend.auth import is_manager
 from backend.guest_inventory import project_guests
 from backend.storage_inventory import storage_snapshot
 from backend.network_inventory import network_snapshot, network_rates, LATENCY_PATH
+from backend.hardware_inventory import hardware_snapshot
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}")
 STATUS = {"OK": "ok", "INFO": "ok", "WARNING": "warning", "CRITICAL": "error", "ERROR": "error"}
@@ -431,3 +432,7 @@ def setup_proxmenux(app, configuration_path, data_dir):
                 seconds = time.time() - old["at"] if old else 0
             return network_rates(data, previous, seconds)
         return monitor_snapshot("network", ("network", LATENCY_PATH), project)
+
+    @app.get("/api/proxmenux/hardware")
+    def monitor_hardware():
+        return monitor_snapshot("hardware", ("hardware",), lambda results, node: hardware_snapshot(node["name"], results["hardware"][0]))

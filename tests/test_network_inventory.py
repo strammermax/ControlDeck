@@ -11,7 +11,7 @@ from test_proxmenux import env as monitor_env, CA, NODES, H, settled
 
 def network():
     return {"physical_interfaces": [{"name": "nic0", "status": "up", "speed": 2500, "rx_Bps": 0, "bytes_recv": 1000, "bytes_sent": 250,
-                                      "addresses": [{"ip": "192.0.2.1"}], "used_by_bridges": ["vmbr0"], "password": "PRIVATE-PASSWORD"}],
+                                      "bond_role": "active", "bond_link": "up", "vm_status": "running", "addresses": [{"ip": "192.0.2.1"}], "used_by_bridges": ["vmbr0"], "password": "PRIVATE-PASSWORD"}],
             "bridge_interfaces": [{"name": "vmbr0", "status": "up", "bytes_recv": 1000}], "bond_interfaces": [], "vm_lxc_interfaces": [], "dns_servers": ["192.0.2.53"]}
 
 
@@ -19,6 +19,7 @@ def test_network_normal_safe_projection_and_byte_units():
     body = network_snapshot("pve-amd", network(), {"stats": {"current": .7}, "data": [{"timestamp": 100, "value": .7}]})
     nic = body["interfaces"][0]
     assert nic["bytes_recv"] == 1000 and nic["speed"] == 2500 and nic["rx_Bps"] == 0
+    assert nic["bond_role"] == "active" and nic["bond_link"] == "up"
     assert nic["addresses"] == ["192.0.2.1"] and nic["used_by_bridges"] == ["vmbr0"]
     assert body["latency"]["current"] == .7 and body["networkAvailable"]
     assert "PRIVATE" not in json.dumps(body) and "password" not in json.dumps(body)

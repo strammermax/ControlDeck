@@ -42,7 +42,11 @@ const guestURL=new URL('../lib/proxmox-guests.ts',import.meta.url).href;
 const shared=await compile('../modules/proxmox/guest-cards.tsx',{'../../lib/proxmox-guests':guestURL,'./pve-tag-color':new URL('../modules/proxmox/pve-tag-color.ts',import.meta.url).href});
 const cardsURL=await compile('../modules/proxmox/network-cards.tsx',{'./guest-cards':shared,'../../lib/proxmox-guests':guestURL,'../../lib/proxmox-network':libURL});
 const ui=await import(cardsURL);
-const page=await import(await compile('../components/proxmox-network.tsx',{'../lib/proxmox-network':libURL,'../modules/proxmox/network-cards':cardsURL,'./proxmox-guests.css':'data:text/javascript,export default {}','./proxmox-network.css':'data:text/javascript,export default {}'}).then(url=>{let code=Buffer.from(url.split(',')[1],'base64').toString();code=code.replace(/import "\.\/proxmox-(?:guests|network)\.css";?/g,'');return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');}));
+const flowURL=await compile('../modules/proxmox/network-flow.tsx');
+const flowDataURL=await compile('../lib/proxmox-network-flow.ts',{'./proxmox-network':libURL});
+const clusterURL=await compile('../modules/proxmox/cluster-network-flow.tsx',{'../../lib/proxmox-network-flow':flowDataURL,'./network-flow':flowURL,'./guest-cards':shared});
+const flowUI=await import(clusterURL);
+const page=await import(await compile('../components/proxmox-network.tsx',{'../lib/proxmox-network':libURL,'../modules/proxmox/network-cards':cardsURL,'../modules/proxmox/cluster-network-flow':clusterURL,'./proxmox-guests.css':'data:text/javascript,export default {}','./proxmox-network.css':'data:text/javascript,export default {}'}).then(url=>{let code=Buffer.from(url.split(',')[1],'base64').toString();code=code.replace(/import "\.\/proxmox-(?:guests|network)\.css";?/g,'');return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');}));
 const render=(component,props)=>renderToStaticMarkup(React.createElement(component,props));
 test('actual ProxMenux network cards: overview and physical card with relations, speed and escaped guest name',()=>{
  const html=render(ui.NetworkOverview,{rows:[nic,bridge],nodes:[node]});
@@ -50,7 +54,7 @@ test('actual ProxMenux network cards: overview and physical card with relations,
  const card=render(ui.InterfaceCard,{item:{...nic,vm_name:'<script>bad</script>'}});
  for(const text of ['2.5 Gbps','192.0.2.1','vmbr0','pve-amd','&lt;script&gt;bad'])assert.ok(card.includes(text),text);
  assert.ok(!card.includes('<script>'));assert.ok(card.includes('Received'));
- assert.ok(render(ui.NetworkTopology,{nodes:[node]}).includes('Network Flow'));
+ assert.ok(render(flowUI.ClusterNetworkFlow,{nodes:[node]}).includes('Network Flow'));
 });
 test('actual network boundary/failure UI: missing and failed measurements never appear healthy',()=>{
  const html=render(ui.NetworkOverview,{rows:[],nodes:[{name:'pve-amd',error:'Unavailable'}],incomplete:true});

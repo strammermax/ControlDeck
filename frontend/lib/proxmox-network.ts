@@ -1,5 +1,5 @@
 import type {GuestNode} from "./proxmox-guests";
-export type NetworkInterface={node:string;name:string;kind:"physical"|"bond"|"bridge"|"virtual";status:"up"|"down"|"unknown";addresses:string[];mac:string|null;duplex:string|null;bytes_recv:number|null;bytes_sent:number|null;packets_recv:number|null;packets_sent:number|null;errors_in:number|null;errors_out:number|null;drops_in:number|null;drops_out:number|null;rx_Bps:number|null;tx_Bps:number|null;speed:number|null;max_speed:number|null;mtu:number|null;used_by_bridges:string[];bond_slaves:string[];bridge_members:string[];bridge_owner:string|null;bond_master:string|null;bond_active_slave:string|null;bridge_physical_interface:string|null;bond_mode:string|null;vmid:number|null;vm_name:string|null;vm_type:string|null};
+export type NetworkInterface={bond_role?:"active"|"standby"|"member"|null;bond_link?:"up"|"down"|null;vm_status?:"running"|"stopped"|"paused"|null;node:string;name:string;kind:"physical"|"bond"|"bridge"|"virtual";status:"up"|"down"|"unknown";addresses:string[];mac:string|null;duplex:string|null;bytes_recv:number|null;bytes_sent:number|null;packets_recv:number|null;packets_sent:number|null;errors_in:number|null;errors_out:number|null;drops_in:number|null;drops_out:number|null;rx_Bps:number|null;tx_Bps:number|null;speed:number|null;max_speed:number|null;mtu:number|null;used_by_bridges:string[];bond_slaves:string[];bridge_members:string[];bridge_owner:string|null;bond_master:string|null;bond_active_slave:string|null;bridge_physical_interface:string|null;bond_mode:string|null;vmid:number|null;vm_name:string|null;vm_type:string|null};
 export type NetworkNode={name:string;loading?:boolean;stale?:boolean;error?:string;partial?:string[];updatedAt?:number;networkAvailable?:boolean;hostname?:string|null;domain?:string|null;dns?:string[];interfaces?:NetworkInterface[];latency?:{current:number|null;avg:number|null;max:number|null;min:number|null;history:{time:number;value:number}[]}};
 export type NetworkInventory={nodes:GuestNode[];updatedAt:number;stale:boolean};
 const host=(s:unknown)=>typeof s==="string"&&/^[A-Za-z0-9][A-Za-z0-9.-]{0,62}$/.test(s);
@@ -19,7 +19,7 @@ export function validateNetworkMonitor(value:unknown):NetworkNode[] {
   if(n.interfaces!==undefined){
    if(!Array.isArray(n.interfaces)||n.interfaces.length>8192)throw new Error("Ongeldige netwerklijst.");
    for(const i of n.interfaces){
-    if(!i||i.node!==n.name||!name(i.name)||!["physical","bridge","bond","virtual"].includes(i.kind)||!["up","down","unknown"].includes(i.status)||!Array.isArray(i.addresses)||i.addresses.length>32||i.addresses.some(v=>!bounded(v,64))||[i.bytes_recv,i.bytes_sent,i.packets_recv,i.packets_sent,i.errors_in,i.errors_out,i.drops_in,i.drops_out,i.rx_Bps,i.tx_Bps,i.speed,i.max_speed,i.mtu,i.vmid].some(v=>!amount(v))||[i.mac,i.duplex,i.bond_mode,i.vm_name,i.vm_type].some(v=>v!==null&&!bounded(v))||[i.bridge_owner,i.bond_master,i.bond_active_slave,i.bridge_physical_interface].some(v=>v!==null&&!name(v))||[i.used_by_bridges,i.bond_slaves,i.bridge_members].some(v=>!Array.isArray(v)||v.length>128||v.some(s=>!name(s))))throw new Error("Ongeldige interfacegegevens.");
+    if(!i||i.bond_role!=null&&!["active","standby","member"].includes(i.bond_role)||i.bond_link!=null&&!["up","down"].includes(i.bond_link)||i.vm_status!=null&&!["running","stopped","paused"].includes(i.vm_status)||i.node!==n.name||!name(i.name)||!["physical","bridge","bond","virtual"].includes(i.kind)||!["up","down","unknown"].includes(i.status)||!Array.isArray(i.addresses)||i.addresses.length>32||i.addresses.some(v=>!bounded(v,64))||[i.bytes_recv,i.bytes_sent,i.packets_recv,i.packets_sent,i.errors_in,i.errors_out,i.drops_in,i.drops_out,i.rx_Bps,i.tx_Bps,i.speed,i.max_speed,i.mtu,i.vmid].some(v=>!amount(v))||[i.mac,i.duplex,i.bond_mode,i.vm_name,i.vm_type].some(v=>v!==null&&!bounded(v))||[i.bridge_owner,i.bond_master,i.bond_active_slave,i.bridge_physical_interface].some(v=>v!==null&&!name(v))||[i.used_by_bridges,i.bond_slaves,i.bridge_members].some(v=>!Array.isArray(v)||v.length>128||v.some(s=>!name(s))))throw new Error("Ongeldige interfacegegevens.");
    }
    if(new Set(n.interfaces.map(i=>i.name)).size!==n.interfaces.length)throw new Error("Dubbele netwerkinterface.");
   }
@@ -30,7 +30,7 @@ export function validateNetworkMonitor(value:unknown):NetworkNode[] {
 }
 export function networkSelection(data:NetworkInventory,monitor:NetworkNode[],scope="cluster") {
  const nodes=data.nodes.filter(n=>scope==="cluster"||n.name===scope);
- const relevant=monitor.filter(n=>nodes.some(host=>host.name===n.name));
+ const relevant=monitor.filter(n=>nodes.some(host=>host.name===n.name)).sort((a,b)=>a.name.localeCompare(b.name));
  const incomplete=data.stale||nodes.some(n=>!n.online||!relevant.some(m=>m.name===n.name&&m.networkAvailable&&!m.loading&&!m.stale&&!m.error));
  return {nodes,monitor:relevant,interfaces:relevant.flatMap(n=>n.interfaces??[]),incomplete};
 }

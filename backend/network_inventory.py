@@ -60,6 +60,9 @@ def network_snapshot(node, network, latency):
                          **{field: finite(item.get(field)) for field in COUNTERS}, **relations,
                          **{field: interface_name(item.get(field)) for field in ("bridge_owner", "bond_master", "bond_active_slave", "bridge_physical_interface")},
                          "bond_mode": text(item.get("bond_mode"), 64), "vmid": finite(item.get("vmid")),
+                         "bond_role": item.get("bond_role") if item.get("bond_role") in ("active", "standby", "member") else None,
+                         "bond_link": item.get("bond_link") if item.get("bond_link") in ("up", "down") else None,
+                         "vm_status": item.get("vm_status") if item.get("vm_status") in ("running", "stopped", "paused") else None,
                          "vm_name": text(item.get("vm_name"), 100), "vm_type": item.get("vm_type") if item.get("vm_type") in ("vm", "lxc") else None})
     latency = latency if isinstance(latency, dict) else {}
     stats = latency.get("stats") if isinstance(latency.get("stats"), dict) else {}

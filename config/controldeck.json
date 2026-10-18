@@ -75,6 +75,11 @@
           "route": "proxmox/network"
         },
         {
+          "id": "proxmox-hardware",
+          "label": "Hardware",
+          "route": "proxmox/hardware"
+        },
+        {
           "id": "monitoring",
           "label": "Monitoring",
           "route": "monitoring"
