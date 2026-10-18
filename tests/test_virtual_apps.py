@@ -47,7 +47,7 @@ def env(tmp_path, monkeypatch):
         if isinstance(value, Exception):
             raise value
         return Mock(status_code=200, json=Mock(return_value=value))
-    monkeypatch.setattr(virtual_apps.requests, "post", post)
+    monkeypatch.setattr("backend.modules.kasm.requests.post", post)
 
     def client(email="user@example.test"):
         c = app.test_client()
@@ -89,7 +89,7 @@ def test_boundary_empty_kasm_and_dashed_ids(env):
     replies["get_images"], replies["get_kasms"] = {"images": []}, {"kasms": []}
     assert client().get("/api/virtual-apps").get_json()["apps"] == []
     dashed = ME
-    assert kasm_settings(CONFIG, "user@example.test")[2] == dashed
+    assert kasm_settings(CONFIG, "user@example.test")[1] == dashed
     assert project_sessions({"kasms": [{"kasm_id": "d" * 32, "user_id": ME.replace("-", "")}]}, ME, [])[0]["id"] == "d" * 32
 
 
@@ -138,3 +138,92 @@ def test_projection_helpers(case):
             kasm_settings({"kasm": {"url": "http://kasm.example.test", "apiKey": "k", "apiSecret": "s", "users": {}}}, "a@b")
         with pytest.raises(NotLinked):
             kasm_settings(CONFIG, "someone@example.test")
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_workspace_icons(case):
+    """Kasm on 2026-10-18: most workspaces had no icon, one an embedded JPEG and one a Google search link."""
+    import base64
+    from backend.virtual_apps import workspace_icon, MAX_DATA_ICON
+    jpeg = "data:image/jpeg;base64," + base64.b64encode(b"\xff\xd8\xff\xe0" + b"x" * 100).decode()
+    if case == "normaal":
+        assert workspace_icon(ORIGIN, "img/thumbnails/vs-code.png") == ORIGIN + "/img/thumbnails/vs-code.png"
+        assert workspace_icon(ORIGIN, jpeg) == jpeg
+    elif case == "boundary":
+        exact = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * (MAX_DATA_ICON - 8)).decode()
+        assert workspace_icon(ORIGIN, exact) == exact
+        assert workspace_icon(ORIGIN, None) is None and workspace_icon(ORIGIN, "None") is None
+    else:
+        too_big = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * MAX_DATA_ICON).decode()
+        for bad in ("https://www.google.com/url?sa=t&url=https%3A%2F%2Fexample.test%2Fa.png",  # external: never loaded
+                    "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",  # SVG may carry scripts
+                    "data:image/png;base64," + base64.b64encode(b"<html>not a png</html>").decode(),  # wrong content
+                    "data:image/png;base64,***", too_big, "../../etc/passwd.png", "javascript:alert(1)"):
+            assert workspace_icon(ORIGIN, bad) is None, bad[:40]
+
+
+FINGERPRINT = ":".join(["06", "A5"] * 16)
+
+
+def test_regression_internal_api_url_behind_login_proxy(env, monkeypatch):
+    """Bug 2026-10-18: Kasm's public address sits behind Cloudflare Access, so every API call was
+    redirected to a login page. apiUrl sends API calls to the internal address; links stay public."""
+    client, calls, replies, vault = env
+    vault["CONTROLDECK_APP_LAUNCHES"] = json.dumps({"kasm": {**CONFIG["kasm"], "apiUrl": "https://kasm.internal.test"}})
+    seen = []
+
+    def post(url, json=None, **kwargs):
+        seen.append(url.split("/api/public/")[0])
+        value = replies[url.rsplit("/", 1)[1]]
+        return Mock(status_code=200, json=Mock(return_value=value))
+    monkeypatch.setattr("backend.modules.kasm.requests.post", post)
+    replies["request_kasm"] = {"kasm_url": f"https://kasm.internal.test/#/connect/kasm/{'f' * 32}/{ME}/t"}
+    assert client().get("/api/virtual-apps").status_code == 200
+    started = client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H).get_json()
+    assert set(seen) == {"https://kasm.internal.test"}
+    assert started["url"] == f"{ORIGIN}/#/connect/kasm/{'f' * 32}/{ME}/t", "the browser opens the public address"
+
+
+def test_login_redirect_faal_gives_a_clear_message(env, monkeypatch):
+    client, calls, replies, vault = env
+    monkeypatch.setattr("backend.modules.kasm.requests.post", lambda *a, **k: Mock(status_code=302, json=Mock(side_effect=ValueError)))
+    answer = client().get("/api/virtual-apps")
+    assert answer.status_code == 424 and "aanmeldpagina" in answer.get_json()["error"]
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_pinned_certificate(case, monkeypatch):
+    from backend.modules import kasm as module
+    sessions = []
+
+    class Session:
+        def __init__(self):
+            self.mounted = {}
+            sessions.append(self)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def mount(self, prefix, adapter):
+            self.mounted[prefix] = adapter
+
+        def post(self, url, **kwargs):
+            self.kwargs = kwargs
+            return Mock(status_code=200, json=Mock(return_value={"images": []}))
+    monkeypatch.setattr(module.requests, "Session", Session)
+    config = {**CONFIG["kasm"], "apiUrl": "https://kasm.internal.test"}
+    if case == "normaal":
+        settings = module.kasm_config({**config, "apiFingerprint": FINGERPRINT.lower()})
+        module.kasm_post(settings, "get_images")
+        adapter = sessions[0].mounted["https://kasm.internal.test"]
+        assert adapter.fingerprint == FINGERPRINT and sessions[0].kwargs["verify"] is False
+    elif case == "boundary":
+        settings = module.kasm_config(config)
+        assert settings["fingerprint"] is None and settings["origin"] == ORIGIN and settings["api"] == "https://kasm.internal.test"
+    else:
+        for bad in ({**config, "apiFingerprint": "AA:BB"}, {**config, "apiUrl": "http://kasm.internal.test"}, {**config, "extra": 1}):
+            with pytest.raises(ValueError):
+                module.kasm_config(bad)

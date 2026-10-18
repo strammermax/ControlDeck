@@ -17,6 +17,12 @@ test('virtual apps boundary: empty lists, no icon, dashed ids and session withou
   assert.equal(validateOverview({apps: [{...app, icon: null, id: '11111111-2222-3333-4444-555555555555'}], sessions: [{...session, appId: null}], portal: PORTAL}).apps[0].icon, null);
 });
 
+test('virtual apps icons: embedded raster images are kept, SVG and script data are refused', () => {
+  const jpeg = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+  assert.equal(validateOverview({apps: [{...app, icon: jpeg}], sessions: [], portal: PORTAL}).apps[0].icon, jpeg);
+  for (const icon of ['data:image/svg+xml;base64,PHN2Zz4=', 'data:text/html;base64,PGgxPg==']) assert.throws(() => validateOverview({apps: [{...app, icon}], sessions: [], portal: PORTAL}), icon);
+});
+
 test('virtual apps faal: bad ids, insecure icons, foreign or tampered links', () => {
   for (const bad of [{apps: [{...app, id: '../x'}], sessions: [], portal: PORTAL}, {apps: [{...app, icon: 'http://kasm.example.test/a.png'}], sessions: [], portal: PORTAL},
     {apps: [{...app, icon: 'javascript:alert(1)'}], sessions: [], portal: PORTAL}, {apps: [], sessions: [{...session, id: 'x'}], portal: PORTAL}, {apps: [], sessions: [], portal: 'http://kasm.example.test'}, null]) {
