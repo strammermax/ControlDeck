@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transform,loadBindings} from 'next/dist/build/swc/index.js';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {validateTrafficHistory,trafficSeries,trafficTick} from '../lib/proxmox-network-history.ts';
+import {validateTrafficHistory,trafficSeries,trafficTotals,trafficTick} from '../lib/proxmox-network-history.ts';
 const rate=1024**3/300;
 const node={name:'pve-amd',historyAvailable:true,timeframe:'day',step:300,history:[{time:600,received:rate,sent:0},{time:900,received:rate*2,sent:rate}]};
 test('traffic normal: align cluster nodes before summing, period is node-independent',()=>{
@@ -48,4 +48,20 @@ test('actual traffic chart normal, boundary and failure UI: period selector, acc
  const plot=render(ui.TrafficPlot,{points:trafficSeries([node],['pve-amd'],'day').points,period:'day'});assert.ok(plot.includes('Received'));assert.ok(plot.includes('Sent'));assert.equal((plot.match(/aria-pressed="true"/g)||[]).length,2);
  assert.equal(render(ui.TrafficTooltip,{active:false,payload:[]}), '');
  const tooltip=render(ui.TrafficTooltip,{active:true,label:600,payload:[{name:'<script>bad</script>',value:1}]});assert.ok(tooltip.includes('1.000 GB'));assert.ok(tooltip.includes('&lt;script&gt;'));assert.ok(!tooltip.includes('<script>'));
+});
+
+test('period summary regression: lifetime counters previously disagreed with the selected chart period and node',()=>{
+ const sources=[node,{...node,name:'pve-nas'}];
+ assert.deepEqual(trafficTotals(trafficSeries(sources,['pve-amd'],'day').points),{received:3*1024**3,sent:1024**3});
+ assert.equal(trafficTotals(trafficSeries(sources,['pve-amd','pve-nas'],'day').points).received,6*1024**3);
+ assert.deepEqual(trafficTotals([{time:1,received:0,sent:0}]),{received:0,sent:0});
+ assert.deepEqual(trafficTotals([]),{received:null,sent:null});
+ assert.equal(trafficTotals(trafficSeries(sources,['pve-amd'],'hour').points).received,null);
+ assert.equal(trafficTotals([{time:1,received:null,sent:0}]).received,null);
+ assert.deepEqual(trafficTotals([{time:1,received:1,sent:1}],true),{received:null,sent:null});
+});
+test('shared summary normal and loading UI: default period and unknown totals are passed in the same render',()=>{
+ let summary;
+ render(ui.NetworkTrafficChart,{names:['pve-amd'],overview:value=>{summary=value;return React.createElement('p',null,value.label);}});
+ assert.deepEqual(summary,{received:null,sent:null,label:'24 uur · laden…'});
 });

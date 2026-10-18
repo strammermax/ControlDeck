@@ -50,3 +50,9 @@ export function trafficSeries(sources:TrafficHistoryNode[],names:string[],period
 export function trafficTick(time:number,period:TrafficPeriod) {
  return new Date(time*1000).toLocaleString("nl-NL",period==="hour"||period==="day"?{hour:"2-digit",minute:"2-digit"}:period==="year"?{month:"short",year:"2-digit"}:{day:"2-digit",month:"short",...(period==="week"?{hour:"2-digit" as const}:{})});
 }
+
+/** Totals use precisely the plotted intervals; an incomplete direction stays unknown. */
+export function trafficTotals(points:TrafficPoint[],incomplete=false) {
+ const sum=(key:"received"|"sent")=>!points.length||incomplete||points.some(p=>p[key]===null)?null:points.reduce((total,p)=>total+p[key]!,0)*1024**3;
+ return {received:sum("received"),sent:sum("sent")};
+}
