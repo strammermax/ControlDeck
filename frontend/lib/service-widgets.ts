@@ -14,7 +14,7 @@ export function validateWidgetSources(value:unknown):WidgetSource[] {
   if(new Set(rows.map(row=>row.id)).size!==rows.length)throw new WidgetError("Dubbele widgetbron.");
   return rows;
 }
-export type WidgetData = {items:{id:string;title:string;subtitle:string;status:string;progress?:number;date?:string;allDay?:boolean;url?:string;priceCents?:number|null;currency?:string}[];stats:{label:string;value:string}[];updatedAt:number|null;stale:boolean;pending?:boolean;truncated?:boolean;embedUrl?:string;title?:string;sourceTitle?:string};
+export type WidgetData = {items:{id:string;title:string;subtitle:string;status:string;progress?:number;date?:string;allDay?:boolean;url?:string;imageUrl?:string;linkIsApplication?:boolean;priceCents?:number|null;currency?:string}[];stats:{label:string;value:string}[];updatedAt:number|null;stale:boolean;pending?:boolean;truncated?:boolean;embedUrl?:string;title?:string;sourceTitle?:string;providerKind?:string};
 export class WidgetError extends Error {
   denied:boolean;
   constructor(message:string,denied=false){super(message);this.denied=denied;}
@@ -31,8 +31,20 @@ export function safeEmbed(value:unknown):string {
 }
 export function offerLink(value:string) {
   const url=new URL(value);
-  if(!["https:","http:"].includes(url.protocol)||url.username||url.password)throw new WidgetError("Ongeldige advertentielink.");
+  if(!["https:","http:"].includes(url.protocol)||url.username||url.password||Array.from(url.searchParams.keys()).some(k=>/^(token|access_token|api_?key|x-plex-token|password|secret|authorization|sig|signature|x-amz-signature|x-amz-credential|x-goog-signature|x-goog-credential)$/i.test(k)))throw new WidgetError("Ongeldige advertentielink.");
   return url.href;
+}
+export function safeImage(value:string) {
+  if(/^\/api\/widget-images\/[a-z0-9-]{1,64}\/[0-9]{1,10}$/.test(value))return value;
+  const url=new URL(offerLink(value));
+  if(url.protocol!=="https:"||Array.from(url.searchParams.keys()).some(k=>/^(token|access_token|api_?key|x-plex-token|password|secret|authorization)$/i.test(k)))throw new WidgetError("Ongeldige afbeelding.");
+  return url.href;
+}
+export const mediaFamilies = ["downloads","media-widget","tdarr"] as const;
+export type MediaFamily = typeof mediaFamilies[number];
+export function mediaSourceRows(results:unknown[]) {
+  if(results.length!==mediaFamilies.length)throw new WidgetError("Onvolledige mediabronnen.");
+  return results.flatMap((value,index)=>validateWidgetSources(value).map(source=>({...source,family:mediaFamilies[index]})));
 }
 export async function widgetRequest<T>(path:string,signal:AbortSignal,request:typeof fetch=fetch):Promise<T> {
   let response:Response;
@@ -55,6 +67,8 @@ export function validateWidgetData(value:unknown):WidgetData {
     if(!row||[row.id,row.title,row.subtitle,row.status].some(v=>typeof v!=="string"||v.length>300))throw new WidgetError("Ongeldige widgetregel.");
     if(row.progress!==undefined&&(typeof row.progress!=="number"||!Number.isFinite(row.progress)||row.progress<0||row.progress>100))throw new WidgetError("Ongeldige voortgang.");
     if(row.url!==undefined)offerLink(row.url);
+    if(row.imageUrl!==undefined)safeImage(row.imageUrl);
+    if(row.linkIsApplication!==undefined&&typeof row.linkIsApplication!=="boolean")throw new WidgetError("Ongeldig linktype.");
     if(row.priceCents!==undefined&&row.priceCents!==null&&(!Number.isSafeInteger(row.priceCents)||row.priceCents<0||row.priceCents>1e12))throw new WidgetError("Ongeldige prijs.");
     if(row.currency!==undefined&&!/^[A-Z]{3}$/.test(row.currency))throw new WidgetError("Ongeldige valuta.");
     if(row.date!==undefined&&(typeof row.date!=="string"||row.date.length>80))throw new WidgetError("Ongeldig tijdstip.");

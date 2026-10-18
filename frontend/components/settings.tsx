@@ -5,8 +5,8 @@ import { moveItem, orderMenu, type MenuItem } from "../lib/navigation";
 import { translate, type Language, type TextKey } from "../lib/i18n";
 import { Icon } from "./icon";
 
-export type PersonalSettings = { language: Language; navOrder: string[] };
-type Props = { menu: MenuItem[]; settings: PersonalSettings; csrfToken: string; onSaved: (settings: PersonalSettings) => void };
+export type PersonalSettings = { language: Language; navOrder: string[]; hideHomeLinksOutsideLocal?:boolean };
+type Props = { menu: MenuItem[]; settings: PersonalSettings; csrfToken: string; onSaved: (settings: PersonalSettings) => void; networkScope?:string };
 
 async function store(csrfToken: string, values: Partial<PersonalSettings>) {
   const response = await fetch("/api/preferences", {method:"PUT", headers:{"Content-Type":"application/json", "X-CSRF-Token":csrfToken}, body:JSON.stringify(values)});
@@ -14,7 +14,7 @@ async function store(csrfToken: string, values: Partial<PersonalSettings>) {
 }
 
 /** Per-user settings; the server validates and stores them with the user's other preferences. */
-export function Settings({ menu, settings, csrfToken, onSaved }: Props) {
+export function Settings({ menu, settings, csrfToken, onSaved, networkScope }: Props) {
   const t = (key: TextKey) => translate(settings.language, key);
   const saved = orderMenu(menu, settings.navOrder).map(item => item.id);
   const [draft, setDraft] = useState<string[] | null>(null);
@@ -62,6 +62,12 @@ export function Settings({ menu, settings, csrfToken, onSaved }: Props) {
           <option value="en">English</option>
         </select>
       </div>
+    </section>
+    <section className="settings-card">
+      <h3>{t("localLinksTitle")}</h3>
+      <p>{t("localLinksIntro")}</p>
+      <label className="settings-local-links"><input type="checkbox" checked={settings.hideHomeLinksOutsideLocal!==false} disabled={busy} onChange={event=>void save({hideHomeLinksOutsideLocal:event.target.checked})}/>{t("hideLocalLinks")}</label>
+      <p>{t("connection")}: {t(networkScope==="local"?"localConnection":networkScope==="external"?"externalConnection":"unknownConnection")}</p>
     </section>
     <section className="settings-card settings-order">
       <div className="settings-heading">

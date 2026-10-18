@@ -1,6 +1,8 @@
 export type Language = "nl" | "en";
 const text = {
   nl: {
+    localLinksTitle:"Lokale links", localLinksIntro:"Verberg links naar .home-adressen op de hele site wanneer je buiten je lokale netwerk bent. Je opgeslagen links blijven behouden.", hideLocalLinks:"Lokale .home-links buiten mijn netwerk verbergen", connection:"Huidige verbinding", localConnection:"Lokaal netwerk", externalConnection:"Buiten lokaal netwerk", unknownConnection:"Niet vast te stellen; lokale links worden verborgen als deze optie aanstaat",
+
     settings: "Instellingen", settingsIntro: "Beheer je persoonlijke voorkeuren",
     language: "Interfacetaal", languageIntro: "Kies de taal van ControlDeck.", languageLabel: "Taal",
     order: "Menuvolgorde", orderIntro: "Bepaal de volgorde van de hoofdtabbladen. Groepen zoals Proxmox en Admin verplaatsen als geheel; hun onderdelen behouden de standaardvolgorde.",
@@ -9,6 +11,8 @@ const text = {
     profile: "Profiel", profileIntro: "Je accountgegevens. Een beheerder wijzigt deze via Admin → Gebruikers.", name: "Naam", email: "E-mail", role: "Rol", signIn: "Aanmelden via", userMenu: "Gebruikersmenu",
   },
   en: {
+    localLinksTitle:"Local links", localLinksIntro:"Hide .home links throughout the site when outside your local network. Saved links are preserved.", hideLocalLinks:"Hide local .home links outside my network", connection:"Current connection", localConnection:"Local network", externalConnection:"Outside local network", unknownConnection:"Unknown; local links are hidden when this option is enabled",
+
     settings: "Settings", settingsIntro: "Manage your personal preferences",
     language: "Interface language", languageIntro: "Choose the language used by ControlDeck.", languageLabel: "Language",
     order: "Navigation order", orderIntro: "Personalize the order of the top-level tabs. Grouped tabs such as Proxmox and Admin move as a single unit; their internal items keep their default order.",

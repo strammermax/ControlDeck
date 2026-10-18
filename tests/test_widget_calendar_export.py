@@ -55,8 +55,14 @@ def test_offers_export_normal_owner_isolation_hidden_and_newest_first(tmp_path):
         db.executescript('CREATE TABLE users(id,email); CREATE TABLE profiles(id,user_id,is_results_hidden); CREATE TABLE ads(id,profile_id,title,url,price_cents,currency,first_seen_at,site,is_active,is_hidden,viewed_at); INSERT INTO users VALUES(1,"one@example.test"),(2,"two@example.test"); INSERT INTO profiles VALUES(1,1,0),(2,2,0),(3,1,1);')
         for i,profile,hidden,viewed in [(1,1,0,None),(2,2,0,None),(3,3,0,None),(4,1,1,None),(5,1,0,'viewed'),(6,1,0,None)]:
             db.execute('INSERT INTO ads VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,profile,'Offer','https://offer.example.test/'+str(i),1000,'EUR',f'2026-10-14T10:0{i}:00+00:00','Site',1,hidden,viewed))
+    with sqlite3.connect(path) as db:
+        db.execute('ALTER TABLE ads ADD COLUMN thumbnail_url TEXT')
+        db.execute('UPDATE ads SET thumbnail_url=? WHERE id=6',('https://images.example.test/offer.jpg',))
+        db.execute('UPDATE ads SET thumbnail_url=? WHERE id=1',('javascript:alert(1)',))
     data = export.export_offers(path, "ONE@example.test")
     assert [o["id"] for o in data["offers"]] == ["6", "1"]
+    assert data["offers"][0]["imageUrl"] == 'https://images.example.test/offer.jpg'
+    assert 'imageUrl' not in data['offers'][1]
     assert statistics_payload(data)["offers"][0]["priceCents"] == 1000
     assert export.export_offers(path, "missing@example.test")["offers"] == []
     assert path.exists()

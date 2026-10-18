@@ -2,6 +2,7 @@
 
 import json
 import os
+from backend.network_context import connection_context
 from pathlib import Path
 import secrets
 import re
@@ -319,7 +320,7 @@ def setup_auth(app, data_dir, accounts_path):
     def session_info():
         user = {key: g.account[key] for key in ("firstName", "lastName", "email", "role", "ssoType")} if g.account else None
         return jsonify(authenticated=bool(user), loginAvailable=configured, user=user, csrfToken=session.get("csrf") if user else None,
-                       logoutUrl=ACCESS_LOGOUT_URL if g.via_access else None, loginType=login_type)
+                       logoutUrl=ACCESS_LOGOUT_URL if g.via_access else None, loginType=login_type, network=connection_context(request))
 
     @app.get("/auth/google/login")
     def login():
@@ -407,8 +408,10 @@ def setup_auth(app, data_dir, accounts_path):
             values = json.loads(existing[0])
             if request.method == "PUT":
                 patch = request.get_json(silent=True)
-                if not isinstance(patch, dict) or not set(patch) <= {"theme", "lastRoute", "language", "navOrder"}:
+                if not isinstance(patch, dict) or not set(patch) <= {"theme", "lastRoute", "language", "navOrder", "hideHomeLinksOutsideLocal"}:
                     return jsonify(error="Ongeldige voorkeuren."), 400
+                if "hideHomeLinksOutsideLocal" in patch and type(patch["hideHomeLinksOutsideLocal"]) is not bool:
+                    return jsonify(error="Ongeldige instelling voor lokale links."), 400
                 if "theme" in patch and patch["theme"] not in ("dark", "light"):
                     return jsonify(error="Ongeldig thema."), 400
                 if "language" in patch and patch["language"] not in ("nl", "en"):

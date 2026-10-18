@@ -8,7 +8,7 @@ export function SystemCards({metric,rows}:{metric:Metric;rows:MetricRow[]}) {
   return <div className="cd-system-grid">{rows.map(row=>{
     const level=row.value===null?"unknown":percent?meter(row.value).level:"normal";
     return <article key={row.name} className="cd-system-card" data-level={level}>
-      <header><span className="cd-system-name">{row.name}</span><span className="cd-system-state">{row.stale?"Verouderd":row.unavailable?"Niet beschikbaar":row.value===null?"Onbekend":"Actueel"}</span></header>
+      <header><a className="cd-system-name cd-node-object" href="#proxmox" aria-label={`Open Proxmox voor ${row.name}`}><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2"/><path d="M6 7h2m-2 10h2m4-10h6m-6 10h6"/></svg>{row.name}</a><span className="cd-system-state">{row.stale?"Verouderd":row.unavailable?"Niet beschikbaar":row.value===null?"Onbekend":"Actueel"}</span></header>
       <div className="cd-system-reading">
         {percent&&<svg className="cd-system-ring" viewBox="0 0 120 120" aria-hidden="true"><circle className="cd-system-ring-track" cx="60" cy="60" r="50"/><circle className="cd-system-ring-value" cx="60" cy="60" r="50" pathLength="100" strokeDasharray={`${row.value??0} 100`}/></svg>}
         <div><strong>{row.value===null?"—":row.value.toLocaleString("nl-NL",{maximumFractionDigits:1})}<small>{row.value!==null?unit:""}</small></strong><span>{metricLabels[metric]}</span></div>

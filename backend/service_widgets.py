@@ -8,10 +8,11 @@ import time
 from xml.etree.ElementTree import ParseError
 from pathlib import Path
 from threading import Lock
-from flask import g, jsonify, request
+from flask import g, jsonify, request, Response
 from backend.configuration import ConfigurationError
 from backend.widget_sources import FAMILIES, sources, permitted
 from backend.widgets.adapters import ADAPTERS, statistics_payload, result
+from backend.widgets.presentation import present, match_artwork
 from backend.widgets.calendar import nextcloud
 from backend.widgets.transport import ProviderError, Transport
 
@@ -31,6 +32,26 @@ def setup_service_widgets(app, configuration_path, data_dir):
         output.headers["Cache-Control"] = "no-store"
         return output, status
 
+    def load_source(source_id, source):
+        # The full connection fingerprint prevents reuse after credentials/ACL changes.
+        key = hashlib.sha256(json.dumps([source_id, source], sort_keys=True).encode()).hexdigest()
+        with lock:
+            entry = cache.get(key)
+            if entry and time.time() - entry[0] < 30:
+                return {**entry[1], "updatedAt": entry[0], "stale": False}
+        transport = Transport(source)
+        try:
+            adapter = nextcloud if source["kind"] == "nextcloud-calendar" else ADAPTERS[source["kind"]]
+            value = adapter(transport, source)
+        finally:
+            transport.close()
+        stamp = time.time()
+        with lock:
+            if len(cache) >= 64:
+                cache.clear()
+            cache[key] = (stamp, value)
+        return {**value, "updatedAt": stamp, "stale": False}
+
     @app.get("/api/widget-sources")
     def widget_sources():
         family = request.args.get("family")
@@ -46,11 +67,12 @@ def setup_service_widgets(app, configuration_path, data_dir):
     @app.get("/api/widgets/<family>/<source_id>")
     def service_widget(family, source_id):
         try:
-            source = sources(app).get(source_id)
+            catalog = sources(app)
+            source = catalog.get(source_id)
             if not source or source["family"] != family or not permitted(source, g.account, configuration_path):
                 return response({"error": "Widgetbron niet beschikbaar."}, 404)
             def served(body):
-                return response({**body, "sourceTitle": source["title"]})
+                return response(present(body, source, source_id))
             if source["kind"] == "homeassistant-dashboard":
                 return served({"embedUrl": source["url"], "title": source["title"]})
             if source["kind"] == "statistics":
@@ -59,29 +81,39 @@ def setup_service_widgets(app, configuration_path, data_dir):
                 if row is None:
                     return served({**result([]), "pending": True, "updatedAt": None, "stale": False})
                 value = statistics_payload(json.loads(row[0]))
-                items = [{"id": o["id"], "title": o["title"], "subtitle": o["site"], "status": "Nieuw", "date": o["firstSeenAt"], "url": o["url"], "priceCents": o["priceCents"], "currency": o["currency"]} for o in value["offers"]]
+                items = [{"id": o["id"], "title": o["title"], "subtitle": o["site"], "status": "Nieuw", "date": o["firstSeenAt"], "url": o["url"], "priceCents": o["priceCents"], "currency": o["currency"], **({"imageUrl": o["imageUrl"]} if o.get("imageUrl") else {})} for o in value["offers"]]
                 return served({**result(items), "updatedAt": row[1], "stale": time.time() - row[1] > 300})
-            # The full connection fingerprint prevents reuse after credentials/ACL changes.
-            key = hashlib.sha256(json.dumps([source_id, source], sort_keys=True).encode()).hexdigest()
-            with lock:
-                entry = cache.get(key)
-                if entry and time.time() - entry[0] < 30:
-                    return served({**entry[1], "updatedAt": entry[0], "stale": False})
-            transport = Transport(source)
-            try:
-                adapter = nextcloud if source["kind"] == "nextcloud-calendar" else ADAPTERS[source["kind"]]
-                value = adapter(transport, source)
-            finally:
-                transport.close()
-            stamp = time.time()
-            with lock:
-                if len(cache) >= 64:
-                    cache.clear()
-                cache[key] = (stamp, value)
-            return served({**value, "updatedAt": stamp, "stale": False})
+            value = load_source(source_id, source)
+            if source["kind"] in ("qbittorrent", "sabnzbd", "tdarr") and value["items"]:
+                value = {**value, "items": [dict(row) for row in value["items"]]}
+                for other_id, other in catalog.items():
+                    if other["kind"] == "seerr" and permitted(other, g.account, configuration_path):
+                        try:
+                            match_artwork(value["items"], load_source(other_id, other)["items"])
+                        except (ValueError, TypeError, KeyError, AttributeError):
+                            pass  # An unavailable enrichment source never hides the queue.
+                        break
+            return served(value)
         except (ValueError, TypeError, KeyError, AttributeError, OverflowError, ParseError, ConfigurationError, sqlite3.Error):
             # Do not return a previous account's data or raw transport/parser exceptions.
             return response({"error": "Widgetgegevens zijn niet beschikbaar. Controleer de bron en toegang."}, 503)
+
+    @app.get("/api/widget-images/<source_id>/<int:item_id>")
+    def widget_image(source_id, item_id):
+        try:
+            source = sources(app).get(source_id)
+            if not source or source["kind"] != "plex" or not 1 <= item_id <= 2147483647 or not permitted(source, g.account, configuration_path):
+                return response({"error": "Afbeelding niet beschikbaar."}, 404)
+            transport = Transport(source)
+            try:
+                body, mime = transport.image(f"/library/metadata/{item_id}/thumb", headers={"X-Plex-Token": source["apiKey"]})
+            finally:
+                transport.close()
+            output = Response(body, mimetype=mime)
+            output.headers["Cache-Control"] = "no-store"
+            return output
+        except (ValueError, KeyError, TypeError, ConfigurationError):
+            return response({"error": "Afbeelding niet beschikbaar."}, 503)
 
     @app.post("/api/widget-ingest/<source_id>")
     def ingest_widget_statistics(source_id):

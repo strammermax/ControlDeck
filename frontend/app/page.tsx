@@ -15,12 +15,15 @@ import { ProxmoxSummary } from "../components/proxmox-summary";
 import { ProxmenuxHealth } from "../components/proxmenux-health";
 import { CronjobsPage } from "../components/cronjobs-page";
 import { AppLaunch } from "../components/app-launch";
+import { LocalLinkVisibility } from "../components/local-link-visibility";
+import { hideLocalLinks } from "../lib/local-links";
+import { MediaWidgets } from "../components/media-widgets";
 import { DashboardPage } from "../components/dashboard";
 import { dashboardNavigation } from "../lib/dashboards";
 import { GlobalSearch } from "../components/global-search";
 
-type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string; ssoType?: string } | null; csrfToken: string | null; logoutUrl?: string | null };
-type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string; language?: "nl" | "en"; navOrder?: string[] };
+type AuthSession = { authenticated: boolean; loginAvailable: boolean; user: { firstName: string; lastName: string; email: string; role: string; ssoType?: string } | null; csrfToken: string | null; logoutUrl?: string | null; network?:{isLocal:boolean;scope:string} };
+type UserPreferences = { theme?: "dark" | "light"; lastRoute?: string; language?: "nl" | "en"; navOrder?: string[]; hideHomeLinksOutsideLocal?:boolean };
 /** Personal settings page; available to every signed-in user, independent of module grants. */
 const SETTINGS_ROUTE = "settings";
 const PROFILE_ROUTE = "profile";
@@ -81,7 +84,7 @@ export default function Home() {
         const values: UserPreferences = await response.json();
         if (!current()) return;
         preferences.current = values; savedPreferences.current = JSON.stringify({theme:values.theme, lastRoute:values.lastRoute});
-        setPersonal({language: values.language === "en" ? "en" : "nl", navOrder: Array.isArray(values.navOrder) ? values.navOrder : []});
+        setPersonal({language: values.language === "en" ? "en" : "nl", navOrder: Array.isArray(values.navOrder) ? values.navOrder : [], hideHomeLinksOutsideLocal:values.hideHomeLinksOutsideLocal!==false});
         preferenceUser.current = session.user.email; setThemeReady(false);
       }
       await Promise.all([
@@ -189,6 +192,7 @@ export default function Home() {
   const provider = config.providers.find(item => item.id === destination?.provider);
   const navigate = (_route?: string) => { setMobile(false); closeMenus(); };
   return <>
+    <LocalLinkVisibility hide={hideLocalLinks(personal.hideHomeLinksOutsideLocal,auth.network?.isLocal)}/>
     <a className="skip" href="#workspace">Ga naar inhoud</a>
     <header className="topbar">
       <a className="brand" href={`#${firstRoute(config.menu) ?? destinations[0]?.id}`}><img src={site.logo} alt="" className="logo" /><span><h1>{site.title}</h1><span className="subtitle">{site.subtitle}</span></span></a>
@@ -229,7 +233,7 @@ export default function Home() {
             <dt>{translate(personal.language, "email")}</dt><dd>{auth.user?.email}</dd>
             <dt>{translate(personal.language, "role")}</dt><dd>{auth.user?.role}</dd>
             <dt>{translate(personal.language, "signIn")}</dt><dd>{auth.user?.ssoType === "google" ? "Google" : auth.user?.ssoType ?? "—"}</dd>
-          </dl></section> : onSettings ? <Settings menu={config.menu} settings={personal} csrfToken={auth.csrfToken!} onSaved={values => { setPersonal(values); preferences.current = {...preferences.current, ...values}; }}/> : active === "proxmox/nodes" ? <CronjobsPage isAdmin={(auth.user?.role === "admin" || auth.user?.role === "editor")} csrfToken={auth.csrfToken!} refreshSeconds={site.refreshSeconds}/> : active === "proxmox" ? <><ProxmenuxHealth refreshSeconds={site.refreshSeconds}/><ProxmoxSummary refreshSeconds={site.refreshSeconds}/><ProxmoxTasks isAdmin={(auth.user?.role === "admin" || auth.user?.role === "editor")} refreshSeconds={site.refreshSeconds}/></> : active === "kasm" || active === "nextcloud" ? <AppLaunch key={`${auth.user?.email}:${active}`} moduleId={active} title={active === "kasm" ? "Kasm" : "Nextcloud"} csrfToken={auth.csrfToken!}/> : active === "bookmarks" ? <Bookmarks csrfToken={auth.csrfToken!} isAdmin={(auth.user?.role === "admin" || auth.user?.role === "editor")}/> : active === "admin/modules" && (auth.user?.role === "admin" || auth.user?.role === "editor") ? <ModuleWizard csrfToken={auth.csrfToken!}/> : destination?.view === "terminal" ? <Terminal theme={theme === "light" ? "light" : "dark"} key={auth.user?.email} enabled={config.providers.some(p => p.id === "termix" && p.enabled)} csrfToken={auth.csrfToken!}/> : active === "admin/users" && auth.user?.role === "admin" ? <Accounts csrfToken={auth.csrfToken!}/> : active === "admin/providers" ? <div className="provider-list">{config.providers.length ? config.providers.map(item => <section key={item.id} className="provider-card"><h3>{item.label}</h3><p>{item.enabled ? "Ingeschakeld" : "Niet ingericht"}</p>{item.url ? <a href={item.url}>{item.url}</a> : <p>Nog geen adres ingesteld.</p>}</section>) : <p>Er zijn nog geen koppelingen ingesteld.</p>}</div> : <>
+          </dl></section> : onSettings ? <Settings networkScope={auth.network?.scope} menu={config.menu} settings={personal} csrfToken={auth.csrfToken!} onSaved={values => { setPersonal(values); preferences.current = {...preferences.current, ...values}; }}/> : active === "media" ? <MediaWidgets key={auth.user?.email} csrfToken={auth.csrfToken!}/> : active === "proxmox/nodes" ? <CronjobsPage isAdmin={(auth.user?.role === "admin" || auth.user?.role === "editor")} csrfToken={auth.csrfToken!} refreshSeconds={site.refreshSeconds}/> : active === "proxmox" ? <><ProxmenuxHealth refreshSeconds={site.refreshSeconds}/><ProxmoxSummary refreshSeconds={site.refreshSeconds}/><ProxmoxTasks isAdmin={(auth.user?.role === "admin" || auth.user?.role === "editor")} refreshSeconds={site.refreshSeconds}/></> : active === "kasm" || active === "nextcloud" ? <AppLaunch key={`${auth.user?.email}:${active}`} moduleId={active} title={active === "kasm" ? "Kasm" : "Nextcloud"} csrfToken={auth.csrfToken!}/> : active === "bookmarks" ? <Bookmarks csrfToken={auth.csrfToken!} isAdmin={(auth.user?.role === "admin" || auth.user?.role === "editor")}/> : active === "admin/modules" && (auth.user?.role === "admin" || auth.user?.role === "editor") ? <ModuleWizard csrfToken={auth.csrfToken!}/> : destination?.view === "terminal" ? <Terminal theme={theme === "light" ? "light" : "dark"} key={auth.user?.email} enabled={config.providers.some(p => p.id === "termix" && p.enabled)} csrfToken={auth.csrfToken!}/> : active === "admin/users" && auth.user?.role === "admin" ? <Accounts csrfToken={auth.csrfToken!}/> : active === "admin/providers" ? <div className="provider-list">{config.providers.length ? config.providers.map(item => <section key={item.id} className="provider-card"><h3>{item.label}</h3><p>{item.enabled ? "Ingeschakeld" : "Niet ingericht"}</p>{item.url ? <a href={item.url}>{item.url}</a> : <p>Nog geen adres ingesteld.</p>}</section>) : <p>Er zijn nog geen koppelingen ingesteld.</p>}</div> : <>
             <p>{destination?.description ?? "Dit onderdeel is nog niet ingericht."}</p>
             {provider?.url && <><p>Adres: <a href={provider.url}>{provider.url}</a></p><a className="provider-open" href={provider.url} target="_blank" rel="noopener noreferrer">Open {provider.label} ↗</a><p>Deze koppeling opent de toepassing. Gegevens uit de toepassing volgen later.</p></>}
           </>}

@@ -33,6 +33,8 @@ def validate_sources(value):
             raise ProviderError("Widgetbronnen vereisen expliciete accounts.")
         if "caBundle" in source and (not isinstance(source["caBundle"], str) or not 1 <= len(source["caBundle"]) <= 512):
             raise ProviderError("Ongeldige certificaatinstelling.")
+        if "webUrl" in source:
+            provider_url(source["webUrl"], source.get("allowHttp") is True)
         if source["kind"] == "statistics":
             token = source.get("ingestToken")
             if not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_-]{32,256}", token):
