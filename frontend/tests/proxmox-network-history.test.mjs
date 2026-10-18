@@ -58,10 +58,17 @@ test('period summary regression: lifetime counters previously disagreed with the
  assert.deepEqual(trafficTotals([]),{received:null,sent:null});
  assert.equal(trafficTotals(trafficSeries(sources,['pve-amd'],'hour').points).received,null);
  assert.equal(trafficTotals([{time:1,received:null,sent:0}]).received,null);
- assert.deepEqual(trafficTotals([{time:1,received:1,sent:1}],true),{received:null,sent:null});
+ assert.deepEqual(trafficTotals([{time:1,received:1,sent:null}]),{received:1024**3,sent:null});
 });
 test('shared summary normal and loading UI: default period and unknown totals are passed in the same render',()=>{
  let summary;
  render(ui.NetworkTrafficChart,{names:['pve-amd'],overview:value=>{summary=value;return React.createElement('p',null,value.label);}});
  assert.deepEqual(summary,{received:null,sent:null,label:'24 uur · laden…'});
+});
+
+test('year total regression: one missing historical interval hid every available byte',()=>{
+ const points=[{time:1,received:null,sent:null},{time:2,received:2,sent:3},{time:3,received:0,sent:null},{time:4,received:4,sent:5}];
+ assert.deepEqual(trafficTotals(points),{received:6*1024**3,sent:8*1024**3});
+ assert.deepEqual(trafficTotals([{time:1,received:null,sent:null}]),{received:null,sent:null});
+ assert.deepEqual(trafficTotals([{time:1,received:null,sent:0}]),{received:null,sent:0});
 });
