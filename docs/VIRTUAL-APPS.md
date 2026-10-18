@@ -1,18 +1,17 @@
 # Virtual Apps — Kasm-workspaces starten
 
-**Virtual Apps → Overzicht** toont alle Kasm-workspaces die je kunt starten, elk met het icoon uit Kasm. Een klik start de workspace voor jouw eigen Kasm-account en opent hem in een nieuw tabblad. Daarboven staan je **lopende sessies**, met **Openen** en **Stoppen**. Zoeken filtert op naam, beschrijving en categorie. **Kasm openen** opent het gewone portaal.
+**Virtual Apps → Overzicht** toont alle Kasm-workspaces die je kunt starten, elk met het icoon uit Kasm. Een klik start de workspace voor jouw eigen Kasm-account; ControlDeck wacht tot Kasm de sessie *running* meldt (maximaal 45 s) en opent hem dan in een nieuw tabblad. Elke statusvraag vernieuwt het sessietoken, dus de nieuwste link wordt gebruikt. Daarboven staan je **lopende sessies**: **Openen** heropent die sessie met een verse link (zonder een nieuwe te starten), **Stoppen** beëindigt hem. Zoeken filtert op naam, beschrijving en categorie. **Kasm openen** opent het gewone portaal.
 
 ## Inrichten (eenmalig, admin)
 
-1. **API-sleutel in Kasm.** Kasm → Admin → Settings → Developers → **Add API Key**. Geef de sleutel alleen deze rechten:
+1. **API-sleutel in Kasm.** Kasm → Admin → Settings → Developers → **Add API Key**, daarna op de **sleutel** (niet op een groep) **Add Permissions**. Geef alleen deze vier rechten (getoetst op Kasm 1.19, [Developer API](https://www.kasmweb.com/docs/latest/developers/developer_api.html)):
 
    | Recht | Waarvoor |
    |---|---|
    | Images View | workspaces tonen (`get_images`) |
    | Sessions View | lopende sessies tonen (`get_kasms`) |
-   | Sessions Create | een workspace starten (`request_kasm`) |
-   | Sessions Delete | een sessie stoppen (`destroy_kasm`) |
-   | Users Auth Session | inloggen via de Kasm-module (`get_login`) |
+   | Users Auth Session | starten, status, stoppen en inloggen (`request_kasm`, `get_kasm_status`, `destroy_kasm`, `get_login`) |
+   | User | starten, status en stoppen; zonder dit recht weigert Kasm met *403 Unauthorized*. **Global Admin telt hier niet voor mee.** |
 
 2. **Kasm-gebruiker per ControlDeck-account.** Kasm → Admin → Users → open de gebruiker en kopieer het **User ID** (een UUID). ControlDeck maakt geen Kasm-gebruikers aan.
 3. **In Infisical**, omgeving **Production**, map **`/apps/controldeck/widgets`** (waar ook `CONTROLDECK_WIDGET_SOURCES` staat), de JSON-waarde `CONTROLDECK_APP_LAUNCHES` (dezelfde als voor [automatisch aanmelden](APP-LAUNCHES.md)):

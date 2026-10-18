@@ -43,6 +43,9 @@ test('virtual apps request faal/autorisatie: CSRF on writes, flags and refused r
     assert.equal(calls.at(-1)[0], `/api/virtual-apps/${ID}/start`);
     assert.equal(calls.at(-1)[1].headers['X-CSRF-Token'], 'token');
     assert.equal(calls.at(-1)[1].body, '{}', 'the browser never sends a user or image choice in the body');
+    await virtualAppsRequest(`/sessions/${'d'.repeat(32)}/open`, 'token', 'POST');
+    assert.equal(calls.at(-1)[0], `/api/virtual-apps/sessions/${'d'.repeat(32)}/open`);
+    await assert.rejects(() => virtualAppsRequest(`/sessions/${'d'.repeat(32)}/delete`, 'token', 'POST'), /Ongeldige/);
     globalThis.fetch = async () => { throw new TypeError('network'); };
     await assert.rejects(() => virtualAppsRequest(''), /niet bereikbaar/);
   } finally { globalThis.fetch = original; }

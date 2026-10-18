@@ -57,13 +57,19 @@ def kasm_call(kasm, endpoint, **body):
         response = kasm_post(kasm, endpoint, **body)
         if response.status_code in (301, 302, 303, 307, 308):
             raise KasmError("Kasm is niet bereikbaar: het adres stuurt door naar een aanmeldpagina. Stel apiUrl in op het interne adres.")
-        value = response.json() if response.status_code == 200 else None
-    except (requests.RequestException, ValueError):
-        raise KasmError("Kasm is niet bereikbaar of geeft geen API-antwoord. Controleer apiUrl en apiFingerprint.") from None
-    if not isinstance(value, dict):
-        raise KasmError("Kasm weigert de aanvraag. Controleer de rechten van de API-sleutel.")
-    if value.get("error_message"):
-        raise KasmError("Kasm weigert de aanvraag: " + str(value["error_message"])[:200])
+        try:
+            value = response.json()
+        except ValueError:
+            value = None
+    except requests.RequestException:
+        raise KasmError("Kasm is niet bereikbaar. Controleer apiUrl en apiFingerprint.") from None
+    # Keep Kasm's own reason, also on 4xx: "Unauthorized" on 403 means the API key lacks a permission.
+    reason = value.get("error_message") if isinstance(value, dict) else None
+    if response.status_code != 200 or reason or not isinstance(value, dict):
+        hint = " Controleer de rechten van de API-sleutel." if response.status_code in (401, 403) else ""
+        detail = f": {str(reason)[:200]}" if reason else ""
+        status = f" ({response.status_code})" if response.status_code != 200 else ""
+        raise KasmError(f"Kasm weigert de aanvraag{status}{detail}.{hint}")
     return value
 
 
@@ -139,6 +145,35 @@ def connect_url(origin, value, api=None):
     return target
 
 
+READY_SECONDS = 45
+POLL_SECONDS = 2
+
+
+def session_status(value):
+    """Kasm reports the state at the top level while starting and inside `kasm` once running."""
+    inner = value.get("kasm") if isinstance(value.get("kasm"), dict) else {}
+    return str(value.get("operational_status") or inner.get("operational_status") or "").lower()
+
+
+def wait_until_running(kasm, user_id, kasm_id, link, sleep=time.sleep, clock=time.monotonic):
+    """Poll get_kasm_status until the session runs. Every status call renews the session token and
+    invalidates older links, so the newest link wins. After the time limit the newest link is returned
+    anyway; Kasm then shows its own loading screen."""
+    deadline = clock() + READY_SECONDS
+    while True:
+        value = kasm_call(kasm, "get_kasm_status", user_id=user_id, kasm_id=kasm_id)
+        if value.get("kasm_url"):
+            link = connect_url(kasm["origin"], value, kasm["api"])
+        state = session_status(value)
+        if state == "running":
+            return link, True
+        if state in ("stopped", "stopping", "deleted", "deleting", "error"):
+            raise KasmError("De sessie is gestopt voordat hij klaar was. Probeer het opnieuw.")
+        if clock() >= deadline:
+            return link, False
+        sleep(POLL_SECONDS)
+
+
 def setup_virtual_apps(app, configuration_path):
     cache, lock = {}, Lock()
 
@@ -195,8 +230,26 @@ def setup_virtual_apps(app, configuration_path):
         kasm, user_id = settings()
         if not any(app_["id"] == image_id for app_ in images(kasm)):
             return jsonify(error="Deze workspace is niet beschikbaar."), 404
-        url = connect_url(kasm["origin"], kasm_call(kasm, "request_kasm", user_id=user_id, image_id=image_id, enable_sharing=False), kasm["api"])
-        result = jsonify(url=url)
+        started = kasm_call(kasm, "request_kasm", user_id=user_id, image_id=image_id, enable_sharing=False)
+        kasm_id = str(started.get("kasm_id", ""))
+        if not KASM_ID.fullmatch(kasm_id):
+            raise KasmError("Kasm gaf geen geldige sessie terug.")
+        url, ready = wait_until_running(kasm, user_id, kasm_id, connect_url(kasm["origin"], started, kasm["api"]))
+        result = jsonify(url=url, ready=ready)
+        result.headers["Cache-Control"] = "no-store"
+        result.headers["Referrer-Policy"] = "no-referrer"
+        return result
+
+    @app.post("/api/virtual-apps/sessions/<kasm_id>/open")
+    def open_virtual_app(kasm_id):
+        """Reopen one of my running sessions with a fresh link (never starts a new session)."""
+        if not KASM_ID.fullmatch(kasm_id) or request.get_json(silent=True) != {}:
+            return jsonify(error="Ongeldige sessie."), 400
+        kasm, user_id = settings()
+        if not any(session["id"] == kasm_id for session in project_sessions(kasm_call(kasm, "get_kasms"), user_id, [])):
+            return jsonify(error="Sessie niet gevonden."), 404
+        value = kasm_call(kasm, "get_kasm_status", user_id=user_id, kasm_id=kasm_id)
+        result = jsonify(url=connect_url(kasm["origin"], value, kasm["api"]), ready=session_status(value) == "running")
         result.headers["Cache-Control"] = "no-store"
         result.headers["Referrer-Policy"] = "no-referrer"
         return result

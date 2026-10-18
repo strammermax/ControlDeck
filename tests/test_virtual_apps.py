@@ -22,7 +22,8 @@ KASMS = {"kasms": [
     {"kasm_id": "d" * 32, "user_id": ME, "image_id": CHROME, "operational_status": "running", "start_date": "2026-10-18 08:00:00"},
     {"kasm_id": "e" * 32, "user_id": OTHER, "image_id": CHROME, "operational_status": "running"},
 ]}
-STARTED = {"kasm_id": "f" * 32, "kasm_url": f"/#/connect/kasm/{'f' * 32}/{ME}/token-abc"}
+STARTED = {"kasm_id": "f" * 32, "status": "starting", "kasm_url": f"/#/connect/kasm/{'f' * 32}/{ME}/token-abc"}
+RUNNING = {"kasm": {"operational_status": "running"}, "kasm_url": f"/#/connect/kasm/{'f' * 32}/{ME}/token-fresh"}
 
 
 @pytest.fixture
@@ -38,7 +39,7 @@ def env(tmp_path, monkeypatch):
     app.config["TESTING"] = True
     vault = {"CONTROLDECK_APP_LAUNCHES": json.dumps(CONFIG)}
     app.extensions["controldeck_vault"] = Mock(read=lambda: vault)
-    calls, replies = [], {"get_images": IMAGES, "get_kasms": KASMS, "request_kasm": STARTED, "destroy_kasm": {}}
+    calls, replies = [], {"get_images": IMAGES, "get_kasms": KASMS, "request_kasm": STARTED, "destroy_kasm": {}, "get_kasm_status": RUNNING}
 
     def post(url, json=None, **kwargs):
         endpoint = url.rsplit("/", 1)[1]
@@ -71,7 +72,7 @@ def test_overview_normaal_apps_with_icons_and_only_my_sessions(env):
 def test_start_normaal_opens_the_connect_link_for_my_user(env):
     client, calls, replies, vault = env
     result = client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H)
-    assert result.status_code == 200 and result.get_json()["url"] == f"{ORIGIN}/#/connect/kasm/{'f' * 32}/{ME}/token-abc"
+    assert result.status_code == 200 and result.get_json() == {"url": f"{ORIGIN}/#/connect/kasm/{'f' * 32}/{ME}/token-fresh", "ready": True}, "the newest token wins"
     request = [body for endpoint, body in calls if endpoint == "request_kasm"][-1]
     assert request["user_id"] == ME and request["image_id"] == CHROME and request["enable_sharing"] is False
 
@@ -177,11 +178,28 @@ def test_regression_internal_api_url_behind_login_proxy(env, monkeypatch):
         value = replies[url.rsplit("/", 1)[1]]
         return Mock(status_code=200, json=Mock(return_value=value))
     monkeypatch.setattr("backend.modules.kasm.requests.post", post)
-    replies["request_kasm"] = {"kasm_url": f"https://kasm.internal.test/#/connect/kasm/{'f' * 32}/{ME}/t"}
+    replies["request_kasm"] = {"kasm_id": "f" * 32, "kasm_url": f"https://kasm.internal.test/#/connect/kasm/{'f' * 32}/{ME}/t"}
+    replies["get_kasm_status"] = {"kasm": {"operational_status": "running"}, "kasm_url": f"https://kasm.internal.test/#/connect/kasm/{'f' * 32}/{ME}/t"}
     assert client().get("/api/virtual-apps").status_code == 200
     started = client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H).get_json()
     assert set(seen) == {"https://kasm.internal.test"}
     assert started["url"] == f"{ORIGIN}/#/connect/kasm/{'f' * 32}/{ME}/t", "the browser opens the public address"
+
+
+def test_regression_403_keeps_kasms_reason(env, monkeypatch):
+    """Bug 2026-10-18: starting failed with only "Controleer de rechten" because Kasm's 403 body
+    ("Unauthorized") was discarded for every non-200 answer."""
+    client, calls, replies, vault = env
+    real = virtual_apps.kasm_post
+
+    def refuse(kasm, endpoint, **body):
+        if endpoint == "request_kasm":
+            return Mock(status_code=403, json=Mock(return_value={"error_message": "Unauthorized"}))
+        return real(kasm, endpoint, **body)
+    monkeypatch.setattr(virtual_apps, "kasm_post", refuse)
+    answer = client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H)
+    assert answer.status_code == 424
+    assert answer.get_json()["error"] == "Kasm weigert de aanvraag (403): Unauthorized. Controleer de rechten van de API-sleutel."
 
 
 def test_login_redirect_faal_gives_a_clear_message(env, monkeypatch):
@@ -227,3 +245,50 @@ def test_pinned_certificate(case, monkeypatch):
         for bad in ({**config, "apiFingerprint": "AA:BB"}, {**config, "apiUrl": "http://kasm.internal.test"}, {**config, "extra": 1}):
             with pytest.raises(ValueError):
                 module.kasm_config(bad)
+
+
+class Clock:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+def test_wait_until_running_normaal_boundary_faal(monkeypatch):
+    """Kasm docs: only send users in once the status is running; each status call renews the token."""
+    kasm = {"origin": ORIGIN, "api": ORIGIN}
+    answers = [{"operational_status": "starting"}, {"operational_status": "starting", "kasm_url": f"/#/connect/kasm/a/b/t2"}, RUNNING]
+    monkeypatch.setattr(virtual_apps, "kasm_call", lambda *a, **k: answers.pop(0))
+    clock = Clock()
+    link, ready = virtual_apps.wait_until_running(kasm, ME, "f" * 32, f"{ORIGIN}/#/connect/kasm/a/b/t1", clock.sleep, clock)
+    assert ready and link.endswith("token-fresh") and clock.now == 2 * virtual_apps.POLL_SECONDS
+    # Boundary: never running within the limit -> newest link, not ready, after the limit.
+    monkeypatch.setattr(virtual_apps, "kasm_call", lambda *a, **k: {"operational_status": "starting", "kasm_url": "/#/connect/kasm/a/b/t9"})
+    clock = Clock()
+    link, ready = virtual_apps.wait_until_running(kasm, ME, "f" * 32, "x", clock.sleep, clock)
+    assert not ready and link.endswith("/t9") and clock.now >= virtual_apps.READY_SECONDS
+    # Failure: the session stops while starting.
+    monkeypatch.setattr(virtual_apps, "kasm_call", lambda *a, **k: {"operational_status": "stopped"})
+    with pytest.raises(KasmError, match="gestopt"):
+        virtual_apps.wait_until_running(kasm, ME, "f" * 32, "x", Clock().sleep, Clock())
+
+
+def test_open_existing_session_normaal_and_authorization(env):
+    """Bug 2026-10-18: "Openen" on a running session started a new session instead of reopening it."""
+    client, calls, replies, vault = env
+    opened = client().post(f"/api/virtual-apps/sessions/{'d' * 32}/open", json={}, headers=H)
+    assert opened.status_code == 200 and opened.get_json()["url"].endswith("token-fresh")
+    assert not any(endpoint == "request_kasm" for endpoint, _ in calls), "reopening never starts a new session"
+    assert client().post(f"/api/virtual-apps/sessions/{'e' * 32}/open", json={}, headers=H).status_code == 404, "another user's session"
+    assert client().post(f"/api/virtual-apps/sessions/{'d' * 32}/open", json={}).status_code == 403, "CSRF required"
+    assert client().post("/api/virtual-apps/sessions/bad/open", json={}, headers=H).status_code == 400
+
+
+def test_start_faal_without_session_id(env):
+    client, calls, replies, vault = env
+    replies["request_kasm"] = {"kasm_url": STARTED["kasm_url"]}
+    assert client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H).status_code == 424
