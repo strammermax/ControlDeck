@@ -21,3 +21,5 @@ Nieuwe configuraties bevatten Hardware onder Proxmox. Voeg op een bestaande inst
 `tests/test_hardware_inventory.py` dekt normale projectie, KiB/byte-eenheden, dubbele DIMM-labels, nul/negatieve temperaturen, ongeldige data, ontbrekende bronnen, veilige velden, API-cache en sessie-/modulerechten. `frontend/tests/proxmox-hardware.test.mjs` controleert de echte kaarten, nodefiltering, sensordrempels, lege/stale-metingen, HTML-escaping en het ontbreken van een schijnbaar volledig clustertotaal als een node ontbreekt. Draai volledige pytest, frontendtests, TypeScript en de build voor publicatie.
 
 Browseracceptatie met fictieve data: desktopindeling, nodekeuze en mobiele weergave op 390 pixels zonder horizontale overloop gecontroleerd. Het originele flowdiagram toonde drie aparte hosts, VM-/LXC-iconen en RX/TX-animatiepaden; Hardware volgde de systeem-/geheugen-/sensorindeling van de referentie. Deze voorbeeldmetingen zijn geen productiegegevens.
+
+Acceptatie na samenvoegen met de recente Virtual Apps-wijzigingen op 18 oktober 2026: 785 Python-tests geslaagd, 8 overgeslagen; 256 frontendtests geslaagd; TypeScript-controle en statische productiebuild geslaagd.

@@ -34,3 +34,5 @@ Nieuwe configuraties bevatten `network` als pagina onder de Proxmox-module; het 
 Lokale acceptatie op 18 oktober 2026: 764 Python-tests geslaagd, 8 overgeslagen; 244 frontendtests geslaagd; TypeScript en statische build geslaagd. Browsercontrole met fictieve data bevestigde de vier desktopkaarten, nodekeuze, lege zoekresultaten en een mobiele indeling op 390 pixels zonder horizontale overloop. Productieacceptatie gebeurt met de echte nodegegevens na publicatie.
 
 Browseracceptatie met fictieve data: desktopindeling, nodekeuze en mobiele weergave op 390 pixels zonder horizontale overloop gecontroleerd. Het originele flowdiagram toonde drie aparte hosts, VM-/LXC-iconen en RX/TX-animatiepaden; Hardware volgde de systeem-/geheugen-/sensorindeling van de referentie. Deze voorbeeldmetingen zijn geen productiegegevens.
+
+Acceptatie na samenvoegen met de recente Virtual Apps-wijzigingen op 18 oktober 2026: 785 Python-tests geslaagd, 8 overgeslagen; 256 frontendtests geslaagd; TypeScript-controle en statische productiebuild geslaagd.
