@@ -27,7 +27,37 @@ Sinds `b74bd10` zijn Files, Virtual Apps (Kasm, VM-status/-wekken), de Proxmox-i
 | 11. Backendcaches | Gegroeid | Nieuwe eigen caches in `virtual_apps.py` (workspaces, 60 s) en `vm_power.py` (VM-status 10 s, VM-koppeling 60 s). Ze lossen elk hetzelfde op (TTL + lock), met verschillende vormen. |
 | 13. URL-/HTTP-beleid | Gegroeid | Nieuwe validators `nextcloud_origin` (Files) en `workspace_icon`/`connect_url` (Virtual Apps), naast `secure_origin`, `provider_url`, `base_url`, `integration_url` en `display_url`. Terecht verschillende contracten, maar gedeelde fixtures ontbreken. Ook vier eigen HTTP-aanroepfuncties (`files.call`, `homepage_integrations.call`, `linkwarden.upstream`, `widgets.transport.call`) met elk eigen time-outs en foutvertaling. |
 
-**Aangepaste volgorde:** ronde 0 = de 502-bug (klein, gebruikerszichtbaar, met regressietests); daarna ronde 1 (`requestJson`/`ApiError`) en ronde 2 met de generieke `usePolledResource`, waarmee ook de drie nieuwe Proxmox-inventarislussen samenvallen. Ronde 3 (Kasm-client) is vervallen.
+### Aanvullende bevindingen (nieuw in deze herbeoordeling)
+
+**A1. P1 — Modules lezen de Proxmox-verbinding rechtstreeks van schijf.** `proxmox/connection.json` wordt buiten `proxmox.py` gelezen in `cronjobs.py:94`, `cronjob_api.py:76`, `linkwarden.py:158`, `proxmenux.py:258` en `vm_power.py:109`; elk bouwt zelf een `Client` en vangt eigen fouten af. Een wijziging aan het opslagformaat of aan certificaatpinning moet dus op zes plaatsen landen. *Voorstel:* een `ProxmoxConnection`-repository in `proxmox.py` (`load()`, `client()`, `require()`) die de anderen importeren. *Bewaken:* bestandsrechten (0600) en de alleen-lezen/startrecht-scheiding blijven gelijk.
+
+**A2. P1 — Persoonlijke geheimen: twee opslagvarianten met een andere sleutel.** Linkwarden-tokens (`linkwarden.py:130`) zijn opgeslagen onder een hash van *server + e-mailadres*; Files-app-wachtwoorden (`files.py:139`) onder *server + login-subject*. Een gewijzigd e-mailadres laat de Linkwarden-koppeling dus stil vervallen, Files niet. *Voorstel:* één `PersonalSecretStore(module)` met `get/put/delete(account, server)` op basis van het stabiele subject, met `save_private` (bevinding 9) als opslag. *Bewaken:* bestaande Linkwarden-bestanden expliciet migreren (oude sleutel → nieuwe), niet weggooien; nooit een geheim van een andere server teruggeven.
+
+**A3. P2 — Elf eigen `before_request`-hooks en drie eigen foutafhandelaars.** Zie `auth`, `cronjobs`, `cronjob_api`, `dashboards`, `files`, `homepage`, `installations`, `linkwarden`, `proxmenux`, `proxmox`, `virtual_apps` (hooks) en `FilesError`, `LinkwardenError`, `KasmError` (handlers, met statussen 424, 502 en 424). Iedere hook herhaalt "pad-prefix → module-ID → beheerder?". *Voorstel:* per module een Flask-**Blueprint** met één `require_module("files")`/`require_manager()`-decorator (bouwt op de `PermissionContext` van bevinding 10) en één gedeelde `UpstreamError`-basisklasse (lost de 502-bug in één keer structureel op). *Bewaken:* `/api/widget-ingest` houdt zijn machine-authenticatie; volgorde t.o.v. de sessie-/CSRF-hook in `auth.py` niet veranderen.
+
+**A4. P2 — Tests bouwen 26× zelf een app en 21× zelf een sessie.** Er is geen `tests/conftest.py`; elke testmodule heeft een eigen accounts-bestand, `create_app`, `Vault.from_env`-patch en `session_transaction`. Zeven frontendtests vervangen elk zelf `globalThis.fetch`. *Voorstel:* gedeelde fixtures `app_factory(accounts)`, `login(email)` en `fake_vault(values)` in `conftest.py`, en een `mockFetch()`-helper voor de frontendtests. Bestaande tests ongewijzigd laten slagen; alleen nieuwe tests gebruiken ze eerst. *Winst:* nieuwe modules krijgen sneller de verplichte normaal/rand/faal/auth-tests.
+
+**A5. P2 — Statuskleuren zijn hard gecodeerd en per onderdeel anders.** De CSS bevat o.a. `#22c55e`/`#63c691` (goed), `#e9b900`/`#9a6700` (waarschuwing) en `#ef4444`/`#cf222e`/`#c0392b`/`#f08080` (fout) naast 96 `var(--…)`-tokens. Meters, ProxMenux-gezondheid, Proxmox-inventaris en VM-status gebruiken elk een eigen set; donker/licht-contrast wordt per plek opnieuw gekozen. *Voorstel:* tokens `--ok`, `--warn`, `--error`, `--info` (met donkere varianten) in `style.css` en één `StatusBadge` (sluit aan op bevinding 14).
+
+**A6. P2 — Eén laadpatroon voor de drie Proxmox-inventarissen.** Naast de ververslus (bevinding 1) delen `proxmox-guests`, `-network` en `-storage` ook het samenvoegen van Proxmox-inventaris en ProxMenux-monitor, de "eerst koppelen"-melding bij 409 en het `stale`-label. *Voorstel:* `useInventory(endpoint, monitorEndpoint, validate)` die `{data, monitor, error, pending}` teruggeeft; elk component houdt alleen zijn eigen weergave. Dit is de kleinste, veiligste eerste toepassing van `usePolledResource`.
+
+**A7. P3 — Kleine dubbele hulpfuncties.** Twee bytesformatters met verschillende uitkomst (`lib/files.ts:formatSize` met komma, `lib/proxmox.ts:bytes`); twee lijsten met geheime URL-sleutels (`backend/widgets/presentation.py:PRIVATE_KEYS` en de regex in `lib/service-widgets.ts:offerLink`) die uit elkaar kunnen lopen; eigen `https()`-controle in `lib/virtual-apps.ts` naast `safeImage`/`offerLink`. *Voorstel:* één `formatBytes` (nl-NL) en een gedeelde fixtureset met toegestane/geweigerde URL's voor Python én TypeScript (sluit aan op bevinding 13); de dubbele validatie zelf behouden.
+
+**A8. P3 — Persoonlijke pagina-indelingen: `media` is voorbereid maar ongebruikt.** `backend/page_layouts.py` en `lib/page-layouts.ts` accepteren `media`, terwijl de Media-pagina (`media-widgets.tsx`) nog geen `EditableGrid` gebruikt. Of aansluiten (één regel per tegel, zelfde patroon als Proxmox), of de pagina-ID verwijderen tot het zover is, zodat de API geen ongebruikte opslag aanbiedt.
+
+**Aangepaste volgorde:**
+
+| Ronde | Wijziging | Waarom eerst |
+| --- | --- | --- |
+| 0 | 502 → `UpstreamError` (424) op de 8 plaatsen, met regressietest per route | Gebruikerszichtbare bug, klein |
+| 1 | `conftest.py`-fixtures (A4) en `requestJson`/`ApiError` (bevinding 5) | Maakt alle volgende rondes goedkoper en veiliger |
+| 2 | `usePolledResource` + `useInventory` voor de drie Proxmox-inventarissen (bevinding 1, A6) | Grootste letterlijke dubbeling, laag risico |
+| 3 | `ProxmoxConnection`-repository (A1) en `PersonalSecretStore` met migratie (A2) | Koppelingen op één plek; e-mailwijziging breekt niets meer |
+| 4 | Blueprints met `require_module` en `PermissionContext` (A3, bevinding 10) | Raakt alle modules; pas na ronde 1 met goede fixtures |
+| 5 | Statustokens/`StatusBadge` (A5), widgetinstellingen en register (bevindingen 6–7), dashboard op `EditableGrid` (8) | Grotere UI-stappen |
+| 6 | Connectorconsolidatie en vaultoptimalisatie (bevindingen 2 en 4) | Vergt migratieplan |
+
+Ronde 3 uit het oorspronkelijke plan (Kasm-client) is vervallen: al gedaan.
 
 ## Reikwijdte en bewijs
 
