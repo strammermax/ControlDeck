@@ -45,3 +45,5 @@
 
 .cd-node-object{display:flex;gap:7px;align-items:center;text-decoration:none}.cd-node-object svg{fill:none;stroke:currentColor;stroke-width:1.5;flex-shrink:0}
 .cd-widget-items>.cd-widget-section{display:block;border:0;padding:8px 0 0;background:none}.cd-widget-section h4{margin:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}.cd-widget-source a{color:inherit}
+
+[data-cd-local-link-hidden]{display:none!important}.settings-local-links{display:flex;gap:10px;align-items:center}.settings-local-links input{width:auto}
