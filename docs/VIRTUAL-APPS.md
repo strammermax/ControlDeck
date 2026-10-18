@@ -48,6 +48,12 @@ Kasm staat per gebruiker maar **één browser-RemoteApp per Kasm-server** toe ("
 2. **Kasm:** elke RemoteApp een **eigen serververmelding** naar dezelfde machine (bijv. *Windows - Word*, *Windows - Excel*, allemaal `192.168.20.101`); het volledige bureaublad houdt de originele server. Nieuwe app: kopieer in Kasm → Admin → Servers een bestaande Windows-server en koppel de workspace eraan.
 3. **Grens:** Kasm Community staat maximaal **5 sessies** tegelijk toe.
 
+**Een Windows-app toevoegen** (zo zijn op 2026-10-18 Android Studio, OneNote, Outlook, Publisher, Visio en Visual Studio toegevoegd):
+
+1. Op WinServer een RemoteApp-alias in `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Terminal Server\TSAppAllowList\Applications\<Alias>` met `Name`, `Path` (volledig pad naar de .exe), `CommandLineSetting=0`, `RequiredCommandLine=""`, `ShowInTSWA=0` — gelijk aan de bestaande alias *Word*.
+2. In Kasm een server kopiëren (*Windows - Word*) als *Windows - <Alias>*, en een workspace met *RemoteApp* aan, programma `||<Alias>`, gekoppeld aan die server en aan dezelfde groep (*All Users*).
+3. Icoon in `img/thumbnails/` van `kasm_proxy` zetten (kopie bewaren in `/opt/kasm/custom-thumbnails/` op LXC 126) en als *Thumbnail URL* instellen.
+
 ControlDeck koppelt alle serververmeldingen met hetzelfde adres automatisch aan dezelfde VM.
 
 ## Werkplekken, VM-status en VM's wakker maken
