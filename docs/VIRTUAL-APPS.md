@@ -37,7 +37,8 @@ Zonder inrichting toont de pagina "Kasm is nog niet ingericht"; zonder gekoppeld
 - API-sleutel en -geheim blijven op de server; de browser krijgt alleen namen, iconen en de startlink.
 - De Kasm-gebruiker komt uit de vault op basis van je ControlDeck-e-mail, nooit uit de browser. Starten accepteert alleen een lege body; alleen ingeschakelde workspaces kunnen worden gestart.
 - Je ziet en stopt alleen je **eigen** sessies; de server controleert dat voor het stoppen.
-- De startlink moet Kasm's eigen route `#/connect/kasm/…` op hetzelfde adres zijn. Iconen komen alleen van dat adres en mogen geen `..` bevatten.
+- De startlink moet Kasm's eigen route `#/connect/kasm/…` op hetzelfde adres zijn.
+- Iconen: een Kasm-thumbnailpad op het Kasm-adres (zonder `..`), of een in Kasm ingebedde PNG/JPEG/WebP (max. 256 KB, inhoud gecontroleerd). Externe icoonadressen en SVG worden niet geladen; dan toont de tegel de eerste letter. Stel een icoon in via Kasm → Admin → Workspaces → *Thumbnail URL* (bijvoorbeeld `img/thumbnails/<naam>.png`).
 - Toegang volgt de module `virtual-apps`; schrijfacties vereisen CSRF. Kasm-fouten krijgen status 424 (niet 502, dat Cloudflare zou vervangen), met de melding van Kasm.
 
 ## Tests

@@ -1,5 +1,7 @@
 """Virtual Apps: start and stop the user's own Kasm workspaces. Kasm API credentials stay on the server."""
 
+import base64
+import binascii
 import json
 import re
 import time
@@ -16,6 +18,10 @@ from backend.vault import VaultError
 
 KASM_ID = re.compile(r"[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 IMAGE_SRC = re.compile(r"[A-Za-z0-9_./-]{1,300}\.(?:png|jpg|jpeg|svg|webp)")
+DATA_ICON = re.compile(r"data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})")
+MAX_DATA_ICON = 256 * 1024
+SIGNATURES = {"png": lambda b: b.startswith(b"\x89PNG\r\n\x1a\n"), "jpeg": lambda b: b.startswith(b"\xff\xd8\xff"),
+              "webp": lambda b: b[:4] == b"RIFF" and b[8:12] == b"WEBP"}
 CONNECT = re.compile(r"/connect/kasm/[A-Za-z0-9_-]{1,128}/[A-Za-z0-9_-]{1,128}/[A-Za-z0-9_.-]{1,512}")
 
 
@@ -61,6 +67,24 @@ def kasm_call(kasm, endpoint, **body):
     return value
 
 
+def workspace_icon(origin, source):
+    """A Kasm thumbnail path on the Kasm origin, or an embedded PNG/JPEG/WebP that really is that image.
+    External icon URLs are never loaded (same policy as Bookmarks)."""
+    if not isinstance(source, str):
+        return None
+    if source.startswith("data:"):
+        match = DATA_ICON.fullmatch(source) if len(source) <= MAX_DATA_ICON * 4 // 3 + 40 else None
+        if not match:
+            return None
+        try:
+            data = base64.b64decode(match.group(2), validate=True)
+        except (binascii.Error, ValueError):
+            return None
+        return source if len(data) <= MAX_DATA_ICON and SIGNATURES[match.group(1)](data) else None
+    path = source.lstrip("/")
+    return origin + "/" + path if IMAGE_SRC.fullmatch(path) and ".." not in path else None
+
+
 def project_images(origin, value):
     """Enabled workspaces only, with display fields; icons are public files on the Kasm origin."""
     rows = value.get("images")
@@ -73,8 +97,7 @@ def project_images(origin, value):
         identifier, name = str(image.get("image_id", "")), image.get("friendly_name")
         if not KASM_ID.fullmatch(identifier) or not isinstance(name, str) or not name.strip():
             continue
-        source = image.get("image_src")
-        icon = origin + "/" + source.lstrip("/") if isinstance(source, str) and IMAGE_SRC.fullmatch(source.lstrip("/")) and ".." not in source else None
+        icon = workspace_icon(origin, image.get("image_src"))
         categories = [str(c)[:60] for c in image.get("categories") or [] if isinstance(c, str)][:10]
         apps.append({"id": identifier, "name": name.strip()[:100], "description": str(image.get("description") or "")[:300],
                      "icon": icon, "categories": categories})

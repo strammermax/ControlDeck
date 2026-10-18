@@ -140,6 +140,28 @@ def test_projection_helpers(case):
             kasm_settings(CONFIG, "someone@example.test")
 
 
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_workspace_icons(case):
+    """Kasm on 2026-10-18: most workspaces had no icon, one an embedded JPEG and one a Google search link."""
+    import base64
+    from backend.virtual_apps import workspace_icon, MAX_DATA_ICON
+    jpeg = "data:image/jpeg;base64," + base64.b64encode(b"\xff\xd8\xff\xe0" + b"x" * 100).decode()
+    if case == "normaal":
+        assert workspace_icon(ORIGIN, "img/thumbnails/vs-code.png") == ORIGIN + "/img/thumbnails/vs-code.png"
+        assert workspace_icon(ORIGIN, jpeg) == jpeg
+    elif case == "boundary":
+        exact = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * (MAX_DATA_ICON - 8)).decode()
+        assert workspace_icon(ORIGIN, exact) == exact
+        assert workspace_icon(ORIGIN, None) is None and workspace_icon(ORIGIN, "None") is None
+    else:
+        too_big = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * MAX_DATA_ICON).decode()
+        for bad in ("https://www.google.com/url?sa=t&url=https%3A%2F%2Fexample.test%2Fa.png",  # external: never loaded
+                    "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",  # SVG may carry scripts
+                    "data:image/png;base64," + base64.b64encode(b"<html>not a png</html>").decode(),  # wrong content
+                    "data:image/png;base64,***", too_big, "../../etc/passwd.png", "javascript:alert(1)"):
+            assert workspace_icon(ORIGIN, bad) is None, bad[:40]
+
+
 FINGERPRINT = ":".join(["06", "A5"] * 16)
 
 

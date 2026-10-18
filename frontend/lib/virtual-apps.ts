@@ -22,7 +22,7 @@ export function validateOverview(value: unknown): VirtualOverview {
   if (!data || !Array.isArray(data.apps) || data.apps.length > 200 || !Array.isArray(data.sessions) || data.sessions.length > 500) throw new VirtualAppsError("Ongeldige gegevens van Virtual Apps.");
   for (const app of data.apps) {
     if (!app || !ID.test(app.id) || typeof app.name !== "string" || !app.name || app.name.length > 100 || typeof app.description !== "string" || !Array.isArray(app.categories)) throw new VirtualAppsError("Ongeldige workspace.");
-    if (app.icon !== null) app.icon = https(app.icon);
+    if (app.icon !== null) app.icon = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(app.icon) ? app.icon : https(app.icon);
   }
   for (const session of data.sessions) {
     if (!session || !ID.test(session.id) || typeof session.name !== "string" || (session.appId !== null && !ID.test(session.appId))) throw new VirtualAppsError("Ongeldige sessie.");
