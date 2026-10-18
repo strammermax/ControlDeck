@@ -2,7 +2,11 @@
 
 ## Referentie
 
-[ProxMenux Monitor](https://github.com/MacRimi/ProxMenux) is de visuele en technische referentie. Deze eerste foundation bevat geen geïmporteerde ProxMenux-applicatiecode of assets. De GPL-3.0-licentietekst is opgenomen als projectlicentie. Registreer bij later broncodehergebruik de exacte broncommit, bestanden, oorspronkelijke notices en wijzigingen.
+[ProxMenux Monitor](https://github.com/MacRimi/ProxMenux) is de visuele en technische referentie. De oorspronkelijke foundation bevatte geen geïmporteerde ProxMenux-applicatiecode of assets. Het VM-/LXC-overzicht gebruikt inmiddels afgeleide broncode zoals hieronder beschreven. De projectlicentie blijft GPL-3.0.
+
+## ProxMenux VM-/LXC-overzicht
+
+De vier overzichtskaarten en inventarislijst in `frontend/modules/proxmox/guest-cards.tsx` zijn aangepast uit `AppImage/components/virtual-machines.tsx` van MacRimi/ProxMenux, commit `d4e98d16b11733e518b0162db1b528b2ecd4cc53` (overzicht/lijst rond regels 2799–3240). `frontend/modules/proxmox/pve-tag-color.ts` neemt de tagkleuren uit `AppImage/lib/pve-tag-color.ts` over. Beide vallen onder de upstream GPL-3.0-licentie; de upstreamnotities over de Proxmox-kleuralgoritmen zijn behouden. Aanpassingen: cluster-/nodekeuze, alleen-lezen gegevensprojectie, scoped CSS in plaats van Tailwind/shadcn, expliciete onbekende/stale-status en ControlDeck-sessierechten. Er worden geen upstreamterminal-, backup- of mutatieacties geladen. Bronvermelding en licentie worden meegeleverd als `frontend/public/proxmenux/NOTICE.txt` en `LICENSE.txt`. Zie [PROXMOX-GUESTS.md](PROXMOX-GUESTS.md).
 
 ## Directe afhankelijkheden
 

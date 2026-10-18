@@ -1,0 +1,6 @@
+ProxMenux, MacRimi and contributors
+Source: https://github.com/MacRimi/ProxMenux
+Commit: d4e98d16b11733e518b0162db1b528b2ecd4cc53
+License: GNU GPL version 3 (see LICENSE.txt and the project LICENSE)
+Adapted files: AppImage/components/virtual-machines.tsx (overview cards and inventory list, lines 2799-3240), AppImage/lib/pve-tag-color.ts.
+ControlDeck modifications: scoped CSS replaces Tailwind/shadcn; cluster/node selection, safe read-only API projection, canonical inventory, optional monitor counters, accessible filters and responsive layout. Login, terminal, update/backup/control operations and upstream data-fetch lifecycle are not imported.

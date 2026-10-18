@@ -9,6 +9,8 @@ import tempfile
 import time
 from pathlib import Path
 from threading import Lock
+from concurrent.futures import ThreadPoolExecutor
+from backend.guest_inventory import project_inventory, config_ip
 from urllib.parse import urlsplit
 
 import requests
@@ -371,3 +373,29 @@ def setup_proxmox(app, configuration_path, data_dir):
     @app.get("/api/proxmox/summary")
     def cluster_summary():
         return cached("summary", summary)
+
+    @app.get("/api/proxmox/guests")
+    def guests():
+        def inventory(client):
+            try:
+                value = project_inventory(client.get("/cluster/resources"))
+            except ValueError:
+                raise ProxmoxError("Proxmox gaf een ongeldige gastenlijst.") from None
+            online = {node["name"] for node in value["nodes"] if node["online"]}
+            connection = load()
+            def address(guest):
+                if guest["type"] != "lxc" or guest["node"] not in online:
+                    return
+                reader = Client(connection)
+                try:
+                    config = reader.get(f"/nodes/{guest['node']}/lxc/{guest['vmid']}/config")
+                    if isinstance(config, dict):
+                        guest["ip"] = config_ip(config)
+                except ProxmoxError:
+                    pass  # Optional IP information must not hide the guest inventory.
+                finally:
+                    reader.session.close()
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                list(pool.map(address, value["guests"]))
+            return value
+        return cached("inventory", inventory)

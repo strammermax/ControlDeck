@@ -18,6 +18,7 @@ from backend.auth import filter_configuration
 from backend.configuration import ConfigurationError, load_config
 from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError, normalize_url
 from backend.auth import is_manager
+from backend.guest_inventory import project_guests
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}")
 STATUS = {"OK": "ok", "INFO": "ok", "WARNING": "warning", "CRITICAL": "error", "ERROR": "error"}
@@ -360,6 +361,10 @@ def setup_proxmenux(app, configuration_path, data_dir):
                 if len(failed) == len(PARTS):
                     raise MonitorError(results[PARTS[0]][1])
                 data = node_summary(*(results[name][0] or {} for name in PARTS))
+                try:
+                    data["guests"] = project_guests(results["vms"][0], node["name"]) if results["vms"][1] is None else []
+                except ValueError:
+                    data["guests"] = []
                 data["partial"] = [PART_LABELS[name] for name in failed]
                 with lock:
                     cache[node["name"]] = {"key": key, "at": time.time(), "data": data, "error": None, "refreshing": False}

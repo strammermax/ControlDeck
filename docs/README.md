@@ -21,10 +21,12 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [PYTHON-LICENSES.txt](PYTHON-LICENSES.txt) | Notices van Python-dependencies |
 | [UI.md](UI.md) | Basisinterface, navigatie, status en thema |
 | [PROXMOX.md](PROXMOX.md) | Alleen-lezen Proxmox-koppeling, certificaatpinning en takenoverzicht |
+| [PROXMOX-GUESTS.md](PROXMOX-GUESTS.md) | Clusterbreed VM-/LXC-overzicht met de ProxMenux-kaarten en nodefilters |
 | [PROXMENUX.md](PROXMENUX.md) | ProxMenux Monitor installeren, inrichten en koppelen; gezondheid per node |
 | [CRONJOBS.md](CRONJOBS.md) | Cronjob-manager: clustertijdlijn, cronjobs per node beheren en monitoren |
 | [NODE-AGENT.md](NODE-AGENT.md) | Ontwerp en werking: module Cronjobs, agent-proxy en ControlDeck-agent op de nodes |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Werkelijke repository en runtime |
+| [CODE-AUDIT-HERGEBRUIK.md](CODE-AUDIT-HERGEBRUIK.md) | Codeonderzoek: dubbele functionaliteit, herbruikbare modules/widgets en verbeteringsvolgorde |
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Ingerichte LXC, netwerk, accounts, services en GitHub-route |
 | [HTTPS.md](HTTPS.md) | Actieve Cloudflare Tunnel-route, HTTPS-verificatie en mogelijke lokale proxyroute |
 | [INSTALLATION.md](INSTALLATION.md) | Docker, LXC en runnerregistratie |
