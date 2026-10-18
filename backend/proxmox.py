@@ -11,6 +11,7 @@ from pathlib import Path
 from threading import Lock
 from concurrent.futures import ThreadPoolExecutor
 from backend.guest_inventory import project_inventory, config_ip
+from backend.storage_inventory import storage_inventory
 from urllib.parse import urlsplit
 
 import requests
@@ -399,3 +400,17 @@ def setup_proxmox(app, configuration_path, data_dir):
                 list(pool.map(address, value["guests"]))
             return value
         return cached("inventory", inventory)
+
+    @app.get("/api/proxmox/storage")
+    def storage():
+        def inventory(client):
+            resources = client.get("/cluster/resources")
+            try:
+                definitions = client.get("/storage")
+            except ProxmoxError:
+                definitions = []  # Resource identity/shared flags remain usable with restricted tokens.
+            try:
+                return storage_inventory(resources, definitions)
+            except ValueError:
+                raise ProxmoxError("Proxmox gaf een ongeldige opslaginventaris.") from None
+        return cached("storage", inventory)

@@ -12,20 +12,20 @@ export function GuestIcon({kind="server"}:{kind?:string}) {
 }
 const usageColor=(percent:number|null)=>percent!==null&&percent>=90?"#ef4444":percent!==null&&percent>=75?"#f59e0b":"#3b82f6";
 const pct=(value:number|null)=>value===null?"—":`${Math.round(value)}%`;
-function Bar({value,color}:{value:number|null;color?:string}) {
+export function Bar({value,color}:{value:number|null;color?:string}) {
  return <div className="pm-progress" aria-hidden="true"><div style={{width:`${Math.max(0,Math.min(100,value??0))}%`,background:color??usageColor(value)}}/></div>;
 }
-function Donut({value}:{value:number|null}) {
+export function Donut({value,color}:{value:number|null;color?:string}) {
  return <svg viewBox="0 0 36 36" className="pm-donut" aria-label={pct(value)}>
   <circle cx="18" cy="18" r="15.9155" fill="none" stroke="rgba(99,102,241,0.15)" strokeWidth="3"/>
-  <circle cx="18" cy="18" r="15.9155" fill="none" stroke={usageColor(value)} strokeWidth="3" strokeDasharray={`${Math.max(0,Math.min(100,value??0))} 100`} strokeLinecap="round" style={{transform:"rotate(-90deg)",transformOrigin:"50% 50%"}}/>
+  <circle cx="18" cy="18" r="15.9155" fill="none" stroke={color??usageColor(value)} strokeWidth="3" strokeDasharray={`${Math.max(0,Math.min(100,value??0))} 100`} strokeLinecap="round" style={{transform:"rotate(-90deg)",transformOrigin:"50% 50%"}}/>
   <text x="18" y="19.5" textAnchor="middle" fontSize="10" fontWeight="700" fill="currentColor">{pct(value)}</text>
  </svg>;
 }
-function Card({title,icon,children}:{title:string;icon:string;children:ReactNode}) {
+export function Card({title,icon,children}:{title:string;icon:string;children:ReactNode}) {
  return <article className="pm-card"><header className="pm-card-head"><h3>{title}</h3><GuestIcon kind={icon}/></header><div className="pm-card-content">{children}</div></article>;
 }
-function Pair({label,children}:{label:string;children:ReactNode}) {return <div className="pm-pair"><span>{label}</span><strong>{children}</strong></div>;}
+export function Pair({label,children}:{label:string;children:ReactNode}) {return <div className="pm-pair"><span>{label}</span><strong>{children}</strong></div>;}
 export function GuestOverview({guests,nodes}:{guests:Guest[];nodes:GuestNode[]}) {
  const total=guestTotals(guests,nodes),running=guests.filter(vm=>vm.status==="running").length,stopped=guests.filter(vm=>vm.status==="stopped").length;
  const vms=guests.filter(vm=>vm.type==="qemu").length,lxc=guests.filter(vm=>vm.type==="lxc").length;

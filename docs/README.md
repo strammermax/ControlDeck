@@ -22,6 +22,7 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [UI.md](UI.md) | Basisinterface, navigatie, status en thema |
 | [PROXMOX.md](PROXMOX.md) | Alleen-lezen Proxmox-koppeling, certificaatpinning en takenoverzicht |
 | [PROXMOX-GUESTS.md](PROXMOX-GUESTS.md) | Clusterbreed VM-/LXC-overzicht met de ProxMenux-kaarten en nodefilters |
+| [PROXMOX-STORAGE.md](PROXMOX-STORAGE.md) | Clusteropslag met shared-deduplicatie, fysieke schijven, ZFS en mounts in ProxMenux-vormgeving |
 | [PROXMENUX.md](PROXMENUX.md) | ProxMenux Monitor installeren, inrichten en koppelen; gezondheid per node |
 | [CRONJOBS.md](CRONJOBS.md) | Cronjob-manager: clustertijdlijn, cronjobs per node beheren en monitoren |
 | [NODE-AGENT.md](NODE-AGENT.md) | Ontwerp en werking: module Cronjobs, agent-proxy en ControlDeck-agent op de nodes |

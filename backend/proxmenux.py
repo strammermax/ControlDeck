@@ -19,6 +19,7 @@ from backend.configuration import ConfigurationError, load_config
 from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError, normalize_url
 from backend.auth import is_manager
 from backend.guest_inventory import project_guests
+from backend.storage_inventory import storage_snapshot
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}")
 STATUS = {"OK": "ok", "INFO": "ok", "WARNING": "warning", "CRITICAL": "error", "ERROR": "error"}
@@ -203,7 +204,7 @@ def setup_proxmenux(app, configuration_path, data_dir):
     root = Path(data_dir) / "proxmenux"
     path, ca_path = root / "connection.json", root / "cluster-ca.pem"
     lock = Lock()
-    cache = {}
+    caches = {}
 
     def load():
         try:
@@ -286,7 +287,7 @@ def setup_proxmenux(app, configuration_path, data_dir):
         if request.method == "DELETE":
             with lock:
                 path.unlink(missing_ok=True)
-                cache.clear()
+                caches.clear()
             return jsonify(connected=False)
         try:
             ca, nodes = candidate()
@@ -300,7 +301,7 @@ def setup_proxmenux(app, configuration_path, data_dir):
         try:
             with lock:
                 write(path, json.dumps({"ca": ca, "nodes": nodes, "connectedAt": int(time.time()), "connectedBy": g.account["email"]}))
-                cache.clear()
+                caches.clear()
         except OSError:
             return jsonify(error="De koppeling kan niet worden opgeslagen."), 503
         return jsonify(connected=True, nodes=results)
@@ -337,8 +338,9 @@ def setup_proxmenux(app, configuration_path, data_dir):
         except OSError:
             return jsonify(error="De test kan niet worden uitgevoerd."), 503
 
-    @app.get("/api/proxmenux/summary")
-    def monitor_summary():
+    def monitor_snapshot(scope, part_names, projector):
+        with lock:
+            cache = caches.setdefault(scope, {})
         stored = load()
         if stored is None:
             return jsonify(error="ProxMenux is nog niet gekoppeld.", code="not_connected"), 409
@@ -348,24 +350,20 @@ def setup_proxmenux(app, configuration_path, data_dir):
             return jsonify(error="De cluster-CA kan niet worden gelezen."), 503
 
         def fetch(node, key):
-            """Fetches the five monitor endpoints in parallel and stores the result or the error."""
+            """Fetches this view's fixed endpoints in parallel, sharing refresh/error behavior."""
             def part(name):
                 try:
                     return monitor_get(node, ca_path, name, PART_TIMEOUTS.get(name, TIMEOUT)), None
                 except MonitorError as error:
                     return None, str(error)
             try:
-                with ThreadPoolExecutor(max_workers=len(PARTS)) as parts:
-                    results = dict(zip(PARTS, parts.map(part, PARTS)))
+                with ThreadPoolExecutor(max_workers=len(part_names)) as parts:
+                    results = dict(zip(part_names, parts.map(part, part_names)))
                 failed = [name for name, (_, error) in results.items() if error]
-                if len(failed) == len(PARTS):
-                    raise MonitorError(results[PARTS[0]][1])
-                data = node_summary(*(results[name][0] or {} for name in PARTS))
-                try:
-                    data["guests"] = project_guests(results["vms"][0], node["name"]) if results["vms"][1] is None else []
-                except ValueError:
-                    data["guests"] = []
-                data["partial"] = [PART_LABELS[name] for name in failed]
+                if len(failed) == len(part_names):
+                    raise MonitorError(results[part_names[0]][1])
+                data = projector(results, node)
+                data["partial"] = [PART_LABELS.get(name, name) for name in failed]
                 with lock:
                     cache[node["name"]] = {"key": key, "at": time.time(), "data": data, "error": None, "refreshing": False}
             except MonitorError as error:
@@ -388,7 +386,7 @@ def setup_proxmenux(app, configuration_path, data_dir):
             return {"name": node["name"], **entry["data"], "updatedAt": int(entry["at"]), "stale": stale, **({"error": entry["error"]} if entry["error"] else {})}
 
         def one(node):
-            # Stale-while-revalidate: known data is returned at once; only the very first load waits.
+            # Stale-while-revalidate: return known data or an explicit initial loading state.
             key = (node["name"], node["url"], stored.get("connectedAt"))
             with lock:
                 entry = cache.get(node["name"])
@@ -406,3 +404,18 @@ def setup_proxmenux(app, configuration_path, data_dir):
         # One unreachable node never blocks the others.
         with ThreadPoolExecutor(max_workers=min(4, len(stored["nodes"]))) as pool:
             return jsonify(nodes=list(pool.map(one, stored["nodes"])))
+
+    @app.get("/api/proxmenux/summary")
+    def monitor_summary():
+        def project(results, node):
+            data = node_summary(*(results[name][0] or {} for name in PARTS))
+            try:
+                data["guests"] = project_guests(results["vms"][0], node["name"]) if results["vms"][1] is None else []
+            except ValueError:
+                data["guests"] = []
+            return data
+        return monitor_snapshot("summary", PARTS, project)
+
+    @app.get("/api/proxmenux/storage")
+    def monitor_storage():
+        return monitor_snapshot("storage", ("storage", "mounts"), lambda results, node: storage_snapshot(node["name"], results["storage"][0], results["mounts"][0]))
