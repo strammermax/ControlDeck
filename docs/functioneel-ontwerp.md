@@ -87,6 +87,8 @@ Media presenteert relevante toepassingen zonder gevoelige gebruiksinformatie bre
 | Dashboard | Je eigen dashboard waarop je alles kunt plaatsen, inclusief elementen uit Bookmarks, Proxmox en andere modules. |
 | Files | Webbestandsbeheer om bestanden te downloaden en te uploaden. Voorkeur: Nextcloud geïntegreerd in ControlDeck. |
 
+Ontbrekende functionaliteit, prioriteiten en eigen ideeën: zie de [gap-analyse](CODE-AUDIT-HERGEBRUIK.md#ontbrekende-functionaliteit-gap-analyse-18-oktober-2026).
+
 Status en vervolgstappen:
 
 | Categorie | Status | Volgende stap |

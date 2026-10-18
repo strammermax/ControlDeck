@@ -263,6 +263,88 @@ De backend blijft op elke aanvraag modulerechten, bron-ACL en waar nodig eigenaa
 
 De bestaande `frontend/modules/` is een goed vertrekpunt. Voeg daar geleidelijk domeinspecifieke hooks/modellen aan toe en verplaats gedeelde infrastructuur naar kleine `lib`-/`core`-bouwstenen. Verplaats geen bestanden alleen om een ideaal mappenplan te bereiken; verplaats ze wanneer verantwoordelijkheden daadwerkelijk worden losgemaakt.
 
+## Ontbrekende functionaliteit (gap-analyse, 18 oktober 2026)
+
+Vergeleken met het [functioneel ontwerp](functioneel-ontwerp.md) (F-01 t/m F-19, statusmodel, fasering), het menu in `config/controldeck.json` en de afspraken in deze periode. Prioriteit: **H** = zichtbaar gat of eis uit een afgeronde fase, **M** = volgende verdieping, **L** = wens.
+
+### Menu-items zonder pagina
+
+Deze routes staan in het menu maar vallen in `page.tsx` terug op "Dit onderdeel is nog niet ingericht":
+
+| Route | Prio | Wat ontbreekt | Voorstel |
+| --- | --- | --- | --- |
+| `proxmox/containers` | H | Dubbel: `proxmox/vms` toont al VM's én containers | Menu-item laten wijzen naar `proxmox/vms` met filter *containers*, of verwijderen |
+| `monitoring` | H | Hele module (F-07) | Overzicht met ProxMenux-gezondheid, Beszel, Uptime-status en Home Assistant-meldingen; bron + actualiteit per regel (F-14) |
+| `radarr`, `plex` | M | Media-submenu's (eis 2026-10-17: Downloads, Requests, Movies, Series, Audio, Plex, Jellyfin) | Per submenu een pagina die dezelfde servicewidgets toont, gefilterd per familie |
+| `admin` (Instellingen) | M | Eigen instellingenpagina; nu placeholder | Site-instellingen (titel, verversing, ondertitel) via de UI i.p.v. config-bestand |
+
+### Eisen uit het functioneel ontwerp
+
+| Eis | Stand | Prio | Wat ontbreekt |
+| --- | --- | --- | --- |
+| F-12 Favorieten | Niet gebouwd | M | Geen "favoriet"-markering; dashboards dekken het deels. Ster op Bookmarks/apps + favorietenwidget |
+| F-14 Bron + laatste update | Deels | M | Servicewidgets, Proxmox en ProxMenux tonen tijd; Bookmarks-integraties, Files en Virtual Apps niet. Statusmodel (gezondheid × actualiteit × verbinding) nergens consequent; zie F4 `WidgetFrame`/`StatusBadge` |
+| F-16 Bevestiging bij destructieve acties | Grotendeels | L | Aanwezig (Files verwijderen, Kasm stoppen, dashboards); VM-wekken vraagt geen bevestiging (bewust: alleen starten) |
+| **F-17 Herleidbare beheeracties** | **Ontbreekt** | **H** | Alleen Cronjobs geeft `actor` door aan de agent. Geen centraal auditlog voor: accounts, module-installaties, Proxmox-koppeling, VM starten, Kasm-sessies stoppen, Files verwijderen/verplaatsen, Bookmarks-beheer, pagina-indelingen. Voorstel: `backend/core/audit.py` met `audit(action, target, result)` → SQLite-tabel + Admin-pagina "Activiteit" (alleen-lezen, filter, export) |
+| F-19 Mobiel | Deels | M | 16 mediaqueries in `style.css`, maar `virtual-apps.css` heeft er geen; dashboard-bewerken en `EditableGrid` op touch niet op echte apparaten getest |
+| Fase 3 — Bediening | Deels | M | Cronjobs ja; Proxmox-acties (VM/container starten, stoppen, herstarten) alleen "wekken" voor Kasm-VM's. Algemene start/stop op de inventarispagina met bevestiging, rechten (VM.PowerMgmt per pool) en auditlog |
+
+### Functionele gaten per module
+
+| Module | Prio | Ontbreekt |
+| --- | --- | --- |
+| **Zoeken** | H | Zoekt in modules, dashboards en Homepage-apps (`backend/search.py`), niet in Linkwarden-bookmarks, Virtual Apps-workspaces, Proxmox-gasten of Files. Eén `search_provider` per module (sluit aan op F6 `defineFeature`) |
+| **Virtual Apps** | M | Startrecht in Proxmox (pool `kasm`) en DC01-afhankelijkheid nog niet ingericht; geen automatisch uitzetten van ongebruikte VM's; geen limietmelding vóór de Kasm-grens (5 sessies, Community); geen dashboardmodule "Mijn apps" |
+| **Files** | M | Delen (links), zoeken, voorbeeld (afbeelding/PDF), versies, prullenbak terugzetten, downloads via nginx (`X-Accel-Redirect`) voor grote bestanden; geen dashboardwidget "Recente bestanden" |
+| **Media** | M | Submenu's (zie boven); pagina-indeling `media` voorbereid maar niet gebruikt (A8); geen Jellyfin-servicewidget (bestaat alleen in het oude Homepage-integratiepad) |
+| **Proxmox** | M | Containers-route (boven); acties (fase 3); backups/PBS-status; meldingen bij offline nodes |
+| **Monitoring / meldingen** | H | Geen meldingen buiten de UI (e-mail, ntfy, Telegram, push) bij storingen: offline node, mislukte cronjob, volle opslag, verlopen koppeling, verlopen RDS-licentie of Kasm-grens |
+| **Bookmarks** | L | Verplaatsen van Linkwarden-bookmarks in de persoonlijke indeling (alleen Homepage-links); favorieten (F-12) |
+| **Beheer** | M | Providers-pagina is een statische lijst (geen beheer); geen UI voor site-instellingen; geen overzicht van gekoppelde integraties met hun gezondheid ("Verbindingen": Proxmox, ProxMenux, Linkwarden, Kasm, Nextcloud, vault) |
+| **Gebruikers/accounts** | L | Geen zelfservice-overzicht "Mijn koppelingen" (Linkwarden-token, Files/Nextcloud, Kasm) op één plek |
+| **Taal (i18n)** | L | `lib/i18n.ts` heeft 17 sleutels; de meeste pagina's hebben vaste Nederlandse teksten, terwijl de taalvoorkeur *en* bestaat |
+
+### Beheer en betrouwbaarheid
+
+| Onderwerp | Prio | Ontbreekt |
+| --- | --- | --- |
+| Backup van ControlDeck-data | H | `OPERATIONS.md` beschrijft een handmatige backup van `users.sqlite3`, `session.key` en private bestanden; geen geplande backup en geen hersteltest. Voorstel: dagelijkse SQLite-backup-API-kopie + private bestanden naar PBS of Nextcloud, met een maandelijkse hersteltest |
+| Configuratie buiten de release | M | Nginx, systemd-drop-in en private menu worden niet door een release bijgewerkt (zie de releasebeperkingen in `OPERATIONS.md`); een migratiestap "config-upgrade" in de installer met diff, backup en `nginx -t` |
+| Gezondheidspagina | M | `/health` en `/ready` bestaan; geen Admin-overzicht van vault, koppelingen, schijfruimte, versie, laatste deploy en certificaatgeldigheid (Kasm-pin, Proxmox-pin) |
+| Testdekking | L | Geen tests voor `backend/app_icons.py` buiten de frontendtest; geen browser-/E2E-test (Playwright) voor slepen, uploaden en starten, die nu alleen handmatig zijn gecontroleerd |
+
+### Aanbevolen volgorde voor nieuwe functionaliteit
+
+1. **F-17 auditlog** (H) — wettelijke/beheerbasis voor alle bediening; klein te beginnen.
+2. **Meldingen + Monitoring-pagina** (H) — maakt het statusmodel bruikbaar buiten de browser.
+3. **Zoeken uitbreiden** (H) — veel winst voor dagelijks gebruik.
+4. **Menu opschonen** (H) — containers-route, lege placeholders verbergen tot ze bestaan.
+5. **Backup + hersteltest** (H).
+6. Daarna fase 3 (Proxmox-acties), Media-submenu's, Files-verdieping en favorieten.
+
+Nieuwe functies bouwen op de bouwstenen hieronder (B1–B8, F1–F6), zodat ze de bestaande dubbelingen niet vergroten.
+
+### Eigen ideeën (voortgekomen uit het werk van oktober 2026)
+
+Niet uit de eisen, maar uit wat er in de praktijk misging of met de hand moest:
+
+| Idee | Waarom | Omvang |
+| --- | --- | --- |
+| **Zelfherstel van diensten** | Linkwarden lag op 15 oktober anderhalve dag plat na een OOM-kill, omdat de service geen `Restart=` had. Een "Diensten"-overzicht dat systemd-/Docker-status leest (via de bestaande node-agent), gestopte diensten meldt en met één klik (of automatisch, per dienst instelbaar) herstart. | M |
+| **Updates-overzicht** | Open idee #1 (LXC-updates). Per LXC/VM: beschikbare pakketupdates, Docker-images met nieuwere versie (Kasm, Linkwarden, Termix), Proxmox-updates; bijwerken via de agent met bevestiging en auditlog. | M |
+| **Bookmarks automatisch uit OPNsense** | De 66 Nginx-links zijn op 17 oktober met de hand overgezet. Een periodieke synchronisatie van OPNsense-Nginx-hosts en Dnsmasq-reserveringen naar een Bookmarks-groep "Infra (automatisch)", met de regel *vanburik.info gaat voor*. Ook dode links markeren (HTTP-check). | M |
+| **DHCP-/DNS-overzicht** | Vandaag bleken IP-adressen, reserveringen en Kasm-serveradressen uit elkaar te lopen. Een alleen-lezen netwerkpagina: OPNsense-reserveringen naast Proxmox-VM-MAC's naast werkelijke ARP-adressen, met afwijkingen gemarkeerd (zoals WinServer op `192.168.1.101`). | M |
+| **Energiebesparing** | VM's die alleen voor Kasm draaien automatisch uitzetten na X uur zonder sessie (het omgekeerde van wekken), met verbruik uit ProxMenux omgerekend naar kWh/€ per maand. | M |
+| **Vervaldatums bewaken** | Certificaten (Kasm-pin, Proxmox-pin, Cloudflare), API-sleutels, de RDS-licentie-graceperiode en de Kasm-licentiegrens op één plek met waarschuwing vooraf. | S |
+| **Mobiele app (PWA)** | ControlDeck installeerbaar op de telefoon, met pushmeldingen voor de meldingen uit de gap-analyse. Past bij de lichte architectuur (statische frontend + service worker). | M |
+| **Snelle acties in de zoekbalk** | Ctrl K niet alleen om te zoeken maar ook om te doen: "start Windows Server", "open Word", "stop sessie", "herstart Linkwarden" — met dezelfde rechten en bevestiging als de knoppen. | S |
+| **Wake-on-LAN voor fysieke pc's** | In de Bookmarks staan VeraPC, DevPC en rescuepc; een "wek"-knop (WoL via de agent) naast "open via Kasm/RDP" maakt ze bruikbaar vanaf de werkplek. | S |
+| **"Mijn koppelingen"** | Linkwarden-token, Files/Nextcloud, Kasm en (later) andere persoonlijke koppelingen op één profielpagina, met status, laatste gebruik en intrekken. | S |
+| **Gezins-/gastweergave** | Een rol met alleen Media en een paar Bookmarks, zonder Proxmox/Admin; de bestaande modulerechten en de bewerkmodus maken dit bijna gratis. | S |
+| **Wijzigingsoverzicht na deploy** | Na een release een korte melding "nieuw in deze versie" uit `CHANGELOG.md`, en een waarschuwing als serverconfiguratie (nginx, drop-in, menu) achterloopt op de release. | S |
+
+Omvang: **S** = enkele uren tot een dag, **M** = enkele dagen.
+
 ## Ontwerp: herbruikbare bouwstenen (klassen en functies)
 
 Elke bevinding wordt één kleine, geteste bouwsteen. Modules stappen er één voor één op over; gedrag, foutteksten, rechten en opgeslagen gegevens blijven gelijk, tenzij hieronder anders staat. Gedeelde backendcode komt in `backend/core/`, gedeelde frontendcode in `frontend/lib/core/` (logica) en `frontend/components/core/` (weergave). Geen nieuwe dependencies; geen dynamisch laden van code.
