@@ -38,7 +38,7 @@ export function connectLink(value: unknown, portal: string): string {
 }
 
 export async function virtualAppsRequest<T>(route: string, csrf = "", method = "GET", signal?: AbortSignal): Promise<T> {
-  if (!/^(|\/[0-9a-f-]{32,36}\/start|\/sessions\/[0-9a-f-]{32,36})$/.test(route)) throw new TypeError("Ongeldige Virtual Apps-route.");
+  if (!/^(|\/[0-9a-f-]{32,36}\/start|\/sessions\/[0-9a-f-]{32,36}(\/open)?)$/.test(route)) throw new TypeError("Ongeldige Virtual Apps-route.");
   let response: Response;
   try {
     response = await fetch(`/api/virtual-apps${route}`, {method, cache: "no-store", signal, headers: method === "GET" ? {} : {"Content-Type": "application/json", "X-CSRF-Token": csrf}, body: method === "POST" ? "{}" : undefined});

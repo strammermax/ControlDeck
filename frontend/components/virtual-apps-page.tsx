@@ -14,13 +14,15 @@ export function VirtualAppsPage({csrfToken}: {csrfToken: string}) {
     catch (failure) { setError(failure instanceof VirtualAppsError ? failure : new VirtualAppsError("Virtual Apps is niet beschikbaar.")); }
   }, []);
   useEffect(() => { void load(); const timer = setInterval(() => void load(), 30000); return () => clearInterval(timer); }, [load]);
-  const start = async (id: string) => {
+  /** Start a workspace, or reopen one of my sessions (route `/sessions/<id>/open`). */
+  const start = async (id: string, route = `/${id}/start`) => {
     if (!data) return;
     // Open the tab within the click so pop-up blockers allow it; navigate once Kasm returns the link.
     const tab = window.open("about:blank", "_blank");
+    if (tab) tab.document.title = "Workspace starten…";
     setBusy(id); setError(null);
     try {
-      const {url} = await virtualAppsRequest<{url: string}>(`/${id}/start`, csrfToken, "POST");
+      const {url} = await virtualAppsRequest<{url: string}>(route, csrfToken, "POST");
       const link = connectLink(url, data.portal);
       if (tab) { tab.opener = null; tab.location.href = link; } else window.open(link, "_blank", "noopener");
       await load();
@@ -48,7 +50,7 @@ export function VirtualAppsPage({csrfToken}: {csrfToken: string}) {
       {data.sessions.map(session => { const app = data.apps.find(item => item.id === session.appId); return <li key={session.id}>
         {app?.icon ? <img src={app.icon} alt="" loading="lazy" referrerPolicy="no-referrer"/> : <span className="cd-vapps-letter" aria-hidden="true">{session.name.slice(0, 1)}</span>}
         <span><strong>{session.name}</strong><small>{[session.status, session.started && `gestart ${session.started}`].filter(Boolean).join(" · ")}</small></span>
-        {session.appId && <button disabled={busy !== null} onClick={() => void start(session.appId!)}>Openen</button>}
+        <button disabled={busy !== null} onClick={() => void start(session.id, `/sessions/${session.id}/open`)}>{busy === session.id ? "Openen…" : "Openen"}</button>
         <button disabled={busy !== null} onClick={() => void stop(session.id, session.name)}>{busy === session.id ? "Stoppen…" : "Stoppen"}</button>
       </li>; })}
     </ul></section>}
@@ -57,7 +59,7 @@ export function VirtualAppsPage({csrfToken}: {csrfToken: string}) {
         <button className="cd-vapps-tile" disabled={busy !== null} onClick={() => void start(app.id)} title={app.description || `${app.name} starten`}>
           {app.icon ? <img src={app.icon} alt="" loading="lazy" referrerPolicy="no-referrer" onError={event => { event.currentTarget.hidden = true; }}/> : <span className="cd-vapps-letter" aria-hidden="true">{app.name.slice(0, 1)}</span>}
           <strong>{app.name}</strong>
-          <small>{busy === app.id ? "Starten…" : app.categories[0] ?? ""}</small>
+          <small>{busy === app.id ? "Starten… (tot 45 s)" : app.categories[0] ?? ""}</small>
         </button>
       </li>)}</ul>}
   </section>;
