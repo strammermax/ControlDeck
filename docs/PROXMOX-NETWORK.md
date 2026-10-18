@@ -46,3 +46,5 @@ Lokale acceptatie op 18 oktober 2026: 764 Python-tests geslaagd, 8 overgeslagen;
 Browseracceptatie met fictieve data: desktopindeling, nodekeuze en mobiele weergave op 390 pixels zonder horizontale overloop gecontroleerd. Het originele flowdiagram toonde drie aparte hosts, VM-/LXC-iconen en RX/TX-animatiepaden; Hardware volgde de systeem-/geheugen-/sensorindeling van de referentie. Deze voorbeeldmetingen zijn geen productiegegevens.
 
 Acceptatie na samenvoegen met de recente Virtual Apps-wijzigingen op 18 oktober 2026: 785 Python-tests geslaagd, 8 overgeslagen; 256 frontendtests geslaagd; TypeScript-controle en statische productiebuild geslaagd.
+
+Historische-grafiekacceptatie op 18 oktober 2026 na samenvoegen: 791 Python-tests geslaagd, 8 overgeslagen; 261 frontendtests geslaagd; TypeScript en statische build geslaagd. Browsercontrole met fictieve gegevens bevestigde Received/Sent-curves, afzonderlijk schakelen van de legenda, periode- en nodewisseling en een mobiele grafiek op 390 pixels zonder horizontale overloop.
