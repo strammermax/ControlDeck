@@ -1,0 +1,15 @@
+.files-page{display:grid;gap:12px;min-width:0;border-radius:8px}
+.files-page[data-dragging=true]{outline:2px dashed var(--blue);outline-offset:6px}
+.files-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.files-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.files-link{background:none;border:0;padding:0;color:var(--blue);cursor:pointer;font:inherit;text-align:left}
+.files-table{width:100%;border-collapse:collapse}
+.files-table th,.files-table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle;overflow-wrap:anywhere}
+.files-table th{color:var(--muted);font-weight:500;font-size:13px}
+.files-table td:nth-child(2),.files-table td:nth-child(3){white-space:nowrap;color:var(--muted);font-size:13px}
+.files-row-actions{display:flex;gap:6px;justify-content:flex-end}.files-row-actions button{font-size:12px;padding:3px 8px}
+.files-uploads{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.files-uploads li{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.files-uploads progress{flex:1;min-width:120px}
+.files-muted{color:var(--muted);font-size:13px}
+.files-inline{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+@media(max-width:600px){.files-table th:nth-child(3),.files-table td:nth-child(3){display:none}.files-row-actions{flex-wrap:wrap}}

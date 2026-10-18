@@ -80,3 +80,13 @@ test('Media groups reuse only authorized media families: normal, empty and malfo
  assert.deepEqual(mediaSourceRows([{sources:[]},{sources:[]},{sources:[]}]),[]);
  assert.throws(()=>mediaSourceRows([]));assert.throws(()=>mediaSourceRows([{sources:[{}]},{sources:[]},{sources:[]}]));
 });
+test('widget sections and heading link normaal/boundary/faal',()=>{
+ const one={id:'a',title:'A',subtitle:'',status:''};
+ assert.equal(validateWidgetData({...empty,items:[{...one,section:'Laatst voltooid'}],sourceUrl:'https://seerr.example.test/requests'}).sourceUrl,'https://seerr.example.test/requests');
+ assert.match(render({...empty,items:[{...one,section:'Bezig'},{...one,id:'b',section:'Laatst voltooid'},{...one,id:'c',section:'Laatst voltooid'}]}),/<h4>Bezig<\/h4>.*<h4>Laatst voltooid<\/h4>/);
+ assert.equal((render({...empty,items:[{...one,section:'X'},{...one,id:'b',section:'X'}]}).match(/<h4>/g)||[]).length,1,'one heading per section');
+ assert.doesNotMatch(render({...empty,items:[one]}),/<h4>/);
+ assert.equal(validateWidgetData({...empty,items:[{...one,section:'s'.repeat(40)}]}).items[0].section.length,40);
+ for(const section of ['s'.repeat(41),5])assert.throws(()=>validateWidgetData({...empty,items:[{...one,section}]}),/sectie/);
+ for(const sourceUrl of ['https://sab.example.test/?apikey=x','javascript:alert(1)'])assert.throws(()=>validateWidgetData({...empty,sourceUrl}));
+});

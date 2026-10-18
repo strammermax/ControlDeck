@@ -76,7 +76,7 @@ SSH-gegevens blijven in de bestaande lokale credentialvoorziening. Zij worden ni
 | `/run/lock/controldeck-deploy.lock` | Voorkomt gelijktijdige releasewisselingen |
 | `/home/llmuser/controldeck-bootstrap` | Checkout voor beheer van unit en deployhelper |
 
-Gunicorn gebruikt één worker en twee threads op `127.0.0.1:8081`. Nginx luistert op poort 8080 en verzorgt de applicatie en de beveiligde `/termix/`-route. ControlDeck gebruikt een statische frontend en Python-runtime, met SQLite voor gebruikersvoorkeuren. De afzonderlijke Termix-container heeft zijn eigen Node.js-runtime en luistert uitsluitend op `127.0.0.1:8090`. Er zijn nog geen algemene providercollectors.
+Gunicorn gebruikt één worker en zes threads op `127.0.0.1:8081`. Nginx luistert op poort 8080 en verzorgt de applicatie en de beveiligde `/termix/`-route. ControlDeck gebruikt een statische frontend en Python-runtime, met SQLite voor gebruikersvoorkeuren. De afzonderlijke Termix-container heeft zijn eigen Node.js-runtime en luistert uitsluitend op `127.0.0.1:8090`. Er zijn nog geen algemene providercollectors.
 
 ## 5. GitHub en distributie
 

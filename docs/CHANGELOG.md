@@ -2,6 +2,14 @@
 
 Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.mm.dd.<build>` (zie [CI-CD.md](CI-CD.md)). De changelog groepeert wijzigingen per dag.
 
+## 2026.10.17 — Verplaatsbare en schaalbare pagina's
+
+- Persoonlijke indeling voor Bookmarks (links binnen een groep) en Proxmox (iedere widget): **Indeling aanpassen**, slepen met ⠿, vergroten/verkleinen met ↘ of pijltjestoetsen, Opslaan/Annuleren/Standaard herstellen. Eén gedeelde rastermodule die ook het Dashboard gebruikt; zie [LAYOUTS.md](LAYOUTS.md).
+- Schakelaar **Bewerkmodus** in het gebruikersmenu: standaard gebruikersmodus zonder bewerk- en beheerknoppen op Dashboard, Bookmarks en Proxmox; persoonlijke voorkeur `editMode`.
+- **Virtual Apps**: overzicht van Kasm-workspaces met iconen; een klik start de workspace in een nieuw tabblad; lopende sessies openen of stoppen. Zie [VIRTUAL-APPS.md](VIRTUAL-APPS.md).
+- **Files** (eerste versie): eigen Nextcloud-bestanden bladeren, downloaden en uploaden (tot 10 GB, in delen) vanuit elke browser; hernoemen, verplaatsen, map maken en verwijderen in de bewerkmodus. Koppelen via Nextcloud Login Flow v2; het app-wachtwoord blijft op de server. Zie [FILES.md](FILES.md).
+- Nieuwe API `/api/layouts/<pagina>` met per-gebruiker opslag in private SQLite, modulerechten, CSRF en grenzen. Media-/servicekaarten volgen.
+
 ## 2026.10.14 — In ontwikkeling: persoonlijke dashboards
 
 - Bestaande Homepage-apps als bronverwijzing op dashboards, met lokale iconen en opgeslagen Seerr/Jellyfin-cijfers. Geen gekopieerde bronmetadata; Bookmarks-rechten blijven bepalend.

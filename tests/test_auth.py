@@ -243,3 +243,26 @@ def test_user_settings_require_login_csrf_and_stay_per_user(app):
     assert admin.get("/api/preferences").json == {}
     # Storing a hidden id does not expose the admin module to a user.
     assert all(item["id"] != "admin" for item in user.get("/api/config").json["menu"])
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_edit_mode_preference(app, case):
+    client, other = app.test_client(), app.test_client()
+    login(app, client)
+    login(app, other, "user@example.test", "user")
+    headers = {"X-CSRF-Token": "valid-csrf"}
+    if case == "normaal":
+        assert client.put("/api/preferences", headers=headers, json={"editMode": True}).status_code == 200
+        assert client.get("/api/preferences").json["editMode"] is True
+        assert "editMode" not in other.get("/api/preferences").json, "edit mode is personal"
+    elif case == "boundary":
+        assert client.put("/api/preferences", headers=headers, json={"editMode": True, "theme": "light"}).status_code == 200
+        assert client.put("/api/preferences", headers=headers, json={"editMode": False}).status_code == 200
+        values = client.get("/api/preferences").json
+        assert values["editMode"] is False and values["theme"] == "light"
+    else:
+        for value in ("true", 1, None, [], {}):
+            assert client.put("/api/preferences", headers=headers, json={"editMode": value}).status_code == 400
+        assert client.put("/api/preferences", json={"editMode": True}).status_code == 403, "CSRF required"
+        assert app.test_client().put("/api/preferences", headers=headers, json={"editMode": True}).status_code == 401
+        assert "editMode" not in client.get("/api/preferences").json

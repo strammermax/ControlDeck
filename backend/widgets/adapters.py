@@ -1,4 +1,5 @@
 """Read-only API adapters. Only normalized display fields leave the service."""
+import hashlib
 import math
 from pathlib import PurePosixPath
 from datetime import datetime, timezone
@@ -34,8 +35,10 @@ def records(value, limit=1000):
     return value
 
 
-def item(identifier, title, subtitle="", status="", progress=None, date=None):
+def item(identifier, title, subtitle="", status="", progress=None, date=None, section=None):
     result = {"id": text(identifier), "title": text(title) or "Naamloos", "subtitle": text(subtitle), "status": text(status, 80)}
+    if section is not None:
+        result["section"] = text(section, 40)
     if progress is not None:
         value = number(progress)
         if value > 100:
@@ -62,11 +65,35 @@ def qbittorrent(t, s):
     return result(values)
 
 
+HISTORY = 10
+
+
+def iso(seconds):
+    """Epoch seconds (or milliseconds) to an ISO time; invalid or absent values give no date."""
+    try:
+        value = number(seconds)
+    except ProviderError:
+        return None
+    if value > 1e11:
+        value /= 1000
+    return datetime.fromtimestamp(value, timezone.utc).isoformat() if 0 < value < 4e9 else None
+
+
 def sabnzbd(t, s):
-    queue = t.call("/api", "POST", data={"mode": "queue", "output": "json", "apikey": s["apiKey"], "limit": 51})["queue"]
-    rows = records(queue["slots"], 51)
-    return result([item(r["nzo_id"], r["filename"], r.get("timeleft", ""), r["status"], r["percentage"]) for r in rows],
-                  [{"label": "Snelheid", "value": text(queue.get("speed"))}, {"label": "Resterend", "value": text(queue.get("sizeleft"))}])
+    queue = t.call("/api", "POST", data={"mode": "queue", "output": "json", "apikey": s["apiKey"], "limit": 40})["queue"]
+    rows = records(queue["slots"], 40)
+    values = [item(r["nzo_id"], r["filename"], r.get("timeleft", ""), r["status"], r["percentage"], section="Bezig") for r in rows]
+    # Last completed downloads; a failing history call never hides the queue.
+    try:
+        history = records(t.call("/api", "POST", data={"mode": "history", "output": "json", "apikey": s["apiKey"], "limit": HISTORY})["history"]["slots"], HISTORY)
+        for r in history:
+            done = r.get("status") == "Completed"
+            details = " · ".join(text(v) for v in (r.get("size"), r.get("category")) if v and v != "*")
+            values.append(item(r["nzo_id"], r.get("name"), details, "Voltooid" if done else ("Mislukt" if r.get("status") == "Failed" else text(r.get("status"), 80)),
+                               date=iso(r.get("completed")), section="Laatst voltooid"))
+    except (ProviderError, KeyError, TypeError):
+        pass
+    return result(values, [{"label": "Snelheid", "value": text(queue.get("speed"))}, {"label": "Resterend", "value": text(queue.get("sizeleft"))}])
 
 
 def plex(t, s):
@@ -132,6 +159,22 @@ def tdarr(t, s):
             raise ProviderError("Ongeldige Tdarr-workers.")
         for worker in workers.values():
             values.append(item(worker["_id"], PurePosixPath(text(worker["file"])).name or "Worker", node["nodeName"], worker["status"], worker.get("percentage")))
+    for value in values:
+        value["section"] = "Bezig"
+    # Last completed conversions (table2 also holds "Not required" files, which were not converted).
+    try:
+        body = t.call("/api/v2/client/status-tables", "POST", headers=headers, json={"data": {
+            "start": 0, "pageSize": 50, "filters": [], "sorts": [{"id": "lastTranscodeDate", "desc": True}], "opts": {"table": "table2"}}})
+        done = [r for r in records(body["array"], 50) if r.get("TranscodeDecisionMaker") == "Transcode success"]
+        done.sort(key=lambda r: number(r.get("lastTranscodeDate") or 0), reverse=True)
+        for r in done[:HISTORY]:
+            name = PurePosixPath(text(r.get("file"), 2048)).name or "Bestand"
+            old, new = number(r.get("oldSize") or 0), number(r.get("newSize") or 0)
+            details = f"{old:.2f} GB → {new:.2f} GB" if old else ""
+            values.append(item("done:" + hashlib.sha256(text(r.get("_id") or name, 2048).encode()).hexdigest()[:24], name, details, "Voltooid",
+                               date=iso(r.get("lastTranscodeDate")), section="Laatst voltooid"))
+    except (ProviderError, KeyError, TypeError):
+        pass
     stats = t.call("/api/v2/stats/get-pies", "POST", json={"data": {"libraryId": ""}}, headers=headers)["pieStats"]
     return result(values, [{"label": "Bestanden", "value": str(int(number(stats["totalFiles"])))},
                            {"label": "Verwerkt", "value": str(int(number(stats["totalTranscodeCount"])))},

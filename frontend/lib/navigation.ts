@@ -3,7 +3,7 @@ export type Module = { id: string; enabled: boolean; title: string; description?
 export type MenuItem = { id: string; label: string; icon?: string; route?: string; url?: string; children?: MenuItem[] };
 export type Configuration = {
   schemaVersion: number;
-  site: { title: string; subtitle: string; logo: string; defaultTheme: "dark" | "light"; refreshSeconds: number; footerText: string; supportLabel: string; supportUrl: string };
+  site: { title: string; subtitle?: string; logo: string; defaultTheme: "dark" | "light"; refreshSeconds: number; footerText: string; supportLabel: string; supportUrl: string };
   modules: Module[];
   menu: MenuItem[];
   providers: Provider[];

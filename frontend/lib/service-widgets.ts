@@ -14,7 +14,7 @@ export function validateWidgetSources(value:unknown):WidgetSource[] {
   if(new Set(rows.map(row=>row.id)).size!==rows.length)throw new WidgetError("Dubbele widgetbron.");
   return rows;
 }
-export type WidgetData = {items:{id:string;title:string;subtitle:string;status:string;progress?:number;date?:string;allDay?:boolean;url?:string;imageUrl?:string;linkIsApplication?:boolean;priceCents?:number|null;currency?:string}[];stats:{label:string;value:string}[];updatedAt:number|null;stale:boolean;pending?:boolean;truncated?:boolean;embedUrl?:string;title?:string;sourceTitle?:string;providerKind?:string};
+export type WidgetData = {items:{id:string;title:string;subtitle:string;status:string;progress?:number;date?:string;allDay?:boolean;url?:string;imageUrl?:string;linkIsApplication?:boolean;priceCents?:number|null;currency?:string;section?:string}[];stats:{label:string;value:string}[];updatedAt:number|null;stale:boolean;pending?:boolean;truncated?:boolean;embedUrl?:string;title?:string;sourceTitle?:string;sourceUrl?:string;providerKind?:string};
 export class WidgetError extends Error {
   denied:boolean;
   constructor(message:string,denied=false){super(message);this.denied=denied;}
@@ -72,7 +72,9 @@ export function validateWidgetData(value:unknown):WidgetData {
     if(row.priceCents!==undefined&&row.priceCents!==null&&(!Number.isSafeInteger(row.priceCents)||row.priceCents<0||row.priceCents>1e12))throw new WidgetError("Ongeldige prijs.");
     if(row.currency!==undefined&&!/^[A-Z]{3}$/.test(row.currency))throw new WidgetError("Ongeldige valuta.");
     if(row.date!==undefined&&(typeof row.date!=="string"||row.date.length>80))throw new WidgetError("Ongeldig tijdstip.");
+    if(row.section!==undefined&&(typeof row.section!=="string"||row.section.length>40))throw new WidgetError("Ongeldige sectie.");
   }
+  if(data.sourceUrl!==undefined)offerLink(data.sourceUrl);
   if(data.stats.some(row=>!row||typeof row.label!=="string"||row.label.length>100||typeof row.value!=="string"||row.value.length>4096))throw new WidgetError("Ongeldige statistieken.");
   return data;
 }

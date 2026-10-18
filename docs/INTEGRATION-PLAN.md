@@ -18,7 +18,7 @@ Datum: 14 oktober 2026. Bron: Camiels dienstenlijst en aangeleverde ARR-suitebes
 | Tdarr | App openen; later verwerking, wachtrij en workers. | Adapter en bronversie; specialistische weergaven horen bij C-widgets. |
 | SearXNG | Zoekmachine in de centrale zoekbalk. | Werkelijk browseradres instellen; zoeklinks vragen geen nieuwe servercredentials. |
 | Kasm | Virtual Apps openen; daarna workspacecatalogus en sessiestart. | Native koppeling, versie en toegangscontract. Kasm is expliciet geselecteerd; sessiestart is nog niet gebouwd. |
-| Plex | App openen; later streams en recente media. | Adapter, persoonlijke/gedeelde projectie en vaultreferentie. |
+| Plex | App openen; later streams en recente media. | Adapter, Homapersoonlijke/gedeelde projectie en vaultreferentie. |
 | Open WebUI | App openen met de eigen toegang van de toepassing. | Eventuele statusadapter. Een ingebouwde AI-assistent blijft buiten de MVP. |
 | Koopjesbot | App openen; status of resultaten aanleveren. | Eigen API-contract via E1–E4. |
 | Prefect | App openen; later flow-/deploymentstatus en acties. | Server/cloudvariant, API-versie en actierechten. |

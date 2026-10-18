@@ -18,6 +18,9 @@ from backend.homepage_integrations import setup_homepage_integrations
 from backend.cronjobs import setup_cronjobs
 from backend.cronjob_api import setup_cronjob_api
 from backend.dashboards import setup_dashboards
+from backend.page_layouts import setup_page_layouts
+from backend.files import setup_files
+from backend.virtual_apps import setup_virtual_apps
 from backend.app_launches import setup_app_launches
 from backend.search import setup_search
 from backend.search_engines import setup_search_engines
@@ -50,6 +53,9 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     setup_app_launches(app, configuration_path)
     setup_service_widgets(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_dashboards(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_page_layouts(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_files(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_virtual_apps(app, configuration_path)
     setup_search(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_search_engines(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
 

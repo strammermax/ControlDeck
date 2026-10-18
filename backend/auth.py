@@ -408,12 +408,14 @@ def setup_auth(app, data_dir, accounts_path):
             values = json.loads(existing[0])
             if request.method == "PUT":
                 patch = request.get_json(silent=True)
-                if not isinstance(patch, dict) or not set(patch) <= {"theme", "lastRoute", "language", "navOrder", "hideHomeLinksOutsideLocal"}:
+                if not isinstance(patch, dict) or not set(patch) <= {"theme", "lastRoute", "language", "navOrder", "editMode", "hideHomeLinksOutsideLocal"}:
                     return jsonify(error="Ongeldige voorkeuren."), 400
                 if "hideHomeLinksOutsideLocal" in patch and type(patch["hideHomeLinksOutsideLocal"]) is not bool:
                     return jsonify(error="Ongeldige instelling voor lokale links."), 400
                 if "theme" in patch and patch["theme"] not in ("dark", "light"):
                     return jsonify(error="Ongeldig thema."), 400
+                if "editMode" in patch and type(patch["editMode"]) is not bool:
+                    return jsonify(error="Ongeldige bewerkmodus."), 400
                 if "language" in patch and patch["language"] not in ("nl", "en"):
                     return jsonify(error="Ongeldige taal."), 400
                 # Only top-level menu ids; unknown or hidden ids are ignored by the UI, never granted.

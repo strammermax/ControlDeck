@@ -1,4 +1,5 @@
 import type {ServiceFamily} from "./service-widgets";
+import {cellFits, cellsOverlap, firstFreeCell, type GridBounds} from "./layout-grid.ts";
 export type DashboardSection = {id: string; title: string; lane: "left" | "main" | "right"; collapsed: boolean};
 type DashboardPlacement = {icon?: string;id: string; sectionId: string; x: number; y: number; width: number; height: number};
 export type DashboardItem = DashboardPlacement & ({type: "link"; title: string; url: string; description: string} | {type: "app"; appId: number} | {type: "module"; moduleId: ServiceFamily | "system" | "linkwarden" | "kasm" | "nextcloud" | "proxmox"; settings: {sourceId?: string; metric?: "cpu" | "memory" | "temperature" | "power"; node?: string; collectionId?: number | null; view?: "nodes" | "guests" | "tasks" | "all" | "health"}});
@@ -38,29 +39,21 @@ export async function dashboardRequest<T>(path = "", csrf = "", method = "GET", 
 }
 
 /** Coordinates are logical cells; the server independently validates the same bounds. */
+export const dashboardGrid: GridBounds = {columns: 12, maxHeight: 6, maxRows: 100};
+
 export function placeItem(board: Dashboard, item: DashboardItem): Dashboard {
-  if (!board.sections.some(section => section.id === item.sectionId) ||
-      ![item.x, item.y, item.width, item.height].every(Number.isInteger) ||
-      item.x < 0 || item.y < 0 || item.width < 1 || item.height < 1 || item.height > 6 || item.x + item.width > 12 || item.y + item.height > 100) {
+  if (!board.sections.some(section => section.id === item.sectionId) || !cellFits(item, dashboardGrid)) {
     throw new RangeError("De tegel past niet op deze plaats.");
   }
-  const overlap = board.items.some(other => other.id !== item.id && other.sectionId === item.sectionId &&
-    item.x < other.x + other.width && item.x + item.width > other.x && item.y < other.y + other.height && item.y + item.height > other.y);
-  if (overlap) throw new RangeError("Deze plaats is al bezet. Kies een vrije plaats.");
+  if (board.items.some(other => other.id !== item.id && other.sectionId === item.sectionId && cellsOverlap(item, other))) throw new RangeError("Deze plaats is al bezet. Kies een vrije plaats.");
   if (!board.items.some(other => other.id === item.id) && board.items.length >= 100) throw new RangeError("Maximaal 100 tegels per dashboard.");
   return {...board, items: board.items.some(other => other.id === item.id) ? board.items.map(other => other.id === item.id ? item : other) : [...board.items, item]};
 }
 
 export function firstSpace(board: Dashboard, sectionId: string, width = 4, height = 1): {x: number; y: number} {
-  if (!board.sections.some(section => section.id === sectionId) || !Number.isInteger(width) || width < 1 || width > 12 || !Number.isInteger(height) || height < 1 || height > 6) {
-    throw new RangeError("Ongeldige groep of tegelgrootte.");
-  }
-  for (let y = 0; y <= 100 - height; y++) {
-    for (let x = 0; x <= 12 - width; x++) {
-      if (!board.items.some(item => item.sectionId === sectionId && x < item.x + item.width && x + width > item.x && y < item.y + item.height && y + height > item.y)) return {x, y};
-    }
-  }
-  throw new RangeError("Deze groep is vol.");
+  if (!board.sections.some(section => section.id === sectionId)) throw new RangeError("Ongeldige groep of tegelgrootte.");
+  try { return firstFreeCell(board.items.filter(item => item.sectionId === sectionId), width, height, dashboardGrid); }
+  catch (failure) { throw new RangeError((failure as Error).message === "Deze groep is vol." ? "Deze groep is vol." : "Ongeldige groep of tegelgrootte."); }
 }
 
 export function removeSection(board: Dashboard, sectionId: string): Dashboard {

@@ -95,3 +95,16 @@ Media → Overzicht toont alle voor de gebruiker toegestane qBittorrent-, SABnzb
 De Koopjesbot-aanlevering blijft schemaVersion 1: `imageUrl` is optioneel zodat reeds opgeslagen payloads en oudere exporters blijven werken. Werk eerst ControlDeck bij en daarna de exporter op de Koopjesbot-host. De persoonlijke selectie, bekekenstatus en acht bestaande zoekprofielen blijven behouden.
 
 Broncontracten: [Seerr API-schema](https://github.com/seerr-team/seerr/blob/develop/seerr-api.yml), [Prefect object-URL’s](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/urls.py), [Plex Web-URL-opbouw](https://python-plexapi.readthedocs.io/en/latest/_modules/plexapi/server.html). De code gebruikt eigen presentatiecomponenten.
+
+## Bezig en laatst voltooid
+
+De kop van een widget (de brontitel) linkt naar de toepassing; bij Seerr naar de aanvragenpagina (`/requests`). De link gebruikt `webUrl` als die is ingesteld en bevat nooit inloggegevens of sleutels.
+
+Items kunnen in secties staan, elk met een eigen kopje:
+
+| Widget | Bezig | Laatst voltooid (maximaal 10) |
+|---|---|---|
+| SABnzbd | Wachtrij met voortgang | `mode=history`: naam, grootte · categorie, Voltooid/Mislukt en tijdstip |
+| Tdarr | Actieve workers | `status-tables` (tabel 2), alleen *Transcode success*, nieuwste eerst, met oude → nieuwe grootte |
+
+Seerr toont per aanvraag de poster en linkt naar het item. Voltooide downloads en conversies krijgen een poster als de titel uniek overeenkomt met een Seerr-aanvraag. Mislukt het ophalen van de geschiedenis, dan blijven wachtrij, workers en statistieken zichtbaar. Serverpaden van Tdarr verlaten de server niet; alleen de bestandsnaam wordt getoond. Tests: `tests/test_widget_history.py` en `frontend/tests/service-widgets.test.mjs`.

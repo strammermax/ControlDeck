@@ -18,7 +18,11 @@ def configuration(tmp_path):
 
 def test_split_configuration_and_private_projection(configuration):
     result = load_config(configuration)
-    assert len(result["menu"]) == 7
+    assert len(result["menu"]) == 8
+    # Files is its own category (requirements 2026-10-17), not hidden in the Proxmox submenu.
+    files = next(item for item in result["menu"] if item["id"] == "files")
+    assert files["route"] == "files" and files["icon"] == "files"
+    assert all(child["id"] != "files" for item in result["menu"] for child in item.get("children", []))
     assert result["widgets"] == []
     assert {provider["id"] for provider in result["providers"]} == {"kasm", "nextcloud", "radarr", "plex", "termix"}
     assert "tokenEnv" not in json.dumps(result)
@@ -99,3 +103,19 @@ def test_reject_invalid_definitions(configuration, mutation):
     mutation(data)
     with pytest.raises(ConfigurationError):
         validate(data)
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_site_subtitle_is_optional(configuration, case):
+    data = load_config(configuration)
+    if case == "normaal":
+        assert "subtitle" not in data["site"], "the default shows only the title (requirement 2026-10-17)"
+        assert "subtitle" not in validate(data)["site"]
+    elif case == "boundary":
+        data["site"]["subtitle"] = "s" * 200
+        assert validate(data)["site"]["subtitle"] == "s" * 200
+    else:
+        for value in ("", "s" * 201, 5, None):
+            data["site"]["subtitle"] = value
+            with pytest.raises(ConfigurationError):
+                validate(data)
