@@ -33,7 +33,7 @@ test('network rejection: malformed schema, duplicates, wrong node, nonfinite/neg
 await loadBindings();
 async function compile(path,replacements={}){
  let {code}=await transform(readFileSync(new URL(path,import.meta.url),'utf8'),{filename:path,jsc:{parser:{syntax:'typescript',tsx:true},target:'es2022',transform:{react:{runtime:'automatic'}}},module:{type:'es6'}});
- for(const name of ['react','react/jsx-runtime'])code=code.replaceAll(`from "${name}"`,`from ${JSON.stringify(import.meta.resolve(name))}`);
+ for(const name of ['react','react/jsx-runtime','recharts'])code=code.replaceAll(`from "${name}"`,`from ${JSON.stringify(import.meta.resolve(name))}`);
  for(const [name,url] of Object.entries(replacements))code=code.replaceAll(`from "${name}"`,`from ${JSON.stringify(url)}`);
  return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
 }
@@ -46,7 +46,8 @@ const flowURL=await compile('../modules/proxmox/network-flow.tsx');
 const flowDataURL=await compile('../lib/proxmox-network-flow.ts',{'./proxmox-network':libURL});
 const clusterURL=await compile('../modules/proxmox/cluster-network-flow.tsx',{'../../lib/proxmox-network-flow':flowDataURL,'./network-flow':flowURL,'./guest-cards':shared});
 const flowUI=await import(clusterURL);
-const page=await import(await compile('../components/proxmox-network.tsx',{'../lib/proxmox-network':libURL,'../modules/proxmox/network-cards':cardsURL,'../modules/proxmox/cluster-network-flow':clusterURL,'./proxmox-guests.css':'data:text/javascript,export default {}','./proxmox-network.css':'data:text/javascript,export default {}'}).then(url=>{let code=Buffer.from(url.split(',')[1],'base64').toString();code=code.replace(/import "\.\/proxmox-(?:guests|network)\.css";?/g,'');return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');}));
+const trafficURL=await compile('../modules/proxmox/network-traffic-chart.tsx',{'./guest-cards':shared,'../../lib/proxmox-network-history':new URL('../lib/proxmox-network-history.ts',import.meta.url).href});
+const page=await import(await compile('../components/proxmox-network.tsx',{'../lib/proxmox-network':libURL,'../modules/proxmox/network-cards':cardsURL,'../modules/proxmox/cluster-network-flow':clusterURL,'../modules/proxmox/network-traffic-chart':trafficURL,'./proxmox-guests.css':'data:text/javascript,export default {}','./proxmox-network.css':'data:text/javascript,export default {}'}).then(url=>{let code=Buffer.from(url.split(',')[1],'base64').toString();code=code.replace(/import "\.\/proxmox-(?:guests|network)\.css";?/g,'');return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');}));
 const render=(component,props)=>renderToStaticMarkup(React.createElement(component,props));
 test('actual ProxMenux network cards: overview and physical card with relations, speed and escaped guest name',()=>{
  const html=render(ui.NetworkOverview,{rows:[nic,bridge],nodes:[node]});

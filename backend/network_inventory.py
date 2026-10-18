@@ -1,16 +1,42 @@
 """Read-only, bounded ProxMenux network projection; no raw monitor configuration."""
 import ipaddress
 import re
+from collections import Counter
 from backend.guest_inventory import finite
 from backend.storage_inventory import text
 
 LATENCY_PATH = "network/latency/history?target=gateway&timeframe=hour"
+HISTORY_STEPS = {"hour": 60, "day": 300, "week": 1800, "month": 1800, "year": 21600}
 GROUPS = {"physical_interfaces": "physical", "bond_interfaces": "bond", "bridge_interfaces": "bridge", "vm_lxc_interfaces": "virtual"}
 COUNTERS = ("bytes_recv", "bytes_sent", "packets_recv", "packets_sent", "errors_in", "errors_out", "drops_in", "drops_out", "rx_Bps", "tx_Bps", "speed", "max_speed", "mtu")
 
 
 def interface_name(value):
     return value if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.:@-]{1,64}", value) else None
+
+
+def network_history(node, value, timeframe):
+    """Project the same node RRD rates used by ProxMenux's historical traffic chart."""
+    result = {"history": [], "historyAvailable": False, "timeframe": timeframe, "step": HISTORY_STEPS[timeframe]}
+    if not isinstance(value, dict) or value.get("node", node) != node or value.get("timeframe", timeframe) != timeframe:
+        return result
+    rows = value.get("data")
+    if not isinstance(rows, list) or len(rows) > 5000:
+        return result
+    seen, points = set(), []
+    for row in rows:
+        timestamp = finite(row.get("time")) if isinstance(row, dict) else None
+        if timestamp is None or timestamp <= 0 or timestamp > 1e11 or timestamp != int(timestamp) or timestamp in seen:
+            return result
+        seen.add(timestamp)
+        points.append({"time": int(timestamp), "received": finite(row.get("netin")), "sent": finite(row.get("netout"))})
+    points.sort(key=lambda p: p["time"])
+    differences = [b["time"] - a["time"] for a, b in zip(points, points[1:])]
+    if differences:
+        result["step"] = min(HISTORY_STEPS[timeframe], Counter(differences).most_common(1)[0][0])
+    if result["step"] < 1 or result["step"] > 86400:
+        return result
+    return {**result, "history": points, "historyAvailable": True}
 
 
 def network_rates(current, previous, seconds):

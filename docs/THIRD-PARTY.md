@@ -12,6 +12,8 @@ Het Storage-overzicht in `frontend/modules/proxmox/storage-cards.tsx` is aangepa
 
 ## Directe afhankelijkheden
 
+`frontend/modules/proxmox/network-traffic-chart.tsx` gebruikt de Recharts-grafiekopbouw uit `AppImage/components/network-traffic-chart.tsx`, dezelfde ProxMenux-commit/GPL-3.0: AreaChart, assen, raster, tooltip, kleuren en gevulde Received/Sent-reeksen. ControlDeck voegt een toegankelijke legenda, gevalideerde serverprojectie, tijduitlijning voor clusters en expliciete gaten bij ontbrekende metingen toe. Recharts 3.10.1 en de transitieve licenties worden met de statische frontend meegeleverd; er is geen extra serverproces. Zie [PROXMOX-NETWORK.md](PROXMOX-NETWORK.md).
+
 Het Hardware-overzicht in `frontend/modules/proxmox/hardware-cards.tsx` gebruikt de systeem-, geheugen- en thermische indeling vanaf regel 650 van `AppImage/components/hardware.tsx` op dezelfde ProxMenux-commit en GPL-3.0. Aanpassingen: cluster/nodekeuze, herkenbare bronnode per onderdeel, veilige veldprojectie zonder serienummers en gedeelde kaartcomponenten/scoped CSS. Hardwaremutaties en driverinstallaties zijn niet geïmporteerd. Zie [PROXMOX-HARDWARE.md](PROXMOX-HARDWARE.md).
 
 `frontend/modules/proxmox/network-flow.tsx` neemt de originele `AppImage/components/network-flow.tsx` over, dezelfde commit/GPL-3.0. SVG-layout, iconen, verbindingsgeometrie en pulseanimaties blijven behouden. Aanpassingen omvatten ControlDeck-kaart-/themakleuren, clustercompositie met echte nodenamen, onbekende rates, XML-escaping, begrenzing en verminderde beweging. Zie [PROXMOX-NETWORK.md](PROXMOX-NETWORK.md).

@@ -20,7 +20,7 @@ from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError, normali
 from backend.auth import is_manager
 from backend.guest_inventory import project_guests
 from backend.storage_inventory import storage_snapshot
-from backend.network_inventory import network_snapshot, network_rates, LATENCY_PATH
+from backend.network_inventory import network_snapshot, network_rates, network_history, HISTORY_STEPS, LATENCY_PATH
 from backend.hardware_inventory import hardware_snapshot
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}")
@@ -436,3 +436,11 @@ def setup_proxmenux(app, configuration_path, data_dir):
     @app.get("/api/proxmenux/hardware")
     def monitor_hardware():
         return monitor_snapshot("hardware", ("hardware",), lambda results, node: hardware_snapshot(node["name"], results["hardware"][0]))
+
+    @app.get("/api/proxmenux/network/history")
+    def monitor_network_history():
+        timeframe = request.args.get("timeframe", "day")
+        if set(request.args) - {"timeframe"} or len(request.args.getlist("timeframe")) > 1 or timeframe not in HISTORY_STEPS:
+            return jsonify(error="Kies een geldige periode."), 400
+        endpoint = f"node/metrics?timeframe={timeframe}"
+        return monitor_snapshot(f"network-history:{timeframe}", (endpoint,), lambda results, node: network_history(node["name"], results[endpoint][0], timeframe))
