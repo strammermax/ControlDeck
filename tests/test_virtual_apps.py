@@ -311,6 +311,7 @@ def test_desktops_and_vm_wake(env, monkeypatch):
     apps = {a["name"]: a for a in client().get("/api/virtual-apps").get_json()["apps"]}
     assert apps["Windows Server"]["kind"] == "desktop" and apps["Word"]["kind"] == "app" and apps["VS Code"]["kind"] == "app"
     assert apps["Windows Server"]["vm"] == {"state": "offline"} and apps["VS Code"]["vm"] is None
+    assert all("serverHost" not in a for a in apps.values()), "internal server addresses stay on the server"
     booting = client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H)
     assert booting.status_code == 202 and booting.get_json() == {"booting": True, "started": [101]} and woken == [101]
     assert not any(endpoint == "request_kasm" for endpoint, _ in calls), "no Kasm session while the VM is off"

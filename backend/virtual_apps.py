@@ -110,8 +110,10 @@ def project_images(origin, value):
         server = str(image.get("server_id") or "").replace("-", "").lower()
         # A full desktop on a server is a "werkplek" (VM); RemoteApps and containers are single apps.
         kind = "desktop" if image.get("image_type") == "Server" and not image.get("is_remote_app") else "app"
+        host = (image.get("server") or {}).get("hostname") if isinstance(image.get("server"), dict) else None
         apps.append({"id": identifier, "name": name.strip()[:100], "description": str(image.get("description") or "")[:300],
-                     "icon": icon, "categories": categories, "kind": kind, "serverId": server if KASM_ID.fullmatch(server) else None})
+                     "icon": icon, "categories": categories, "kind": kind, "serverId": server if KASM_ID.fullmatch(server) else None,
+                     "serverHost": host if isinstance(host, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]{0,252}", host) else None})
     return sorted(apps, key=lambda app: app["name"].casefold())
 
 
@@ -206,6 +208,11 @@ def setup_virtual_apps(app, configuration_path, data_dir):
             cache[key] = (time.time(), value)
         return value
 
+    def vm_links_for(kasm, apps):
+        """Explicit vault links plus VMs discovered from the Kasm server address."""
+        servers = {item["serverId"]: item.get("serverHost") for item in apps if item.get("serverId")}
+        return power.discover(servers, kasm["vms"]) if servers else kasm["vms"]
+
     @app.before_request
     def virtual_apps_access():
         if request.path.startswith("/api/virtual-apps") and g.account is not None:
@@ -224,9 +231,11 @@ def setup_virtual_apps(app, configuration_path, data_dir):
     def virtual_apps():
         kasm, user_id = settings()
         apps = [dict(item) for item in images(kasm)]
+        links = vm_links_for(kasm, apps)
         states = {}
         for item in apps:
-            vm = kasm["vms"].get(item["serverId"] or "")
+            item.pop("serverHost", None)  # Internal addresses stay on the server.
+            vm = links.get(item["serverId"] or "")
             if vm:
                 states.setdefault(item["serverId"], power.state(vm))
             item["vm"] = {"state": states[item["serverId"]]} if vm else None
@@ -243,7 +252,7 @@ def setup_virtual_apps(app, configuration_path, data_dir):
         chosen = next((app_ for app_ in images(kasm) if app_["id"] == image_id), None)
         if chosen is None:
             return jsonify(error="Deze workspace is niet beschikbaar."), 404
-        vm = kasm["vms"].get(chosen["serverId"] or "")
+        vm = vm_links_for(kasm, [chosen]).get(chosen["serverId"] or "")
         if vm:
             state = power.state(vm)
             if state in ("offline", "booting"):

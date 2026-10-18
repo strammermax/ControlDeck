@@ -46,7 +46,15 @@ De pagina toont twee secties: **Werkplekken (VM's)** (volledige bureaubladen op 
 
 Start je een app terwijl de VM uit staat, dan start ControlDeck eerst de VM (en de VM's in `before`, bijvoorbeeld de domeincontroller), wacht tot RDP antwoordt (maximaal 5 minuten) en vraagt dan pas de Kasm-sessie aan. ControlDeck start VM's alleen; het stopt ze nooit.
 
-Koppeling in dezelfde vaultwaarde, onder `kasm.vms`, per **Kasm-server-ID** (Kasm → Admin → Servers):
+**Automatisch.** Een app of server die je in Kasm toevoegt, verschijnt vanzelf. Bij een server zoekt ControlDeck zelf de VM: via het MAC-adres van het serveradres op het netwerk (VM aan) of via de DNS-naam van het adres die gelijk is aan de VM-naam in Proxmox (ook als de VM uit staat; bijvoorbeeld `winserver.home` ↔ VM *WinServer*). Gevonden koppelingen worden onthouden in `<data-dir>/virtual-apps/vm-links.json`. Sjablonen en containers worden nooit gekoppeld. Het interne serveradres gaat niet naar de browser.
+
+**Met de hand (optioneel).** In dezelfde vaultwaarde, onder `kasm.vms`, per **Kasm-server-ID** (Kasm → Admin → Servers). Een volledige regel (`node` + `vmid`) gaat boven de automatische koppeling; een regel met alleen `before` voegt afhankelijkheden toe aan de gevonden VM:
+
+```json
+"vms": {"f230d0fed5104941abe3fba719fd67eb": {"before": [{"node": "pve-amd", "vmid": 136}]}}
+```
+
+Volledige vorm:
 
 ```json
 "vms": {
@@ -58,7 +66,7 @@ Koppeling in dezelfde vaultwaarde, onder `kasm.vms`, per **Kasm-server-ID** (Kas
 
 `host` (en optioneel `port`, standaard 3389) bepaalt de bereikbaarheidscontrole; zonder `host` geldt "VM draait" als online.
 
-**Proxmox-recht.** De Proxmox-koppeling is verder alleen-lezen. Geef het token alleen voor deze VM's het recht om te starten (op een Proxmox-node):
+**Proxmox-recht.** De Proxmox-koppeling is verder alleen-lezen; Proxmox bepaalt welke VM's ControlDeck mag starten. Handigst is een pool: zet Kasm-VM's in pool `kasm` en geef het recht één keer op `/pool/kasm` (`pveum pool add kasm`, `pveum acl modify /pool/kasm -token 'controldeck@pve!controldeck' -role ControlDeckPower`, idem met `-user controldeck@pve`). Per VM kan ook (op een Proxmox-node):
 
 ```bash
 pveum role add ControlDeckPower -privs "VM.PowerMgmt VM.Audit"
