@@ -189,6 +189,25 @@ def settled(viewer, predicate=lambda nodes: not any(node.get("loading") for node
 
 
 @pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_guest_enrichment_projection_is_node_bound_and_whitelisted(env, monkeypatch, case):
+    client, hosts, failing, stored = env
+    original = proxmenux.monitor_get
+    raw = [{"vmid": 123, "name": "Guest", "type": "lxc", "status": "running", "node": "untrusted-node", "diskread": 456, "password": "not-public"}] if case == "normaal" else [] if case == "boundary" else {"invalid": "collection"}
+    def monitor(node, ca, endpoint, timeout=None):
+        return raw if endpoint == "vms" else original(node, ca, endpoint, timeout)
+    monkeypatch.setattr(proxmenux, "monitor_get", monitor)
+    assert client().put("/api/proxmenux/connection", headers=H, json={"ca": CA, "nodes": NODES}).status_code == 200
+    nodes = settled(client("viewer@example.test"))
+    for node in nodes:
+        if case == "normaal":
+            assert node["guests"][0]["node"] == node["name"]
+            assert node["guests"][0]["diskread"] == 456
+            assert "password" not in json.dumps(node["guests"])
+        else:
+            assert node["guests"] == []
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
 def test_summary(env, case):
     client, hosts, failing, stored = env
     viewer = client("viewer@example.test")
