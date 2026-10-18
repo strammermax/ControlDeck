@@ -40,6 +40,16 @@ Zonder inrichting toont de pagina "Kasm is nog niet ingericht"; zonder gekoppeld
 - Iconen: een Kasm-thumbnailpad op het Kasm-adres (zonder `..`), of een in Kasm ingebedde PNG/JPEG/WebP (max. 256 KB, inhoud gecontroleerd). Externe icoonadressen en SVG worden niet geladen; dan toont de tegel de eerste letter. Stel een icoon in via Kasm → Admin → Workspaces → *Thumbnail URL* (bijvoorbeeld `img/thumbnails/<naam>.png`).
 - Toegang volgt de module `virtual-apps`; schrijfacties vereisen CSRF. Kasm-fouten krijgen status 424 (niet 502, dat Cloudflare zou vervangen), met de melding van Kasm.
 
+## Meerdere Windows-apps tegelijk
+
+Kasm staat per gebruiker maar **één browser-RemoteApp per Kasm-server** toe ("already has RemoteApp sessions for user"), en Windows zonder RDS maximaal 2 RDP-sessies. Werkende inrichting (2026-10-18):
+
+1. **Windows:** rol *Remote Desktop Session Host* met licentieserver (Per User CAL's), licentiemodus Per User (`ChangeMode 4`), licentieserver `localhost` en `fSingleSessionPerUser = 0`.
+2. **Kasm:** elke RemoteApp een **eigen serververmelding** naar dezelfde machine (bijv. *Windows - Word*, *Windows - Excel*, allemaal `192.168.20.101`); het volledige bureaublad houdt de originele server. Nieuwe app: kopieer in Kasm → Admin → Servers een bestaande Windows-server en koppel de workspace eraan.
+3. **Grens:** Kasm Community staat maximaal **5 sessies** tegelijk toe.
+
+ControlDeck koppelt alle serververmeldingen met hetzelfde adres automatisch aan dezelfde VM.
+
 ## Werkplekken, VM-status en VM's wakker maken
 
 De pagina toont twee secties: **Werkplekken (VM's)** (volledige bureaubladen op een server, zoals *Windows Server* of *zorinwerkplek*) en **Apps** (RemoteApps zoals Word, en containers zoals VS Code). Elke tegel waarvan de Kasm-server aan een VM is gekoppeld, toont **Online**, **Opstarten…**, **Offline** of **Status onbekend** (online = VM draait én RDP antwoordt).
