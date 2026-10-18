@@ -35,6 +35,10 @@
       {
         "id": "storage",
         "title": "Storage"
+      },
+      {
+        "id": "network",
+        "title": "Network"
       }
     ]
   },

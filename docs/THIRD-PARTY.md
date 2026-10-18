@@ -12,6 +12,8 @@ Het Storage-overzicht in `frontend/modules/proxmox/storage-cards.tsx` is aangepa
 
 ## Directe afhankelijkheden
 
+Het Network-overzicht in `frontend/modules/proxmox/network-cards.tsx` is aangepast uit `AppImage/components/network-metrics.tsx` (overzicht vanaf regel 650 en fysieke interfacekaart vanaf regel 198) en `network-card.tsx`, dezelfde ProxMenux-commit en GPL-3.0. De dubbele verkeerskop, statuschips en kaartindeling worden hergebruikt met scoped CSS en gedeelde Proxmox-kaartcomponenten. ControlDeck voegt clusterselectie, fysieke-only totalen, begrensde veilige projecties en expliciete ontbrekende metingen toe. De compacte Network Flow is een eigen presentatie van de gemelde relaties; upstreammutaties en terminalacties zijn niet overgenomen. Zie [PROXMOX-NETWORK.md](PROXMOX-NETWORK.md).
+
 De frontendbuild verzamelt licentieteksten uit de geïnstalleerde dependencyboom, inclusief gebundelde Next.js-dependencies. De export, bundle en Docker-runtime bevatten `THIRD-PARTY-LICENSES.txt`. Een snapshot staat in [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt) in deze map en wordt bij dependencywijzigingen bijgewerkt.
 
 React, Next.js, TypeScript, Flask, Gunicorn en pytest worden als externe packages gebruikt. De exacte versies staan in package.json, package-lock.json en requirementsbestanden. npm bevat de volledige frontenddependencyboom. Ook transitieve Python-runtimepackages worden in requirements.txt vastgelegd. Ontwikkeldependencies zijn nog niet volledig gelockt.

@@ -414,3 +414,12 @@ def setup_proxmox(app, configuration_path, data_dir):
             except ValueError:
                 raise ProxmoxError("Proxmox gaf een ongeldige opslaginventaris.") from None
         return cached("storage", inventory)
+
+    @app.get("/api/proxmox/network")
+    def network_nodes():
+        def inventory(client):
+            try:
+                return {"nodes": project_inventory(client.get("/cluster/resources"))["nodes"]}
+            except ValueError:
+                raise ProxmoxError("Proxmox gaf een ongeldige node-inventaris.") from None
+        return cached("network", inventory)

@@ -20,6 +20,7 @@ from backend.proxmox import NODE, Client as ProxmoxClient, ProxmoxError, normali
 from backend.auth import is_manager
 from backend.guest_inventory import project_guests
 from backend.storage_inventory import storage_snapshot
+from backend.network_inventory import network_snapshot, network_rates, LATENCY_PATH
 
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}")
 STATUS = {"OK": "ok", "INFO": "ok", "WARNING": "warning", "CRITICAL": "error", "ERROR": "error"}
@@ -419,3 +420,14 @@ def setup_proxmenux(app, configuration_path, data_dir):
     @app.get("/api/proxmenux/storage")
     def monitor_storage():
         return monitor_snapshot("storage", ("storage", "mounts"), lambda results, node: storage_snapshot(node["name"], results["storage"][0], results["mounts"][0]))
+
+    @app.get("/api/proxmenux/network")
+    def monitor_network():
+        def project(results, node):
+            data = network_snapshot(node["name"], results["network"][0], results[LATENCY_PATH][0])
+            with lock:
+                old = caches.get("network", {}).get(node["name"])
+                previous = old["data"] if old and old["key"][1] == node["url"] else None
+                seconds = time.time() - old["at"] if old else 0
+            return network_rates(data, previous, seconds)
+        return monitor_snapshot("network", ("network", LATENCY_PATH), project)
