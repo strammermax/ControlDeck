@@ -107,9 +107,17 @@ class Client:
             self.session.mount(self.url, PinnedAdapter(connection["fingerprint"]))
             self.verify = False  # Replaced by the pinned fingerprint check above.
 
-    def get(self, endpoint, **params):
+    def post(self, endpoint, **data):
+        """Only used for explicitly configured power actions (Virtual Apps); the token needs VM.PowerMgmt."""
+        return self.get(endpoint, _post=data)
+
+    def get(self, endpoint, _post=None, **params):
         try:
-            response = self.session.get(f"{self.url}/api2/json{endpoint}", params=params, timeout=TIMEOUT, verify=self.verify, allow_redirects=False)
+            url = f"{self.url}/api2/json{endpoint}"
+            if _post is None:
+                response = self.session.get(url, params=params, timeout=TIMEOUT, verify=self.verify, allow_redirects=False)
+            else:
+                response = self.session.post(url, data=_post, timeout=TIMEOUT, verify=self.verify, allow_redirects=False)
         except requests.exceptions.SSLError:
             raise ProxmoxError("Het certificaat van Proxmox komt niet overeen. Koppel Proxmox opnieuw via Admin → Modules.") from None
         except requests.RequestException:

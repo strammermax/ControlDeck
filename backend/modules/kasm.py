@@ -9,10 +9,11 @@ from urllib.parse import urlsplit
 import requests
 from backend.modules.launch_urls import secure_origin, empty_settings
 from backend.proxmox import PinnedAdapter, validate_fingerprint
+from backend.vm_power import vm_links
 
 validate_settings = empty_settings
 REQUIRED = {"url", "apiKey", "apiSecret", "users"}
-OPTIONAL = {"apiUrl", "apiFingerprint"}
+OPTIONAL = {"apiUrl", "apiFingerprint", "vms"}
 
 
 def kasm_config(config):
@@ -24,7 +25,7 @@ def kasm_config(config):
     fingerprint = validate_fingerprint(config.get("apiFingerprint"))
     if any(not isinstance(config[key], str) or not config[key] or len(config[key]) > 4096 for key in ("apiKey", "apiSecret")) or not isinstance(config["users"], dict):
         raise ValueError("Ongeldige Kasm-inrichting.")
-    return {"origin": origin, "api": api, "fingerprint": fingerprint, "users": config["users"],
+    return {"origin": origin, "api": api, "fingerprint": fingerprint, "users": config["users"], "vms": vm_links(config),
             "auth": {"api_key": config["apiKey"], "api_key_secret": config["apiSecret"]}}
 
 

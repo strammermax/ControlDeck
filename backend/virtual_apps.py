@@ -15,6 +15,8 @@ from backend.auth import filter_configuration
 from backend.configuration import ConfigurationError, load_config
 from backend.modules.kasm import kasm_config, kasm_post, linked_user
 from backend.vault import VaultError
+from backend.proxmox import ProxmoxError
+from backend.vm_power import VmPower
 
 KASM_ID = re.compile(r"[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 IMAGE_SRC = re.compile(r"[A-Za-z0-9_./-]{1,300}\.(?:png|jpg|jpeg|svg|webp)")
@@ -105,8 +107,11 @@ def project_images(origin, value):
             continue
         icon = workspace_icon(origin, image.get("image_src"))
         categories = [str(c)[:60] for c in image.get("categories") or [] if isinstance(c, str)][:10]
+        server = str(image.get("server_id") or "").replace("-", "").lower()
+        # A full desktop on a server is a "werkplek" (VM); RemoteApps and containers are single apps.
+        kind = "desktop" if image.get("image_type") == "Server" and not image.get("is_remote_app") else "app"
         apps.append({"id": identifier, "name": name.strip()[:100], "description": str(image.get("description") or "")[:300],
-                     "icon": icon, "categories": categories})
+                     "icon": icon, "categories": categories, "kind": kind, "serverId": server if KASM_ID.fullmatch(server) else None})
     return sorted(apps, key=lambda app: app["name"].casefold())
 
 
@@ -174,8 +179,9 @@ def wait_until_running(kasm, user_id, kasm_id, link, sleep=time.sleep, clock=tim
         sleep(POLL_SECONDS)
 
 
-def setup_virtual_apps(app, configuration_path):
+def setup_virtual_apps(app, configuration_path, data_dir):
     cache, lock = {}, Lock()
+    power = VmPower(data_dir)
 
     def settings():
         vault = app.extensions.get("controldeck_vault")
@@ -217,7 +223,13 @@ def setup_virtual_apps(app, configuration_path):
     @app.get("/api/virtual-apps")
     def virtual_apps():
         kasm, user_id = settings()
-        apps = images(kasm)
+        apps = [dict(item) for item in images(kasm)]
+        states = {}
+        for item in apps:
+            vm = kasm["vms"].get(item["serverId"] or "")
+            if vm:
+                states.setdefault(item["serverId"], power.state(vm))
+            item["vm"] = {"state": states[item["serverId"]]} if vm else None
         sessions = project_sessions(kasm_call(kasm, "get_kasms"), user_id, apps)
         result = jsonify(apps=apps, sessions=sessions, portal=kasm["origin"])
         result.headers["Cache-Control"] = "no-store"
@@ -228,8 +240,19 @@ def setup_virtual_apps(app, configuration_path):
         if not KASM_ID.fullmatch(image_id) or request.get_json(silent=True) != {}:
             return jsonify(error="Ongeldige workspace."), 400
         kasm, user_id = settings()
-        if not any(app_["id"] == image_id for app_ in images(kasm)):
+        chosen = next((app_ for app_ in images(kasm) if app_["id"] == image_id), None)
+        if chosen is None:
             return jsonify(error="Deze workspace is niet beschikbaar."), 404
+        vm = kasm["vms"].get(chosen["serverId"] or "")
+        if vm:
+            state = power.state(vm)
+            if state in ("offline", "booting"):
+                try:
+                    woken = power.wake(vm) if state == "offline" else []
+                except ProxmoxError as error:
+                    raise KasmError(str(error)) from None
+                # The browser polls the overview and starts again once the VM is online.
+                return jsonify(booting=True, started=woken), 202
         started = kasm_call(kasm, "request_kasm", user_id=user_id, image_id=image_id, enable_sharing=False)
         kasm_id = str(started.get("kasm_id", ""))
         if not KASM_ID.fullmatch(kasm_id):

@@ -12,3 +12,7 @@
 .cd-vapps-sessions li{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card)}
 .cd-vapps-sessions li>span:not(.cd-vapps-letter){flex:1;display:grid;min-width:0}.cd-vapps-sessions small{color:var(--muted);font-size:12px}
 .cd-vapps-sessions img,.cd-vapps-sessions .cd-vapps-letter{width:32px;height:32px;object-fit:contain;font-size:16px}
+.cd-vapps-group h3{margin:0 0 10px;font-size:16px}
+.cd-vapps-vm{font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);color:var(--muted)}
+.cd-vapps-vm[data-state=online]{color:#1a7f37;border-color:#1a7f37}.cd-vapps-vm[data-state=booting]{color:#9a6700;border-color:#9a6700}
+.cd-vapps-vm[data-state=offline]{color:#cf222e;border-color:#cf222e}

@@ -292,3 +292,43 @@ def test_start_faal_without_session_id(env):
     client, calls, replies, vault = env
     replies["request_kasm"] = {"kasm_url": STARTED["kasm_url"]}
     assert client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H).status_code == 424
+
+
+def test_desktops_and_vm_wake(env, monkeypatch):
+    """Requirement 2026-10-18: show VMs (werkplekken) apart from apps, show whether the VM is online,
+    and wake a stopped VM instead of letting Kasm fail."""
+    client, calls, replies, vault = env
+    server = "ab" * 16
+    replies["get_images"] = {"images": [
+        {"image_id": CHROME, "friendly_name": "Windows Server", "image_type": "Server", "is_remote_app": False, "server_id": server},
+        {"image_id": FIREFOX, "friendly_name": "Word", "image_type": "Server", "is_remote_app": True, "server_id": server},
+        {"image_id": "c" * 32, "friendly_name": "VS Code", "image_type": "Container"},
+    ]}
+    vault["CONTROLDECK_APP_LAUNCHES"] = json.dumps({"kasm": {**CONFIG["kasm"], "vms": {server: {"node": "pve-amd", "vmid": 101}}}})
+    state, woken = {"value": "offline"}, []
+    monkeypatch.setattr(virtual_apps.VmPower, "state", lambda self, vm, client=None: state["value"])
+    monkeypatch.setattr(virtual_apps.VmPower, "wake", lambda self, vm: woken.append(vm["vmid"]) or [vm["vmid"]])
+    apps = {a["name"]: a for a in client().get("/api/virtual-apps").get_json()["apps"]}
+    assert apps["Windows Server"]["kind"] == "desktop" and apps["Word"]["kind"] == "app" and apps["VS Code"]["kind"] == "app"
+    assert apps["Windows Server"]["vm"] == {"state": "offline"} and apps["VS Code"]["vm"] is None
+    booting = client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H)
+    assert booting.status_code == 202 and booting.get_json() == {"booting": True, "started": [101]} and woken == [101]
+    assert not any(endpoint == "request_kasm" for endpoint, _ in calls), "no Kasm session while the VM is off"
+    state["value"] = "booting"
+    assert client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H).status_code == 202 and woken == [101], "no second start while booting"
+    state["value"] = "online"
+    assert client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H).status_code == 200
+
+
+def test_vm_wake_faal_permission_message(env, monkeypatch):
+    client, calls, replies, vault = env
+    server = "ab" * 16
+    replies["get_images"] = {"images": [{"image_id": CHROME, "friendly_name": "Windows Server", "image_type": "Server", "server_id": server}]}
+    vault["CONTROLDECK_APP_LAUNCHES"] = json.dumps({"kasm": {**CONFIG["kasm"], "vms": {server: {"node": "pve-amd", "vmid": 101}}}})
+    monkeypatch.setattr(virtual_apps.VmPower, "state", lambda self, vm, client=None: "offline")
+
+    def refuse(self, vm):
+        raise virtual_apps.ProxmoxError("ControlDeck mag VM 101 niet starten: het Proxmox-token mist het recht VM.PowerMgmt.")
+    monkeypatch.setattr(virtual_apps.VmPower, "wake", refuse)
+    answer = client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H)
+    assert answer.status_code == 424 and "VM.PowerMgmt" in answer.get_json()["error"]
