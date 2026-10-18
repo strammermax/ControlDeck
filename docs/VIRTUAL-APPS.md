@@ -15,14 +15,20 @@
    | Users Auth Session | inloggen via de Kasm-module (`get_login`) |
 
 2. **Kasm-gebruiker per ControlDeck-account.** Kasm → Admin → Users → open de gebruiker en kopieer het **User ID** (een UUID). ControlDeck maakt geen Kasm-gebruikers aan.
-3. **In Infisical**, in de ControlDeck-vaultmap, de JSON-waarde `CONTROLDECK_APP_LAUNCHES` (dezelfde als voor [automatisch aanmelden](APP-LAUNCHES.md)):
+3. **In Infisical**, omgeving **Production**, map **`/apps/controldeck/widgets`** (waar ook `CONTROLDECK_WIDGET_SOURCES` staat), de JSON-waarde `CONTROLDECK_APP_LAUNCHES` (dezelfde als voor [automatisch aanmelden](APP-LAUNCHES.md)):
 
    ```json
    {"kasm": {"url": "https://kasm.example.org", "apiKey": "…", "apiSecret": "…",
-             "users": {"jij@example.org": "11111111-2222-3333-4444-555555555555"}}}
+             "users": {"jij@example.org": "11111111-2222-3333-4444-555555555555"},
+             "apiUrl": "https://kasm.home",
+             "apiFingerprint": "06:A5:…:C7:88"}}
    ```
 
-   Gebruik het publieke HTTPS-adres van Kasm, zonder pad. ControlDeck leest de waarde bij elk verzoek; een herstart is niet nodig.
+   - `url`: het publieke HTTPS-adres zonder pad; dit opent de browser.
+   - `apiUrl` (optioneel): het adres waarmee de **server** de API aanroept. Nodig als het publieke adres achter een aanmeldproxy staat, zoals Cloudflare Access: dan stuurt elk API-verzoek door naar een aanmeldpagina ("het adres stuurt door naar een aanmeldpagina").
+   - `apiFingerprint` (optioneel): SHA-256-vingerafdruk van het certificaat op `apiUrl`, voor Kasm's standaard zelfondertekende certificaat (naam `kasm`, past niet bij de hostnaam). Alleen precies dat certificaat wordt geaccepteerd, zoals bij [Proxmox](PROXMOX.md). Opvragen op de ControlDeck-server: `echo | openssl s_client -connect kasm.home:443 2>/dev/null | openssl x509 -noout -fingerprint -sha256`.
+
+   ControlDeck leest de waarde bij elk verzoek; een herstart is niet nodig.
 
 Zonder inrichting toont de pagina "Kasm is nog niet ingericht"; zonder gekoppelde gebruiker "Er is geen Kasm-account aan jouw profiel gekoppeld".
 

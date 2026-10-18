@@ -3,7 +3,6 @@
 import json
 import re
 import time
-import uuid
 from threading import Lock
 from urllib.parse import urlsplit
 
@@ -12,7 +11,7 @@ from flask import g, jsonify, request
 
 from backend.auth import filter_configuration
 from backend.configuration import ConfigurationError, load_config
-from backend.modules.launch_urls import secure_origin
+from backend.modules.kasm import kasm_config, kasm_post, linked_user
 from backend.vault import VaultError
 
 KASM_ID = re.compile(r"[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -33,32 +32,28 @@ class NotConfigured(KasmError):
 
 
 def kasm_settings(settings, email):
-    """Validated origin, API credentials and the Kasm user id linked to this ControlDeck account."""
+    """Validated Kasm settings (shared with the login module) and the Kasm user linked to this account."""
     config = settings.get("kasm") if isinstance(settings, dict) else None
-    if not isinstance(config, dict) or set(config) != {"url", "apiKey", "apiSecret", "users"}:
+    if config is None:
         raise NotConfigured("Kasm is nog niet ingericht. Vraag je beheerder de Kasm-koppeling in Infisical in te stellen.")
     try:
-        origin = secure_origin(config["url"])
+        kasm = kasm_config(config)
     except ValueError:
         raise NotConfigured("Ongeldige Kasm-inrichting.") from None
-    if any(not isinstance(config[key], str) or not config[key] or len(config[key]) > 4096 for key in ("apiKey", "apiSecret")) or not isinstance(config["users"], dict):
-        raise NotConfigured("Ongeldige Kasm-inrichting.")
-    user_id = config["users"].get(email)
     try:
-        if not isinstance(user_id, str):
-            raise ValueError
-        uuid.UUID(user_id)
-    except ValueError:
+        return kasm, linked_user(kasm, {"email": email})
+    except (PermissionError, ValueError):
         raise NotLinked("Er is geen Kasm-account aan jouw profiel gekoppeld.") from None
-    return origin, {"api_key": config["apiKey"], "api_key_secret": config["apiSecret"]}, user_id
 
 
-def kasm_call(origin, auth, endpoint, **body):
+def kasm_call(kasm, endpoint, **body):
     try:
-        response = requests.post(f"{origin}/api/public/{endpoint}", json={**auth, **body}, timeout=(5, 30), allow_redirects=False)
+        response = kasm_post(kasm, endpoint, **body)
+        if response.status_code in (301, 302, 303, 307, 308):
+            raise KasmError("Kasm is niet bereikbaar: het adres stuurt door naar een aanmeldpagina. Stel apiUrl in op het interne adres.")
         value = response.json() if response.status_code == 200 else None
     except (requests.RequestException, ValueError):
-        raise KasmError("Kasm is niet bereikbaar.") from None
+        raise KasmError("Kasm is niet bereikbaar of geeft geen API-antwoord. Controleer apiUrl en apiFingerprint.") from None
     if not isinstance(value, dict):
         raise KasmError("Kasm weigert de aanvraag. Controleer de rechten van de API-sleutel.")
     if value.get("error_message"):
@@ -107,11 +102,13 @@ def project_sessions(value, user_id, apps):
     return sessions
 
 
-def connect_url(origin, value):
-    """Only Kasm's own connect route on the configured origin."""
+def connect_url(origin, value, api=None):
+    """Only Kasm's own connect route, opened on the public origin (also when Kasm answers with its internal address)."""
     path = value.get("kasm_url")
     if not isinstance(path, str) or len(path) > 2048 or any(c.isspace() or c == "\\" for c in path):
         raise KasmError("Kasm gaf geen geldige sessielink.")
+    if api and api != origin and path.startswith(api + "/"):
+        path = path[len(api):]
     target = path if path.startswith("https://") else origin + "/" + path.lstrip("/")
     parts, expected = urlsplit(target), urlsplit(origin)
     if (parts.scheme, parts.netloc) != (expected.scheme, expected.netloc) or parts.query or parts.path not in ("", "/") or not CONNECT.fullmatch(parts.fragment):
@@ -132,13 +129,14 @@ def setup_virtual_apps(app, configuration_path):
             raise NotConfigured("De Kasm-inrichting kon niet worden gelezen.") from None
         return kasm_settings(value, g.account["email"])
 
-    def images(origin, auth):
-        key = (origin, auth["api_key"])
+    def images(kasm):
+        origin = kasm["origin"]
+        key = (kasm["api"], kasm["auth"]["api_key"])
         with lock:
             hit = cache.get(key)
             if hit and time.time() - hit[0] < 60:
                 return hit[1]
-        value = project_images(origin, kasm_call(origin, auth, "get_images"))
+        value = project_images(origin, kasm_call(kasm, "get_images"))
         with lock:
             cache.clear()
             cache[key] = (time.time(), value)
@@ -160,10 +158,10 @@ def setup_virtual_apps(app, configuration_path):
 
     @app.get("/api/virtual-apps")
     def virtual_apps():
-        origin, auth, user_id = settings()
-        apps = images(origin, auth)
-        sessions = project_sessions(kasm_call(origin, auth, "get_kasms"), user_id, apps)
-        result = jsonify(apps=apps, sessions=sessions, portal=origin)
+        kasm, user_id = settings()
+        apps = images(kasm)
+        sessions = project_sessions(kasm_call(kasm, "get_kasms"), user_id, apps)
+        result = jsonify(apps=apps, sessions=sessions, portal=kasm["origin"])
         result.headers["Cache-Control"] = "no-store"
         return result
 
@@ -171,10 +169,10 @@ def setup_virtual_apps(app, configuration_path):
     def start_virtual_app(image_id):
         if not KASM_ID.fullmatch(image_id) or request.get_json(silent=True) != {}:
             return jsonify(error="Ongeldige workspace."), 400
-        origin, auth, user_id = settings()
-        if not any(app_["id"] == image_id for app_ in images(origin, auth)):
+        kasm, user_id = settings()
+        if not any(app_["id"] == image_id for app_ in images(kasm)):
             return jsonify(error="Deze workspace is niet beschikbaar."), 404
-        url = connect_url(origin, kasm_call(origin, auth, "request_kasm", user_id=user_id, image_id=image_id, enable_sharing=False))
+        url = connect_url(kasm["origin"], kasm_call(kasm, "request_kasm", user_id=user_id, image_id=image_id, enable_sharing=False), kasm["api"])
         result = jsonify(url=url)
         result.headers["Cache-Control"] = "no-store"
         result.headers["Referrer-Policy"] = "no-referrer"
@@ -184,9 +182,9 @@ def setup_virtual_apps(app, configuration_path):
     def stop_virtual_app(kasm_id):
         if not KASM_ID.fullmatch(kasm_id):
             return jsonify(error="Ongeldige sessie."), 400
-        origin, auth, user_id = settings()
-        mine = project_sessions(kasm_call(origin, auth, "get_kasms"), user_id, [])
+        kasm, user_id = settings()
+        mine = project_sessions(kasm_call(kasm, "get_kasms"), user_id, [])
         if not any(session["id"] == kasm_id for session in mine):
             return jsonify(error="Sessie niet gevonden."), 404
-        kasm_call(origin, auth, "destroy_kasm", kasm_id=kasm_id, user_id=user_id)
+        kasm_call(kasm, "destroy_kasm", kasm_id=kasm_id, user_id=user_id)
         return jsonify(ok=True)
