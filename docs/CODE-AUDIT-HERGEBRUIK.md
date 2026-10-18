@@ -10,6 +10,55 @@ De belangrijkste overlap zit niet in letterlijk gekopieerde lange functies, maar
 
 Dit document is onderzoek en een uitvoeringsvoorstel. Er zijn bij dit onderzoek geen providers, accounts, dashboards of productie-instellingen veranderd.
 
+## Herbeoordeling op commit `87bee12` (18 oktober 2026, middag)
+
+Sinds `b74bd10` zijn Files, Virtual Apps (Kasm, VM-status/-wekken), de Proxmox-inventaris (gasten, netwerk, opslag) en de ProxMenux-overzichten toegevoegd. De bevindingen hieronder zijn opnieuw tegen de code gelegd.
+
+| Bevinding | Stand nu | Toelichting |
+| --- | --- | --- |
+| **Nieuw — P0: upstreamfouten als HTTP 502** | **Bug, eerst oplossen** | Cloudflare vervangt elk origin-502-antwoord door een eigen pagina; de JSON-melding bereikt de gebruiker dan niet ("niet beschikbaar"). Files en Virtual Apps zijn hierop al gerepareerd (status 424, met regressietest). Nog 8 plaatsen: `backend/proxmox.py:312, 322, 339, 364`, `backend/linkwarden.py:153`, `backend/homepage_integrations.py:161`, `backend/cronjob_api.py:42`. Voorstel: één constante/foutklasse `UpstreamError` met status 424 en een regressietest per route. |
+| 1. Dubbele ophaal-/ververslussen | **Gegroeid** | Drie nieuwe, vrijwel identieke lussen in `proxmox-guests.tsx`, `proxmox-network.tsx` en `proxmox-storage.tsx` (zelfde `AbortSignal`-, `busy`-, 401/403/409-, `stale`- en `pending ? 5 s`-logica; alleen endpoint en teksten verschillen), plus `virtual-apps-page.tsx`. In totaal 11 `setInterval`-lussen; `/api/proxmenux/summary` wordt door 3 componenten los opgehaald. Een generieke `usePolledResource(fetcher, {interval, fastWhile})` vervangt de drie inventarislussen direct. |
+| 2. Vault vóór widgetcache | Ongewijzigd | Virtual Apps leest dezelfde vaultwaarde (`CONTROLDECK_APP_LAUNCHES`) per aanvraag; dezelfde configuratierepository zou beide dienen. |
+| 3. Twee Kasm-implementaties | **Opgelost** | `backend/modules/kasm.py` levert `kasm_config`, `kasm_post` (intern `apiUrl` met certificaatpinning) en `linked_user`; aanmelden en Virtual Apps gebruiken beide. Aparte rechten `kasm` en `virtual-apps` zijn behouden. |
+| 5. Verspreide HTTP-wrappers | Gegroeid | 25 frontendbestanden doen zelf `fetch`; 19 zetten zelf de CSRF-header. Nieuw sinds de audit: `files.ts`, `virtual-apps.ts`, `page-layouts.ts`. Die drie hebben al een gestructureerde fout (`status`, `relink`, `notLinked`) en zijn een goed model voor `ApiError`. |
+| 6. Modulekennis in de hoofdpagina | Gegroeid | `page.tsx` kiest nu tussen 16 routes in één voorwaardelijke expressie. |
+| 9. Infrastructuur bij productmodules | Ongewijzigd | `save_private` komt nog uit `linkwarden.py` (gebruikt door `homepage.py` en `files.py`). |
+| 10. Autorisatie opnieuw opgebouwd | Gegroeid | 16 plaatsen doen `filter_configuration(load_config(...))` plus een eigen module-ID-zoekactie; nieuw: `files.py`, `page_layouts.py`, `virtual_apps.py`. |
+| 11. Backendcaches | Gegroeid | Nieuwe eigen caches in `virtual_apps.py` (workspaces, 60 s) en `vm_power.py` (VM-status 10 s, VM-koppeling 60 s). Ze lossen elk hetzelfde op (TTL + lock), met verschillende vormen. |
+| 13. URL-/HTTP-beleid | Gegroeid | Nieuwe validators `nextcloud_origin` (Files) en `workspace_icon`/`connect_url` (Virtual Apps), naast `secure_origin`, `provider_url`, `base_url`, `integration_url` en `display_url`. Terecht verschillende contracten, maar gedeelde fixtures ontbreken. Ook vier eigen HTTP-aanroepfuncties (`files.call`, `homepage_integrations.call`, `linkwarden.upstream`, `widgets.transport.call`) met elk eigen time-outs en foutvertaling. |
+
+### Aanvullende bevindingen (nieuw in deze herbeoordeling)
+
+**A1. P1 — Modules lezen de Proxmox-verbinding rechtstreeks van schijf.** `proxmox/connection.json` wordt buiten `proxmox.py` gelezen in `cronjobs.py:94`, `cronjob_api.py:76`, `linkwarden.py:158`, `proxmenux.py:258` en `vm_power.py:109`; elk bouwt zelf een `Client` en vangt eigen fouten af. Een wijziging aan het opslagformaat of aan certificaatpinning moet dus op zes plaatsen landen. *Voorstel:* een `ProxmoxConnection`-repository in `proxmox.py` (`load()`, `client()`, `require()`) die de anderen importeren. *Bewaken:* bestandsrechten (0600) en de alleen-lezen/startrecht-scheiding blijven gelijk.
+
+**A2. P1 — Persoonlijke geheimen: twee opslagvarianten met een andere sleutel.** Linkwarden-tokens (`linkwarden.py:130`) zijn opgeslagen onder een hash van *server + e-mailadres*; Files-app-wachtwoorden (`files.py:139`) onder *server + login-subject*. Een gewijzigd e-mailadres laat de Linkwarden-koppeling dus stil vervallen, Files niet. *Voorstel:* één `PersonalSecretStore(module)` met `get/put/delete(account, server)` op basis van het stabiele subject, met `save_private` (bevinding 9) als opslag. *Bewaken:* bestaande Linkwarden-bestanden expliciet migreren (oude sleutel → nieuwe), niet weggooien; nooit een geheim van een andere server teruggeven.
+
+**A3. P2 — Elf eigen `before_request`-hooks en drie eigen foutafhandelaars.** Zie `auth`, `cronjobs`, `cronjob_api`, `dashboards`, `files`, `homepage`, `installations`, `linkwarden`, `proxmenux`, `proxmox`, `virtual_apps` (hooks) en `FilesError`, `LinkwardenError`, `KasmError` (handlers, met statussen 424, 502 en 424). Iedere hook herhaalt "pad-prefix → module-ID → beheerder?". *Voorstel:* per module een Flask-**Blueprint** met één `require_module("files")`/`require_manager()`-decorator (bouwt op de `PermissionContext` van bevinding 10) en één gedeelde `UpstreamError`-basisklasse (lost de 502-bug in één keer structureel op). *Bewaken:* `/api/widget-ingest` houdt zijn machine-authenticatie; volgorde t.o.v. de sessie-/CSRF-hook in `auth.py` niet veranderen.
+
+**A4. P2 — Tests bouwen 26× zelf een app en 21× zelf een sessie.** Er is geen `tests/conftest.py`; elke testmodule heeft een eigen accounts-bestand, `create_app`, `Vault.from_env`-patch en `session_transaction`. Zeven frontendtests vervangen elk zelf `globalThis.fetch`. *Voorstel:* gedeelde fixtures `app_factory(accounts)`, `login(email)` en `fake_vault(values)` in `conftest.py`, en een `mockFetch()`-helper voor de frontendtests. Bestaande tests ongewijzigd laten slagen; alleen nieuwe tests gebruiken ze eerst. *Winst:* nieuwe modules krijgen sneller de verplichte normaal/rand/faal/auth-tests.
+
+**A5. P2 — Statuskleuren zijn hard gecodeerd en per onderdeel anders.** De CSS bevat o.a. `#22c55e`/`#63c691` (goed), `#e9b900`/`#9a6700` (waarschuwing) en `#ef4444`/`#cf222e`/`#c0392b`/`#f08080` (fout) naast 96 `var(--…)`-tokens. Meters, ProxMenux-gezondheid, Proxmox-inventaris en VM-status gebruiken elk een eigen set; donker/licht-contrast wordt per plek opnieuw gekozen. *Voorstel:* tokens `--ok`, `--warn`, `--error`, `--info` (met donkere varianten) in `style.css` en één `StatusBadge` (sluit aan op bevinding 14).
+
+**A6. P2 — Eén laadpatroon voor de drie Proxmox-inventarissen.** Naast de ververslus (bevinding 1) delen `proxmox-guests`, `-network` en `-storage` ook het samenvoegen van Proxmox-inventaris en ProxMenux-monitor, de "eerst koppelen"-melding bij 409 en het `stale`-label. *Voorstel:* `useInventory(endpoint, monitorEndpoint, validate)` die `{data, monitor, error, pending}` teruggeeft; elk component houdt alleen zijn eigen weergave. Dit is de kleinste, veiligste eerste toepassing van `usePolledResource`.
+
+**A7. P3 — Kleine dubbele hulpfuncties.** Twee bytesformatters met verschillende uitkomst (`lib/files.ts:formatSize` met komma, `lib/proxmox.ts:bytes`); twee lijsten met geheime URL-sleutels (`backend/widgets/presentation.py:PRIVATE_KEYS` en de regex in `lib/service-widgets.ts:offerLink`) die uit elkaar kunnen lopen; eigen `https()`-controle in `lib/virtual-apps.ts` naast `safeImage`/`offerLink`. *Voorstel:* één `formatBytes` (nl-NL) en een gedeelde fixtureset met toegestane/geweigerde URL's voor Python én TypeScript (sluit aan op bevinding 13); de dubbele validatie zelf behouden.
+
+**A8. P3 — Persoonlijke pagina-indelingen: `media` is voorbereid maar ongebruikt.** `backend/page_layouts.py` en `lib/page-layouts.ts` accepteren `media`, terwijl de Media-pagina (`media-widgets.tsx`) nog geen `EditableGrid` gebruikt. Of aansluiten (één regel per tegel, zelfde patroon als Proxmox), of de pagina-ID verwijderen tot het zover is, zodat de API geen ongebruikte opslag aanbiedt.
+
+**Aangepaste volgorde:**
+
+| Ronde | Wijziging | Waarom eerst |
+| --- | --- | --- |
+| 0 | 502 → `UpstreamError` (424) op de 8 plaatsen, met regressietest per route | Gebruikerszichtbare bug, klein |
+| 1 | `conftest.py`-fixtures (A4) en `requestJson`/`ApiError` (bevinding 5) | Maakt alle volgende rondes goedkoper en veiliger |
+| 2 | `usePolledResource` + `useInventory` voor de drie Proxmox-inventarissen (bevinding 1, A6) | Grootste letterlijke dubbeling, laag risico |
+| 3 | `ProxmoxConnection`-repository (A1) en `PersonalSecretStore` met migratie (A2) | Koppelingen op één plek; e-mailwijziging breekt niets meer |
+| 4 | Blueprints met `require_module` en `PermissionContext` (A3, bevinding 10) | Raakt alle modules; pas na ronde 1 met goede fixtures |
+| 5 | Statustokens/`StatusBadge` (A5), widgetinstellingen en register (bevindingen 6–7), dashboard op `EditableGrid` (8) | Grotere UI-stappen |
+| 6 | Connectorconsolidatie en vaultoptimalisatie (bevindingen 2 en 4) | Vergt migratieplan |
+
+Ronde 3 uit het oorspronkelijke plan (Kasm-client) is vervallen: al gedaan.
+
 ## Reikwijdte en bewijs
 
 Repositorybrede inventarisatie van de eigen backend, frontend, scripts, installatie/deployment, configuratiestructuur en tests; verdiepende codelezing van de hieronder genoemde overlap. De inventaris omvat 42 backend-Pythonbestanden (4.980 regels), 77 TypeScript/TSX-bestanden onder `components`, `lib` en `modules` (3.571 regels), de applicatiepagina, 14 eigen scriptbestanden (1.658 regels), 37 Python-testbestanden en 26 frontendtestbestanden. Regelaantallen zijn fysieke regels, geen maat voor complexiteit.
@@ -213,6 +262,229 @@ flowchart LR
 De backend blijft op elke aanvraag modulerechten, bron-ACL en waar nodig eigenaarschap controleren. De frontendbronlaag is alleen voor hergebruik en responsiviteit. Pagina's mogen naast widgets ook gespecialiseerde functies bevatten, zoals Files-upload, een terminal of cronbeheer.
 
 De bestaande `frontend/modules/` is een goed vertrekpunt. Voeg daar geleidelijk domeinspecifieke hooks/modellen aan toe en verplaats gedeelde infrastructuur naar kleine `lib`-/`core`-bouwstenen. Verplaats geen bestanden alleen om een ideaal mappenplan te bereiken; verplaats ze wanneer verantwoordelijkheden daadwerkelijk worden losgemaakt.
+
+## Ontwerp: herbruikbare bouwstenen (klassen en functies)
+
+Elke bevinding wordt één kleine, geteste bouwsteen. Modules stappen er één voor één op over; gedrag, foutteksten, rechten en opgeslagen gegevens blijven gelijk, tenzij hieronder anders staat. Gedeelde backendcode komt in `backend/core/`, gedeelde frontendcode in `frontend/lib/core/` (logica) en `frontend/components/core/` (weergave). Geen nieuwe dependencies; geen dynamisch laden van code.
+
+### Overzicht
+
+| # | Bouwsteen | Plaats | Lost op |
+| --- | --- | --- | --- |
+| B1 | `UpstreamError` | `backend/core/errors.py` | 502-bug, A3 (foutklassen) |
+| B2 | `PermissionContext`, `require_module`, `require_manager` | `backend/core/access.py` | 10, A3 |
+| B3 | `PrivateFile` | `backend/core/storage.py` | 9 |
+| B4 | `PersonalSecretStore` | `backend/core/secrets.py` | A2 |
+| B5 | `ProxmoxConnection` | `backend/proxmox.py` | A1 |
+| B6 | `TtlCache` | `backend/core/cache.py` | 11, 2 |
+| B7 | `HttpClient` | `backend/core/http.py` | 13 |
+| B8 | `ConfigRepository` | `backend/core/config_repo.py` | 2 |
+| F1 | `requestJson`, `ApiError` | `frontend/lib/core/request.ts` | 5 |
+| F2 | `usePolledResource` | `frontend/lib/core/polling.ts` | 1 |
+| F3 | `useInventory` | `frontend/lib/core/inventory.ts` | A6 |
+| F4 | `StatusBadge`, `Meter`, `AsyncState`, `WidgetFrame` | `frontend/components/core/` | 14, A5 |
+| F5 | `formatBytes`, `safeUrl`-familie | `frontend/lib/core/format.ts`, `urls.ts` | A7, 13 |
+| F6 | `defineFeature` (frontendregister) | `frontend/modules/registry.ts` | 6, 7 |
+| T1 | `conftest.py`-fixtures, `mockFetch` | `tests/conftest.py`, `frontend/tests/helpers.mjs` | A4 |
+
+### Backend
+
+**B1 — `UpstreamError`** (`backend/core/errors.py`)
+
+```python
+class UpstreamError(Exception):
+    status = 424          # nooit 502: Cloudflare vervangt dat door een eigen pagina
+    def __init__(self, message: str, *, code: str = "upstream", relink: bool = False): ...
+    def payload(self) -> dict: ...   # {"error": message, "code": code, "relink": relink}
+
+class NotConfigured(UpstreamError): status = 503
+class NotLinked(UpstreamError): status = 403
+
+def register_error_handlers(app): ...   # één @app.errorhandler(UpstreamError) voor alle modules
+```
+
+Vervangt `FilesError`/`RelinkError`/`ConflictError` (`files.py`), `KasmError`/`NotLinked`/`NotConfigured` (`virtual_apps.py`), `LinkwardenError`, en de vrije `jsonify(...), 502` in `proxmox.py`, `homepage_integrations.py` en `cronjob_api.py`. Bestaande subklassen blijven bestaan als dunne afleidingen, zodat imports en meldingen gelijk blijven. *Tests:* per voormalige 502-route een regressietest dat status < 500 is en de melding behouden blijft; `relink`/`code` in de JSON; handler geregistreerd vóór module-handlers.
+
+**B2 — Toegang** (`backend/core/access.py`)
+
+```python
+class PermissionContext:
+    """Eén keer per request opgebouwd uit filter_configuration(load_config(...), g.account)."""
+    modules: frozenset[str]
+    def has(self, module_id: str) -> bool: ...
+    def is_manager(self) -> bool: ...
+
+def permissions() -> PermissionContext: ...            # lui gecachet in flask.g
+def require_module(module_id: str, *, manager_for_writes=False): ...   # decorator voor route of Blueprint
+def require_manager(): ...
+```
+
+Modules worden Flask-**Blueprints** (`Blueprint("files", __name__, url_prefix="/api/files")` met `@bp.before_request` → `require_module("files")`). Vervangt de 11 eigen `before_request`-hooks en 16 losse `filter_configuration`-zoekacties. *Bewaken:* de sessie-/CSRF-hook in `auth.py` blijft als eerste draaien; `/api/widget-ingest` blijft machine-auth; bron-ACL (widgets) en eigenaarschap (dashboards) blijven extra controles. *Tests:* zonder sessie 401, zonder module 403, gebruiker vs. beheerder bij schrijfacties, en dat `load_config` maar één keer per request wordt gelezen.
+
+**B3 — `PrivateFile`** (`backend/core/storage.py`)
+
+```python
+class PrivateFile:
+    def __init__(self, path: Path): ...
+    def read_json(self, default=None): ...
+    def write_json(self, value) -> None: ...   # tijdelijk bestand + fsync + os.replace, map 0700, bestand 0600
+    def delete(self) -> None: ...
+```
+
+Vervangt `save_private` (nu in `linkwarden.py`, gebruikt door `homepage.py` en `files.py`) en de losse `json.loads(path.read_text())`-blokken. `save_private` blijft als alias bestaan tot alle aanroepers zijn omgezet. *Tests:* atomair (geen half bestand bij fout), rechten 0600/0700, kapotte JSON → `default`.
+
+**B4 — `PersonalSecretStore`** (`backend/core/secrets.py`)
+
+```python
+class PersonalSecretStore:
+    def __init__(self, data_dir: Path, module: str): ...      # <data-dir>/<module>/users/<hash>.json
+    def get(self, subject: str, server: str) -> dict | None: ...
+    def put(self, subject: str, server: str, value: dict) -> None: ...
+    def delete(self, subject: str, server: str) -> None: ...
+    def migrate_from_email(self, email: str, subject: str, server: str) -> bool: ...
+```
+
+Sleutel = SHA-256 van *server + stabiel login-subject* (zoals Files nu). Vervangt de eigen opslag in `files.py` en `linkwarden.py`. **Migratie Linkwarden:** bij eerste gebruik na de omschakeling wordt het oude bestand (sleutel op e-mail) eenmalig verplaatst naar de nieuwe sleutel; het oude bestand blijft bewaard tot een volgende release. *Tests:* andere server krijgt nooit het oude geheim; gebruiker A ziet nooit B; migratie eenmalig en idempotent; e-mailwijziging breekt de koppeling niet meer.
+
+**B5 — `ProxmoxConnection`** (in `backend/proxmox.py`)
+
+```python
+class ProxmoxConnection:
+    def __init__(self, data_dir: Path): ...
+    def load(self) -> dict | None: ...
+    def client(self) -> Client: ...          # gooit UpstreamError/NotConfigured als niet gekoppeld
+    def public(self) -> dict: ...            # zonder secret, zoals nu de GET-route
+```
+
+Vervangt het rechtstreeks lezen van `proxmox/connection.json` in `cronjobs.py`, `cronjob_api.py`, `linkwarden.py`, `proxmenux.py` en `vm_power.py`. Opslag, pinning en de scheiding alleen-lezen/startrecht blijven gelijk. *Tests:* niet gekoppeld, kapot bestand, pinning-mismatch, en dat geen enkele module het secret in een antwoord zet.
+
+**B6 — `TtlCache`** (`backend/core/cache.py`)
+
+```python
+class TtlCache:
+    def __init__(self, ttl: float, *, max_entries: int = 64, clock=time.monotonic): ...
+    def get_or_fetch(self, key, fetch: Callable[[], T]) -> tuple[T, float]: ...  # (waarde, ouderdom)
+    def invalidate(self, key=None) -> None: ...
+```
+
+Eén lopende fetch per sleutel (andere aanvragers wachten op hetzelfde resultaat), lock alleen rond de administratie (een trage bron blokkeert geen andere sleutel), begrensde opslag. Vervangt de caches in `service_widgets.py`, `virtual_apps.py` (workspaces), `vm_power.py` (status, koppeling) en de eenvoudige delen van `proxmox.py`. De achtergrond- en deelresultaten van ProxMenux blijven eigen code. *Tests:* gelijktijdige misses = één fetch; trage sleutel blokkeert andere niet; credentialrotatie zit in de sleutel; monotone klok.
+
+**B7 — `HttpClient`** (`backend/core/http.py`)
+
+```python
+class HttpClient:
+    def __init__(self, base_url: str, *, verify=True, pin: str | None = None, timeout=(5, 30), max_bytes=2 * 1024 * 1024): ...
+    def json(self, method: str, path: str, **kwargs) -> dict | list: ...
+    def raw(self, method: str, path: str, *, stream=False, **kwargs) -> requests.Response: ...
+```
+
+Nooit redirects volgen, begrensde body, één foutvertaling naar `UpstreamError` zonder upstream-body of geheimen. Gebruik door `linkwarden.upstream`, `homepage_integrations.call`, `files.call`, `modules/kasm.kasm_post` en `widgets/transport.Transport` (die laatste houdt zijn afbeeldingscontrole). De URL-validators blijven per contract bestaan (publiek HTTPS, intern HTTP, pinning, cluster-CA). *Tests:* redirect geweigerd, te grote body, time-out, pinning, geen secret in foutmelding.
+
+**B8 — `ConfigRepository`** (`backend/core/config_repo.py`)
+
+```python
+class ConfigRepository:
+    def __init__(self, vault, *, ttl: float = 30): ...
+    def get(self, name: str, validate: Callable[[Any], T]) -> T: ...   # gevalideerd, gecachet per naam+inhoudshash
+    def invalidate(self) -> None: ...
+```
+
+Eén vaultlezing per korte periode voor `CONTROLDECK_WIDGET_SOURCES` en `CONTROLDECK_APP_LAUNCHES` (nu bij vrijwel elke aanvraag twee CLI-aanroepen). *Bewaken:* korte TTL en invalidatie bij een fout; rechten worden nooit gecachet, alleen de inrichting. *Tests:* tellen van CLI-aanroepen, kapotte JSON, vault onbereikbaar, wijziging zichtbaar na TTL.
+
+### Frontend
+
+**F1 — `requestJson` en `ApiError`** (`frontend/lib/core/request.ts`)
+
+```ts
+export class ApiError extends Error { status: number; code?: string; relink?: boolean; notLinked?: boolean; notConfigured?: boolean }
+export async function requestJson<T>(url: string, options?: {
+  method?: "GET" | "POST" | "PUT" | "DELETE"; csrf?: string; body?: unknown | Blob;
+  signal?: AbortSignal; timeoutMs?: number; validate?: (value: unknown) => T;
+}): Promise<T>;
+```
+
+CSRF bij elke niet-GET, `cache: "no-store"`, JSON of Blob, time-out, statuscode in de melding als de server geen JSON gaf (zoals nu in Files). Elke module houdt een dunne wrapper die alleen haar eigen routes accepteert (`filesRequest`, `virtualAppsRequest`, `dashboardRequest`, …). *Uitzonderingen:* Files-downloads (gewone link) en chunk-uploads met herhaalpogingen. *Tests:* JSON-fout, HTML-foutpagina (status in melding), netwerkfout, time-out, CSRF-header, geen body bij GET.
+
+**F2 — `usePolledResource`** (`frontend/lib/core/polling.ts`)
+
+```ts
+export function usePolledResource<T>(key: string | null, fetcher: (signal: AbortSignal) => Promise<T>, options?: {
+  intervalSeconds?: number; fastWhile?: (data: T) => boolean; fastSeconds?: number;
+}): {data: T | null; error: ApiError | null; stale: boolean; loading: boolean; refresh: () => void};
+```
+
+Eén lopende aanvraag per `key` gedeeld tussen componenten (zelfde `key` = zelfde data), annulering bij unmount, laatste abonnee ruimt de timer op, 401/403 wist gedeelde data, een tijdelijke fout houdt oude data met `stale: true`. Vervangt de 11 `setInterval`-lussen. *Tests:* twee abonnees één fetch, bronwissel met laat antwoord, afmelden/403 wist, time-out, laatste abonnee weg.
+
+**F3 — `useInventory`** (`frontend/lib/core/inventory.ts`)
+
+```ts
+export function useInventory<I, M>(endpoint: string, monitorEndpoint: string | null,
+  validate: (value: unknown) => I, validateMonitor?: (value: unknown) => M[], refreshSeconds?: number
+): {data: I | null; monitor: M[]; error: string; pending: boolean};
+```
+
+Gebouwd op F2; vat het gedeelde patroon van `proxmox-guests`, `-network` en `-storage` samen (Proxmox-inventaris + ProxMenux-monitor, 409 → "eerst koppelen", sneller verversen zolang de monitor laadt). De drie componenten houden alleen hun weergave.
+
+**F4 — Weergavebouwstenen** (`frontend/components/core/`)
+
+```tsx
+<StatusBadge state="online" | "booting" | "offline" | "unknown" | "ok" | "warning" | "error" label?/>
+<Meter value={73.4} label="CPU" detail="8 cores"/>        // drempels uit één plek
+<AsyncState loading error empty onRetry>{children}</AsyncState>
+<WidgetFrame title href? updatedAt? stale?>{children}</WidgetFrame>
+```
+
+Met CSS-tokens in `style.css`: `--ok`, `--warn`, `--error`, `--info` (+ donkere varianten), in plaats van de hard gecodeerde kleuren (A5). Vervangt de eigen badges in Virtual Apps, ProxMenux-gezondheid, Proxmox-inventaris, servicewidgets en de meters in `proxmox-summary.tsx`/`system/cards.tsx`. Geen allesomvattende kaart: poster, appicoon en meting blijven eigen componenten.
+
+**F5 — Kleine hulpfuncties** (`frontend/lib/core/format.ts`, `urls.ts`)
+
+```ts
+export function formatBytes(bytes: number | null, locale = "nl-NL"): string;
+export function safeHttpsUrl(value: unknown, {sameOrigin?}?): string;      // basis voor safeImage, connectLink
+export function stripsSecrets(url: URL): boolean;                           // één lijst geheime query-sleutels
+```
+
+Vervangt `formatSize` (`files.ts`) en `bytes` (`proxmox.ts`); de URL-controles in `service-widgets.ts` en `virtual-apps.ts` gebruiken één basis. De lijst geheime sleutels komt uit één JSON-fixture die ook de Python-test (`presentation.PRIVATE_KEYS`) leest.
+
+**F6 — `defineFeature`** (`frontend/modules/registry.ts`)
+
+```ts
+export function defineFeature<S>(feature: {
+  id: string; route?: string; title: string; permission: string;
+  Page?: React.ComponentType<PageProps>;
+  widgets?: WidgetDefinition<S>[];          // met eigen instellingstype en validator (getagde union)
+}): Feature;
+```
+
+`page.tsx` kiest de pagina via het register in plaats van 16 voorwaardelijke takken; dashboardcatalogus en modulekeuze lezen hetzelfde register. Een contracttest vergelijkt de ID's met `backend/dashboard_modules.py` en `config/modules`.
+
+### Tests
+
+**T1 — gedeelde fixtures**
+
+```python
+# tests/conftest.py
+@pytest.fixture
+def app_factory(tmp_path, monkeypatch): ...          # create_app met tijdelijke data-dir en accounts
+@pytest.fixture
+def login(): ...                                     # login(client, email) → sessie + CSRF "csrf"
+@pytest.fixture
+def fake_vault(): ...                                # fake_vault(app, {"CONTROLDECK_…": json})
+```
+
+```js
+// frontend/tests/helpers.mjs
+export function mockFetch(routes) { … }               // {url: response|fn}, herstelt globalThis.fetch na de test
+```
+
+Bestaande tests blijven ongewijzigd slagen; nieuwe tests gebruiken eerst de fixtures, oude worden alleen omgezet als ze toch worden aangeraakt.
+
+### Werkwijze per bouwsteen
+
+1. Bouwsteen maken met eigen tests (normaal, rand, faal, plus auth waar relevant).
+2. Eén module omzetten; alle bestaande tests moeten ongewijzigd slagen.
+3. Overige modules één voor één omzetten; oude code verwijderen zodra niets er meer naar verwijst.
+4. Per stap de documentatie bijwerken en pushen, zodat elke stap los terug te draaien is.
 
 ## Uitvoering in zes reviewbare wijzigingen
 

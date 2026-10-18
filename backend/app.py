@@ -55,7 +55,7 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     setup_dashboards(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_page_layouts(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_files(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
-    setup_virtual_apps(app, configuration_path)
+    setup_virtual_apps(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_search(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_search_engines(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
 

@@ -1,10 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateOverview, connectLink, virtualAppsRequest, VirtualAppsError} from '../lib/virtual-apps.ts';
+import {validateOverview, connectLink, virtualAppsRequest, VirtualAppsError, splitApps, startWhenReady, vmLabels} from '../lib/virtual-apps.ts';
 
 const ID = 'a'.repeat(32), PORTAL = 'https://kasm.example.test';
-const app = {id: ID, name: 'Chrome', description: '', icon: `${PORTAL}/img/thumbnails/chrome.png`, categories: ['Browser']};
+const app = {id: ID, name: 'Chrome', description: '', icon: `${PORTAL}/img/thumbnails/chrome.png`, categories: ['Browser'], kind: 'app', serverId: null, vm: null};
 const session = {id: 'd'.repeat(32), appId: ID, name: 'Chrome', status: 'running', started: '', expires: ''};
+
+test('werkplekken and apps normaal/boundary/faal: split, VM status and labels', () => {
+  const desktop = {...app, id: 'b'.repeat(32), name: 'Windows Server', kind: 'desktop', serverId: 'c'.repeat(32), vm: {state: 'offline'}};
+  const data = validateOverview({apps: [app, desktop], sessions: [], portal: PORTAL});
+  assert.deepEqual(splitApps(data.apps).desktops.map(a => a.name), ['Windows Server']);
+  assert.deepEqual(splitApps(data.apps).apps.map(a => a.name), ['Chrome']);
+  assert.deepEqual(splitApps([]), {desktops: [], apps: []});
+  assert.equal(vmLabels.booting, 'Opstarten…');
+  for (const bad of [{...desktop, kind: 'vm'}, {...desktop, vm: {state: 'exploded'}}, {...desktop, vm: 'online'}]) assert.throws(() => validateOverview({apps: [bad], sessions: [], portal: PORTAL}));
+});
+
+test('start when ready normaal/boundary/faal: waits while the VM boots, then returns the link', async () => {
+  const answers = [{booting: true, started: [136, 101]}, {booting: true}, {url: 'https://kasm.example.test/#/connect/kasm/a/b/c'}];
+  let booting = 0, waited = 0;
+  const url = await startWhenReady(async () => answers.shift(), () => booting++, 60000, async ms => { waited += ms; }, () => waited);
+  assert.equal(url, 'https://kasm.example.test/#/connect/kasm/a/b/c');
+  assert.equal(booting, 2); assert.equal(waited, 10000);
+  assert.equal(await startWhenReady(async () => ({url: 'x'}), () => assert.fail('no wait when already online')), 'x');
+  let clock = 0;
+  await assert.rejects(() => startWhenReady(async () => ({booting: true}), () => {}, 10000, async ms => { clock += ms; }, () => clock), /5 minuten/);
+  await assert.rejects(() => startWhenReady(async () => ({}), () => {}), /sessielink/);
+});
 
 test('virtual apps normaal: overview and connect link', () => {
   const data = validateOverview({apps: [app], sessions: [session], portal: PORTAL});
