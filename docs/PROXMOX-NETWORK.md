@@ -48,3 +48,7 @@ Browseracceptatie met fictieve data: desktopindeling, nodekeuze en mobiele weerg
 Acceptatie na samenvoegen met de recente Virtual Apps-wijzigingen op 18 oktober 2026: 785 Python-tests geslaagd, 8 overgeslagen; 256 frontendtests geslaagd; TypeScript-controle en statische productiebuild geslaagd.
 
 Historische-grafiekacceptatie op 18 oktober 2026 na samenvoegen: 791 Python-tests geslaagd, 8 overgeslagen; 261 frontendtests geslaagd; TypeScript en statische build geslaagd. Browsercontrole met fictieve gegevens bevestigde Received/Sent-curves, afzonderlijk schakelen van de legenda, periode- en nodewisseling en een mobiele grafiek op 390 pixels zonder horizontale overloop.
+
+### Trage netwerkopvraag
+
+De achtergrondopvraag van ProxMenux `network` krijgt maximaal 60 seconden: de inventaris vraagt ook gastinformatie op en pve-intel overschreed herhaaldelijk de algemene limiet van 15 seconden. Andere endpoints behouden hun eigen limiet. De HTTP-opvraag van de browser wacht hier niet op; laden en automatisch verversen blijven per node werken. Een echte fout blijft zichtbaar als ontbrekende netwerkmetingen; beschikbare latency en andere nodes blijven werken.

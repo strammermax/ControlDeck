@@ -27,7 +27,8 @@ TOKEN = re.compile(r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]
 STATUS = {"OK": "ok", "INFO": "ok", "WARNING": "warning", "CRITICAL": "error", "ERROR": "error"}
 TIMEOUT = 15
 # health/details runs all checks on the node and can take well over 15 s on small hosts.
-PART_TIMEOUTS = {"health/details": 30}
+# Network inventory also runs per-guest Proxmox queries and can exceed 15 s.
+PART_TIMEOUTS = {"health/details": 30, "network": 60}
 CACHE_SECONDS = 30
 STALE_SECONDS = 180
 PARTS = ("health/details", "storage", "system", "hardware", "vms")

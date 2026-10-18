@@ -116,3 +116,34 @@ def test_network_monitor_partial_independent_cache_and_authorization(monitor_env
         assert "categories" in settled(client())[0]
     assert client().delete("/api/proxmenux/connection", headers=H).status_code == 200
     assert client().get("/api/proxmenux/network").status_code == 409
+
+@pytest.mark.parametrize("case", ["normal", "boundary", "failure"])
+def test_intel_network_timeout_regression_slow_inventory_not_treated_as_unreachable(monitor_env, monkeypatch, case):
+    """pve-intel inventory exceeded the generic 15s budget; latency still worked, hiding Network Flow."""
+    client, hosts, failing, stored = monitor_env
+    original = proxmenux.monitor_get
+    budgets = []
+    def monitor(node, ca, endpoint, timeout=None):
+        if endpoint == "network":
+            budgets.append(timeout)
+            if case == "failure" or timeout < 45:
+                raise proxmenux.MonitorError("Monitor niet bereikbaar.")
+            return network() if case == "normal" else {"physical_interfaces": []}
+        if endpoint == LATENCY_PATH:
+            assert timeout == 15
+            return {"stats": {"current": .7}, "data": []}
+        return original(node, ca, endpoint, timeout)
+    monkeypatch.setattr(proxmenux, "monitor_get", monitor)
+    assert client().put("/api/proxmenux/connection", json={"nodes": NODES, "ca": CA}, headers=H).status_code == 200
+    for _ in range(200):
+        nodes = client().get("/api/proxmenux/network").json["nodes"]
+        if not any(n.get("loading") for n in nodes):
+            break
+        time.sleep(.01)
+    assert budgets and all(value == 60 for value in budgets)
+    if case == "failure":
+        assert all(not n["networkAvailable"] and "network" in n["partial"] for n in nodes)
+        assert all(n["latency"]["current"] == .7 for n in nodes)
+    else:
+        assert all(n["networkAvailable"] for n in nodes)
+        assert all(bool(n["interfaces"]) == (case == "normal") for n in nodes)
