@@ -57,13 +57,19 @@ def kasm_call(kasm, endpoint, **body):
         response = kasm_post(kasm, endpoint, **body)
         if response.status_code in (301, 302, 303, 307, 308):
             raise KasmError("Kasm is niet bereikbaar: het adres stuurt door naar een aanmeldpagina. Stel apiUrl in op het interne adres.")
-        value = response.json() if response.status_code == 200 else None
-    except (requests.RequestException, ValueError):
-        raise KasmError("Kasm is niet bereikbaar of geeft geen API-antwoord. Controleer apiUrl en apiFingerprint.") from None
-    if not isinstance(value, dict):
-        raise KasmError("Kasm weigert de aanvraag. Controleer de rechten van de API-sleutel.")
-    if value.get("error_message"):
-        raise KasmError("Kasm weigert de aanvraag: " + str(value["error_message"])[:200])
+        try:
+            value = response.json()
+        except ValueError:
+            value = None
+    except requests.RequestException:
+        raise KasmError("Kasm is niet bereikbaar. Controleer apiUrl en apiFingerprint.") from None
+    # Keep Kasm's own reason, also on 4xx: "Unauthorized" on 403 means the API key lacks a permission.
+    reason = value.get("error_message") if isinstance(value, dict) else None
+    if response.status_code != 200 or reason or not isinstance(value, dict):
+        hint = " Controleer de rechten van de API-sleutel." if response.status_code in (401, 403) else ""
+        detail = f": {str(reason)[:200]}" if reason else ""
+        status = f" ({response.status_code})" if response.status_code != 200 else ""
+        raise KasmError(f"Kasm weigert de aanvraag{status}{detail}.{hint}")
     return value
 
 

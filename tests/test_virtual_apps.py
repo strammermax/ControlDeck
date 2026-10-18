@@ -184,6 +184,22 @@ def test_regression_internal_api_url_behind_login_proxy(env, monkeypatch):
     assert started["url"] == f"{ORIGIN}/#/connect/kasm/{'f' * 32}/{ME}/t", "the browser opens the public address"
 
 
+def test_regression_403_keeps_kasms_reason(env, monkeypatch):
+    """Bug 2026-10-18: starting failed with only "Controleer de rechten" because Kasm's 403 body
+    ("Unauthorized") was discarded for every non-200 answer."""
+    client, calls, replies, vault = env
+    real = virtual_apps.kasm_post
+
+    def refuse(kasm, endpoint, **body):
+        if endpoint == "request_kasm":
+            return Mock(status_code=403, json=Mock(return_value={"error_message": "Unauthorized"}))
+        return real(kasm, endpoint, **body)
+    monkeypatch.setattr(virtual_apps, "kasm_post", refuse)
+    answer = client().post(f"/api/virtual-apps/{CHROME}/start", json={}, headers=H)
+    assert answer.status_code == 424
+    assert answer.get_json()["error"] == "Kasm weigert de aanvraag (403): Unauthorized. Controleer de rechten van de API-sleutel."
+
+
 def test_login_redirect_faal_gives_a_clear_message(env, monkeypatch):
     client, calls, replies, vault = env
     monkeypatch.setattr("backend.modules.kasm.requests.post", lambda *a, **k: Mock(status_code=302, json=Mock(side_effect=ValueError)))
