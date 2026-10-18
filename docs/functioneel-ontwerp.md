@@ -95,7 +95,7 @@ Status en vervolgstappen:
 | Dashboard | Persoonlijke dashboards met modules, apps en links (zie [DASHBOARD.md](DASHBOARD.md)) | Meer elementen uit modules plaatsbaar maken |
 | Proxmox | Overzicht met verplaatsbare en schaalbare widgets (zie [LAYOUTS.md](LAYOUTS.md)) | Voorstel voor de invulling van het infra-overzicht |
 | Media | Mediawidgets in ontwikkeling | Overzichtsdashboard; daarna submenu's Downloads, Requests, Movies, Series, Audio, Plex en Jellyfin; aansluiten op persoonlijke indeling (pagina-ID `media` is voorbereid) |
-| Virtual Apps | Kasm en Nextcloud starten via app-launches (zie [APP-LAUNCHES.md](APP-LAUNCHES.md)) | Eén overzicht van alle startbare apps |
+| Virtual Apps | Overzicht van Kasm-workspaces gebouwd: starten, lopende sessies, stoppen (zie [VIRTUAL-APPS.md](VIRTUAL-APPS.md)) | Kasm-API-sleutel en gebruikerskoppeling in Infisical; daarna testen |
 | Files | Eerste versie gebouwd (zie [FILES.md](FILES.md)) | Inrichten en testen tegen cloud.vanburik.info |
 
 ## 5. Belangrijkste gebruikersprocessen
