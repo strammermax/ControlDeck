@@ -45,6 +45,7 @@ KINDS = set(ARR_KINDS) | APP_KINDS | {"cloudflared"}
 HOST = re.compile(r"(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62})(?:\.[A-Za-z0-9_-]{1,63})*\.?")
 SOURCE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 APP = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,62}")
+API_KEY = re.compile(r"[A-Za-z0-9._~+/=-]{16,200}")
 CHECK_TIMEOUT = 3.0
 DISCOVERY_SECONDS = 600
 LEARN_SECONDS = 300
@@ -116,8 +117,9 @@ def validate_sources(value):
         if "app" in source and (not isinstance(source["app"], str) or not APP.fullmatch(source["app"]) or vmid is None):
             raise MonitorError("Ongeldige appnaam (alleen samen met een container-ID).")
         if source["kind"] in ARR_KINDS or source["kind"] in APP_KINDS:
-            if not isinstance(source.get("apiKey"), str) or not 1 <= len(source["apiKey"]) <= 200 or any(ord(c) < 33 for c in source["apiKey"]):
-                raise MonitorError("Toegangsgegevens ontbreken.")
+            # API keys are ASCII tokens; a placeholder such as "…" or "replace-in-vault" is refused up front with the source named.
+            if not isinstance(source.get("apiKey"), str) or not API_KEY.fullmatch(source["apiKey"]) or source["apiKey"] == "replace-in-vault":
+                raise MonitorError(f"API-sleutel van bron '{identifier}' ontbreekt of is nog een voorbeeldwaarde.")
             try:
                 Transport({"url": source.get("url"), "allowHttp": source.get("allowHttp") is True}).close()
             except ProviderError:

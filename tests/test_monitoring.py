@@ -161,7 +161,7 @@ class FakeTransport:
         self.url = source["url"]
 
     def call(self, path, headers=None, **kwargs):
-        assert headers == {"X-Api-Key": "geheim"}
+        assert headers == {"X-Api-Key": "geheim0123456789abcdef"}
         value = self.answers.get(path)
         if isinstance(value, Exception):
             raise value
@@ -179,7 +179,7 @@ def env(tmp_path, monkeypatch):
         {"email": "viewer@example.test", "role": "user", "modules": ["monitoring"]},
         {"email": "other@example.test", "role": "user", "modules": ["terminal"]},
     ]))
-    vault = {"CONTROLDECK_MONITORING": json.dumps({"sources": {"sonarr": {"kind": "sonarr", "title": "Sonarr", "url": "http://192.168.20.137:8989", "allowHttp": True, "apiKey": "geheim", "vmid": 137}}})}
+    vault = {"CONTROLDECK_MONITORING": json.dumps({"sources": {"sonarr": {"kind": "sonarr", "title": "Sonarr", "url": "http://192.168.20.137:8989", "allowHttp": True, "apiKey": "geheim0123456789abcdef", "vmid": 137}}})}
     monkeypatch.setattr(monitoring, "Transport", FakeTransport)
     monkeypatch.setattr(monitoring, "enrolled_nodes", lambda: set())
     monkeypatch.setattr(monitoring, "guests", lambda data_dir: {})
@@ -268,7 +268,7 @@ def test_discovery_from_arr_api_lists_clients_and_indexers_without_leaking_keys(
     found = sorted((row["label"], row["host"], row["port"], row["source"]) for row in data["connections"])
     assert found == [("Downloadclient: qBittorrent", "localhost", 8080, "Sonarr"), ("Indexer: Prowlarr", "prowlarr.home", 9696, "Sonarr")]
     text = client("viewer@example.test").get("/api/monitoring").get_data(as_text=True)
-    assert "geheim" not in text and "idx" not in text
+    assert "geheim0123456789abcdef" not in text and "idx" not in text
 
 
 def test_vault_outage_keeps_discovered_connections(env, monkeypatch):
@@ -421,7 +421,7 @@ def test_learning_failure_on_a_node_keeps_previous_list(env, monkeypatch):
 def test_docker_app_namespaces_label_learned_connections_and_probe_from_that_app(env, monkeypatch):
     """Apps in Docker inside an LXC have their own network: learn and probe per app, so 'qbittorrent'/'localhost' mean what Sonarr sees."""
     client, _, holder = env
-    holder["vault"] = {"CONTROLDECK_MONITORING": json.dumps({"sources": {"sonarr": {"kind": "sonarr", "title": "Sonarr", "url": "http://192.168.20.137:8989", "allowHttp": True, "apiKey": "geheim", "vmid": 137, "app": "Sonarr"}}})}
+    holder["vault"] = {"CONTROLDECK_MONITORING": json.dumps({"sources": {"sonarr": {"kind": "sonarr", "title": "Sonarr", "url": "http://192.168.20.137:8989", "allowHttp": True, "apiKey": "geheim0123456789abcdef", "vmid": 137, "app": "Sonarr"}}})}
     FakeTransport.answers = {"/api/v3/downloadclient": [{"name": "qBittorrent", "fields": [{"name": "host", "value": "qbittorrent"}, {"name": "port", "value": 8080}]}]}
     monkeypatch.setattr(monitoring, "enrolled_nodes", lambda: {"pve-amd"})
     monkeypatch.setattr(monitoring, "guests", lambda data_dir: {137: {"vmid": 137, "node": "pve-amd", "type": "lxc", "status": "running", "name": "arrsuite"}})

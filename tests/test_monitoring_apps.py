@@ -29,7 +29,7 @@ class Fake:
 
 
 def source(kind, **extra):
-    return {"kind": kind, "title": kind.capitalize(), "url": "http://192.168.20.137:1", "allowHttp": True, "apiKey": "geheim", **extra}
+    return {"kind": kind, "title": kind.capitalize(), "url": "http://192.168.20.137:1", "allowHttp": True, "apiKey": "geheim0123456789abcdef", **extra}
 
 
 @pytest.fixture(autouse=True)
@@ -56,14 +56,14 @@ def test_seerr_radarr_sonarr_and_plex_boundary_ssl_without_port_and_missing_jell
         {"host": "arrsuite.home", "port": 7878, "label": "Radarr: Radarr"},
         {"host": "arrsuite.home", "port": 8989, "label": "Sonarr: Sonarr 4K"},
         {"host": "plex.home", "port": 443, "label": "Plex: Plex"}]
-    assert all(headers == {"X-Api-Key": "geheim"} for _, headers in Fake.calls)
+    assert all(headers == {"X-Api-Key": "geheim0123456789abcdef"} for _, headers in Fake.calls)
 
 
 def test_bazarr_settings_respects_use_flags():
     Fake.answers = {"/api/system/settings": {"general": {"use_sonarr": True, "use_radarr": False},
                                              "sonarr": {"ip": "sonarr", "port": 8989}, "radarr": {"ip": "radarr", "port": 7878}}}
     assert monitoring.discover_app(source("bazarr")) == [{"host": "sonarr", "port": 8989, "label": "Sonarr"}]
-    assert Fake.calls[0][1] == {"X-API-KEY": "geheim"}
+    assert Fake.calls[0][1] == {"X-API-KEY": "geheim0123456789abcdef"}
 
 
 @pytest.mark.parametrize("kind,answers", [
@@ -95,10 +95,19 @@ def test_failure_refused_key_is_reported_per_source_and_key_never_leaks(tmp_path
     data = client.post("/api/monitoring/check", headers=H).get_json()
     assert [(row["source"], row["host"], row["port"]) for row in data["connections"]] == [("Sabnzbd", "news.eweka.nl", 563)]
     assert data["sourceErrors"] == [{"source": "seerr", "error": "De bron weigert de toegangsgegevens."}]
-    assert "geheim" not in json.dumps(data)
+    assert "geheim0123456789abcdef" not in json.dumps(data)
 
 
 def test_configuration_accepts_new_kinds_and_requires_api_key():
     assert set(monitoring.validate_sources({"sources": {"sab": source("sabnzbd"), "seerr": source("seerr"), "bazarr": source("bazarr")}})) == {"sab", "seerr", "bazarr"}
     with pytest.raises(monitoring.MonitorError):
         monitoring.validate_sources({"sources": {"sab": {**source("sabnzbd"), "apiKey": ""}}})
+
+
+@pytest.mark.parametrize("key", ["…", "replace-in-vault", "kort", "sleutel met spaties erin!!", ""])
+def test_placeholder_or_invalid_api_key_is_refused_with_source_name(key):
+    """Regression: readarr had the example placeholder "…" as key; it failed later as "niet bereikbaar"
+    (a non-latin-1 header), hiding the real cause. It is now refused up front, naming the source."""
+    with pytest.raises(monitoring.MonitorError) as error:
+        monitoring.validate_sources({"sources": {"readarr": {**source("radarr"), "apiKey": key}}})
+    assert "readarr" in error.value.message
