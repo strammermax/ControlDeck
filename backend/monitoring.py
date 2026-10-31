@@ -34,7 +34,7 @@ from flask import g, jsonify, request
 from backend.agent_client import AgentUnavailable, proxy_request
 from backend.auth import filter_configuration, is_manager
 from backend.configuration import ConfigurationError, load_config
-from backend.guest_inventory import project_guests
+from backend.guest_inventory import config_ip, project_guests
 from backend.proxmox import Client as ProxmoxClient, ProxmoxError
 from backend.vault import VaultError
 from backend.widgets.transport import ProviderError, Transport
@@ -206,6 +206,28 @@ def guests(data_dir):
         return {guest["vmid"]: guest for guest in project_guests(ProxmoxClient(connection).get("/cluster/resources"))}
     except (OSError, ValueError, KeyError, TypeError, ProxmoxError):
         return {}
+
+
+def guest_addresses(data_dir):
+    """{IP: guest name} for every LXC from its Proxmox config (net*: ip=...). An own lookup table, because the
+    LAN's DNS answers name → IP but often not IP → name. Empty when Proxmox is unavailable."""
+    try:
+        connection = json.loads((Path(data_dir) / "proxmox/connection.json").read_text(encoding="utf-8"))
+        client = ProxmoxClient(connection)
+        inventory = project_guests(client.get("/cluster/resources"))
+    except (OSError, ValueError, KeyError, TypeError, ProxmoxError):
+        return {}
+    table = {}
+    for guest in inventory[:500]:
+        if guest["type"] != "lxc":
+            continue
+        try:
+            address = config_ip(client.get(f"/nodes/{guest['node']}/lxc/{guest['vmid']}/config") or {})
+        except (ProxmoxError, ValueError, TypeError, KeyError):
+            continue
+        if address:
+            table[address] = guest["name"]
+    return table
 
 
 def probe_central(host, port):
@@ -422,6 +444,7 @@ class Monitor:
         self.app, self.data_dir, self.path = app, data_dir, Path(data_dir) / "monitoring.sqlite3"
         self.lock, self.discovered_at, self.learned_at, self.source_errors = threading.Lock(), 0.0, 0.0, {}
         self.notify_error, self.names = None, {}
+        self.guest_table, self.guest_table_at = {}, 0.0
 
     def placement(self):
         nodes, inventory = enrolled_nodes(), guests(self.data_dir)
@@ -495,7 +518,11 @@ class Monitor:
         with database(self.path) as db:
             unnamed = [(row["id"], row["vmid"], row["ip"]) for row in db.execute(
                 "SELECT id, vmid, ip FROM learned WHERE name='' AND last >= ?", (stamp - LEARNED_TTL,))]
-        names = resolve_names(sorted({row[3] for row in rows if not row[8]} | {ip for _, vmid, ip in unnamed if ip not in docker.get(vmid, {})}), self.names)
+        if time.time() - self.guest_table_at > NAME_TTL or not self.guest_table:
+            self.guest_table, self.guest_table_at = guest_addresses(self.data_dir), time.time()
+        wanted = {row[3] for row in rows if not row[8]} | {ip for _, vmid, ip in unnamed if ip not in docker.get(vmid, {})}
+        names = {ip: self.guest_table[ip] for ip in wanted if ip in self.guest_table}
+        names.update(resolve_names(sorted(wanted - set(names)), self.names))
         for row in rows:
             row[8] = row[8] or names.get(row[3], "")
         with database(self.path) as db:

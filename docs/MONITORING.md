@@ -21,8 +21,9 @@ Een verbinding is `bron-app → host:poort`, met een omschrijving. Er zijn twee 
 **Namen bij IP-adressen.** Een geleerde bestemming krijgt een leesbare naam, in deze volgorde:
 
 1. **Docker-naam:** de agent vraagt per LXC aan Docker welk IP bij welke container hoort (`172.18.0.8` → `qbittorrent`). Dit is exact.
-2. **Reverse DNS** vanaf ControlDeck: voor het LAN levert OPNsense de `.home`-namen (`192.168.20.137` → `arrsuite.home`), voor internet de PTR-naam als die er is.
-3. **CDN-label:** adressen in de gepubliceerde Cloudflare-reeksen heten "Cloudflare (CDN)". Reverse DNS zegt daar niets over de dienst erachter.
+2. **Eigen opzoektabel IP → gast:** uit de Proxmox-config van elke LXC (`net*: ip=…`), een dag geldig (`192.168.20.137` → `arrsuite`). Nodig omdat de LAN-DNS wel naam → IP beantwoordt, maar vaak niet IP → naam.
+3. **Reverse DNS** vanaf ControlDeck: voor het LAN levert OPNsense de `.home`-namen (`192.168.20.137` → `arrsuite.home`), voor internet de PTR-naam als die er is.
+4. **CDN-label:** adressen in de gepubliceerde Cloudflare-reeksen heten "Cloudflare (CDN)". Reverse DNS zegt daar niets over de dienst erachter.
 
 Opzoeken gebeurt parallel, met een tijdslimiet van 5 seconden per ronde. Een naam wordt een dag onthouden. Wat niet te vinden is, blijft leeg: er wordt nooit een naam bedacht. Een eenmaal gevonden naam blijft staan, ook als een latere ronde niets vindt. Op de pagina staat de naam bovenaan, met het IP-adres eronder. Meldingsmails tonen `naam (IP)`.
 

@@ -115,3 +115,37 @@ def test_earlier_seen_connection_gets_a_name_in_a_later_round(env, monkeypatch):
     monitor.check(force_discovery=True)
     rows = {row["host"]: row["name"] for row in client.get("/api/monitoring").get_json()["connections"]}
     assert rows["172.18.0.8"] == "qbittorrent" and rows["104.26.0.248"] == "Cloudflare (CDN)"
+
+
+def test_lan_ip_named_from_proxmox_guest_table_when_reverse_dns_has_no_answer(env, monkeypatch):
+    """Regression: 192.168.20.137 stayed nameless because OPNsense resolves arrsuite.home → IP but not IP → name.
+    The guest table from the Proxmox LXC configs fills that in before reverse DNS."""
+    client, monitor = env
+    monkeypatch.setattr(monitoring, "guest_addresses", lambda data_dir: {"192.168.20.137": "arrsuite"})
+    lookups = []
+    monkeypatch.setattr(monitoring.socket, "gethostbyaddr", lambda ip: lookups.append(ip) or (_ for _ in ()).throw(socket.herror()))
+    monkeypatch.setattr(monitoring, "proxy_request", lambda request, timeout=75: answer({}, [{"ip": "192.168.20.137", "port": 8383}, {"ip": "10.1.1.1", "port": 22}]))
+    monitor.check(force_discovery=True)
+    rows = {row["host"]: row["name"] for row in client.get("/api/monitoring").get_json()["connections"]}
+    assert rows == {"192.168.20.137": "arrsuite", "10.1.1.1": ""}
+    assert "192.168.20.137" not in lookups, "the own table is used first, no DNS query needed"
+
+
+def test_guest_addresses_reads_lxc_configs_and_survives_proxmox_errors(tmp_path, monkeypatch):
+    (tmp_path / "proxmox").mkdir()
+    (tmp_path / "proxmox/connection.json").write_text("{}")
+
+    class Client:
+        def __init__(self, connection):
+            pass
+
+        def get(self, path):
+            if path == "/cluster/resources":
+                return [{"type": "lxc", "vmid": 137, "node": "pve-amd", "name": "arrsuite"}, {"type": "lxc", "vmid": 138, "node": "pve-intel", "name": "infisical"},
+                        {"type": "qemu", "vmid": 106, "node": "pve-intel", "name": "haos"}]
+            if path.endswith("/137/config"):
+                return {"net0": "name=eth0,bridge=vmbr0,ip=192.168.20.137/24,gw=192.168.20.1"}
+            raise monitoring.ProxmoxError("geen toegang")
+    monkeypatch.setattr(monitoring, "ProxmoxClient", Client)
+    assert monitoring.guest_addresses(tmp_path) == {"192.168.20.137": "arrsuite"}
+    assert monitoring.guest_addresses(tmp_path / "bestaat-niet") == {}
