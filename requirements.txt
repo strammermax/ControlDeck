@@ -17,3 +17,4 @@ certifi==2026.7.22
 charset-normalizer==3.5.2
 idna==3.20
 urllib3==2.8.0
+infisical-secret-client @ https://github.com/strammermax/infisical-secret-client/archive/14555eb5a8cbfa45c1eb0ccd2b5e78946ddea5ed.tar.gz
