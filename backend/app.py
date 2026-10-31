@@ -22,6 +22,7 @@ from backend.page_layouts import setup_page_layouts
 from backend.files import setup_files
 from backend.virtual_apps import setup_virtual_apps
 from backend.app_launches import setup_app_launches
+from backend.bookmark_logins import setup_bookmark_logins
 from backend.search import setup_search
 from backend.search_engines import setup_search_engines
 from backend.service_widgets import setup_service_widgets
@@ -53,6 +54,7 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     setup_cronjobs(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data", metadata.get("commit"))
     setup_cronjob_api(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_app_launches(app, configuration_path)
+    setup_bookmark_logins(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_service_widgets(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_dashboards(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_page_layouts(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")

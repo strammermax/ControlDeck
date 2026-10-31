@@ -47,6 +47,13 @@ Voorbeelden uit dit project:
 
 ## Normaal, boundary, faal
 
+Persoonlijke bookmark-aanmeldingen: `tests/test_bookmark_logins.py` en
+`frontend/tests/bookmark-logins.test.mjs` dekken Keyvault-opslag, ondersteunde
+SSO/Kasm-routes, grenzen, account- en modulerechten, CSRF, eigenaar-isolatie,
+uitval en onafhankelijke doelvalidatie. Regressie: een gewijzigd gedeeld
+bookmarkadres mag opgeslagen API-gegevens nooit naar de nieuwe host sturen.
+Zie [BOOKMARK-LOGINS.md](BOOKMARK-LOGINS.md) voor de afbakening tegenover API-integraties.
+
 De persoonlijke dashboards worden gedekt door `tests/test_dashboards.py` en `frontend/tests/dashboards.test.mjs`: document- en rastervalidatie, aanmaken/dupliceren, standaardkeuze, verwijderen tot een lege lijst, herstart, gelijktijdige revisies, echte SQLite-backup/leesherstel, rechten per eigenaar en module, accountrevocatie en CSRF. `tests/test_vault_client.py` controleert het CLI-contract, mapkeuze, stdin-schrijven en veilige foutmeldingen. De Windows-interpreterregressie voert de echte extractiesubprocess uit. Browseracceptatie en beperkingen staan in [DASHBOARD.md](DASHBOARD.md).
 
 `tests/test_dashboard_apps_search.py` controleert gedeelde bronvalidatie, geschoonde app-/samenvattingsprojectie, bronverwijzingen zonder metadatakopie, bronuitval, veranderde rechten, lokale zoekresultaten en de regressies voor hergebruikte app-ID's en HEAD. `tests/test_search_engines.py` en `frontend/tests/search.test.mjs` dekken persoonlijke zoekmachines, veilige sjablonen/URL-codering, eigenaarschap, CSRF, revisies, grenzen en de schema-upgrade. Frontendtests verifiëren bovendien dat oude gekopieerde appvelden niet als terugval worden gebruikt bij ontbrekende brontoegang.
