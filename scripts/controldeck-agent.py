@@ -27,7 +27,7 @@ import tempfile
 import time
 from pathlib import Path
 
-AGENT_VERSION = 2
+AGENT_VERSION = 3
 MAX_INPUT = 64 * 1024
 MAX_OUTPUT_PER_RUN = 256 * 1024
 KEEP_RUNS = 20
@@ -522,20 +522,30 @@ GENERIC_COMMS = {"bash", "sh", "ash", "dash", "sleep", "tini", "busybox", "docke
                  "s6-supervise", "s6-linux-init-s", "s6-ipcserverd", "s6-rc", "nginx", "php-fpm", "systemd", "agetty"}
 
 
-def docker_names(vmid):
-    """{netns inode: container name} for Docker containers inside the LXC; empty without Docker."""
+def docker_info(vmid):
+    """({netns inode: container name}, {container IP: container name}) for Docker containers inside the LXC;
+    both empty without Docker. The IPs let ControlDeck show "qbittorrent" instead of 172.18.0.8."""
     script = ('command -v docker >/dev/null 2>&1 || exit 0; for c in $(docker ps -q); do set -- $(docker inspect -f '
-              '"{{.Name}} {{.NetworkSettings.SandboxKey}}" "$c"); [ -n "$2" ] && [ -e "$2" ] && echo "${1#/} $(stat -Lc %i "$2")"; done')
+              '"{{.Name}} {{.NetworkSettings.SandboxKey}} {{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}" "$c"); '
+              'n=$1; k=$2; shift 2; [ -n "$k" ] && [ -e "$k" ] && echo "${n#/} $(stat -Lc %i "$k") $*"; done')
     try:
         result = subprocess.run(["pct", "exec", str(vmid), "--", "sh", "-c", script], capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
-        return {}
-    names = {}
+        return {}, {}
+    names, addresses = {}, {}
     for line in result.stdout.splitlines():
         parts = line.split()
-        if len(parts) == 2 and APP.fullmatch(parts[0]) and parts[1].isdigit():
+        if len(parts) >= 2 and APP.fullmatch(parts[0]) and parts[1].isdigit():
             names[int(parts[1])] = parts[0]
-    return names
+            for address in parts[2:8]:
+                if valid_host(address) and address.count(".") == 3:
+                    addresses[address] = parts[0]
+    return names, addresses
+
+
+def docker_names(vmid):
+    """{netns inode: container name} for Docker containers inside the LXC; empty without Docker."""
+    return docker_info(vmid)[0]
 
 
 def container_namespaces(vmid, init_pid):
@@ -788,11 +798,14 @@ def action_connections(payload):
     vmids = payload.get("vmids")
     if not isinstance(vmids, list) or not 1 <= len(vmids) <= 200 or any(type(v) is not int or not 100 <= v <= 999999999 for v in vmids):
         raise AgentError("invalid_input", "Geef 1 tot 200 container-ID's.")
-    result = {}
+    result, names = {}, {}
     for vmid in sorted(set(vmids)):
         init = container_pid(vmid)
         if init is None:
             continue
+        addresses = docker_info(vmid)[1]
+        if addresses:
+            names[str(vmid)] = addresses
         apps = []
         for namespace in container_namespaces(vmid, init)[:64]:
             tables = []
@@ -804,7 +817,7 @@ def action_connections(payload):
                     pass
             apps.append({"app": namespace["app"], "endpoints": outbound(tables)})
         result[str(vmid)] = apps
-    return {"containers": result}
+    return {"containers": result, "names": names}
 
 
 # --- actions --------------------------------------------------------------------------------------------

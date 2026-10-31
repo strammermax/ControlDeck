@@ -107,7 +107,7 @@ def test_boundary_one_mail_for_several_and_learned_or_unknown_never_alert(env, m
         admin.post("/api/monitoring/connections", json={"source": "App", "host": host, "port": 80}, headers=H)
         state["ok"][host] = False
     with monitoring.database(monitor.path) as db:
-        db.execute("INSERT INTO learned VALUES ('aaaaaaaaaaaaaaaa', 137, 'arrsuite', '1.1.1.1', 443, ?, ?, '')", (time.time(), time.time()))
+        db.execute("INSERT INTO learned VALUES ('aaaaaaaaaaaaaaaa', 137, 'arrsuite', '1.1.1.1', 443, ?, ?, '', '')", (time.time(), time.time()))
     state["ok"]["1.1.1.1"] = False
     at(monkeypatch, time.time())
     monitor.check()

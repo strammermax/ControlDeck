@@ -369,7 +369,7 @@ def test_agent_connections_failure_rejects_invalid_vmids(vmids):
 
 def test_agent_connections_skips_stopped_containers(monkeypatch, tmp_path):
     monkeypatch.setattr(agent, "container_pid", lambda vmid: None)
-    assert agent.handle("net.connections", json.dumps({"vmids": [137]}))["data"] == {"containers": {}}
+    assert agent.handle("net.connections", json.dumps({"vmids": [137]}))["data"] == {"containers": {}, "names": {}}
 
 
 def test_learned_connections_are_checked_from_the_container_and_expire(env, monkeypatch, in_namespace, listener):
@@ -391,7 +391,7 @@ def test_learned_connections_are_checked_from_the_container_and_expire(env, monk
     monkeypatch.setattr(monitoring, "proxy_request", proxy)
     admin = client()
     rows = {row["host"]: row for row in admin.post("/api/monitoring/check", headers=H).get_json()["connections"]}
-    assert rows["1.1.1.1"]["label"] == "Geleerd · internet" and rows["127.0.0.2"]["label"] == "Geleerd · intern"
+    assert rows["1.1.1.1"]["label"] == "Gezien · internet" and rows["127.0.0.2"]["label"] == "Gezien · intern"
     assert rows["1.1.1.1"]["source"] == "remvebg" and rows["1.1.1.1"]["via"] == "bron (pve-amd/137)" and rows["1.1.1.1"]["ok"] is True
     assert "158.173.241.24" not in rows, "public high port = peer (BitTorrent), not a dependency"
     assert "192.168.20.5" in rows, "internal high ports (e.g. Plex 32400) are kept"

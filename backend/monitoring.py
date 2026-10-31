@@ -24,7 +24,7 @@ import sqlite3
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from email.message import EmailMessage
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -49,6 +49,12 @@ DISCOVERY_SECONDS = 600
 LEARN_SECONDS = 300
 LEARNED_TTL = 86400
 LEARNED_KEEP = 7 * 86400
+NAME_TTL = 86400
+# Cloudflare's published IPv4 ranges: reverse DNS says nothing there, so they get a label.
+CDN_RANGES = [("Cloudflare (CDN)", ipaddress.ip_network(net)) for net in (
+    "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "141.101.64.0/18", "108.162.192.0/18",
+    "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22", "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+    "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22")]
 # Public destinations on high ports are peers (BitTorrent, Soulseek): they change constantly and are not a dependency.
 PEER_PORT_FROM = 10000
 INTERVAL_SECONDS = 60
@@ -255,6 +261,42 @@ def probe_all(connections, placement):
     return results
 
 
+def reverse_name(address):
+    """Hostname for an IP via reverse DNS (OPNsense knows the LAN), a CDN label, or "" when unknown."""
+    ip = ipaddress.ip_address(address)
+    label = next((name for name, network in CDN_RANGES if ip in network), "")
+    if label:
+        return label
+    try:
+        name = socket.gethostbyaddr(address)[0].rstrip(".").lower()
+    except (OSError, UnicodeError):
+        return ""
+    return name if HOST.fullmatch(name) and name != address else ""
+
+
+def resolve_names(addresses, cache, timeout=5.0):
+    """{ip: name} for addresses, in parallel and bounded in time; unanswered lookups stay unknown this round."""
+    now, result, missing = time.time(), {}, []
+    for address in addresses:
+        hit = cache.get(address)
+        if hit and now - hit[1] < NAME_TTL:
+            result[address] = hit[0]
+        else:
+            missing.append(address)
+    if missing:
+        pool = ThreadPoolExecutor(max_workers=8)
+        futures = {pool.submit(reverse_name, address): address for address in missing[:200]}
+        try:
+            for future in as_completed(futures, timeout=timeout):
+                name = future.result()
+                cache[futures[future]] = (name, now)
+                result[futures[future]] = name
+        except TimeoutError:
+            pass
+        pool.shutdown(wait=False, cancel_futures=True)
+    return result
+
+
 # --- storage ----------------------------------------------------------------------------------------------
 
 def database(path):
@@ -269,12 +311,15 @@ def database(path):
         CREATE TABLE IF NOT EXISTS events (at REAL NOT NULL, id TEXT NOT NULL, ok INTEGER, error TEXT);
         CREATE TABLE IF NOT EXISTS discovered (id TEXT PRIMARY KEY, payload TEXT NOT NULL, at REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS learned (id TEXT PRIMARY KEY, vmid INTEGER NOT NULL, source TEXT NOT NULL, ip TEXT NOT NULL,
-            port INTEGER NOT NULL, first REAL NOT NULL, last REAL NOT NULL, app TEXT NOT NULL DEFAULT '');
+            port INTEGER NOT NULL, first REAL NOT NULL, last REAL NOT NULL, app TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '');
         CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS alerts (id TEXT PRIMARY KEY, notified REAL NOT NULL);
     """)
-    if "app" not in {row[1] for row in db.execute("PRAGMA table_info(learned)")}:
+    columns = {row[1] for row in db.execute("PRAGMA table_info(learned)")}
+    if "app" not in columns:
         db.execute("ALTER TABLE learned ADD COLUMN app TEXT NOT NULL DEFAULT ''")
+    if "name" not in columns:
+        db.execute("ALTER TABLE learned ADD COLUMN name TEXT NOT NULL DEFAULT ''")
     return db
 
 
@@ -348,7 +393,8 @@ def smtp_text(reply):
 def describe(row):
     via = f", via {row['via']}" if row.get("via") else ""
     label = f" ({row['label']})" if row.get("label") else ""
-    return f"{row['source']} → {row['host']}:{row['port']}{label}{via}"
+    target = f"{row['name']} ({row['host']})" if row.get("name") else row["host"]
+    return f"{row['source']} → {target}:{row['port']}{label}{via}"
 
 
 def alert_mail(down, recovered, now):
@@ -375,7 +421,7 @@ class Monitor:
     def __init__(self, app, data_dir):
         self.app, self.data_dir, self.path = app, data_dir, Path(data_dir) / "monitoring.sqlite3"
         self.lock, self.discovered_at, self.learned_at, self.source_errors = threading.Lock(), 0.0, 0.0, {}
-        self.notify_error = None
+        self.notify_error, self.names = None, {}
 
     def placement(self):
         nodes, inventory = enrolled_nodes(), guests(self.data_dir)
@@ -418,13 +464,19 @@ class Monitor:
 
         def node_call(node):
             try:
-                return call_agent(node, "net.connections", {"vmids": sorted(by_node[node])[:200]}).get("containers") or {}
+                return call_agent(node, "net.connections", {"vmids": sorted(by_node[node])[:200]})
             except MonitorError:
                 return {}
         with ThreadPoolExecutor(max_workers=4) as pool:
             answers = list(pool.map(node_call, list(by_node)))
         stamp, rows = time.time(), []
-        for containers in answers:
+        docker = {}
+        for answer in answers:
+            for vmid_text, addresses in (answer.get("names") or {}).items() if isinstance(answer.get("names"), dict) else []:
+                if str(vmid_text).isdigit() and isinstance(addresses, dict):
+                    docker[int(vmid_text)] = {ip: str(name)[:63] for ip, name in list(addresses.items())[:500] if isinstance(name, str) and APP.fullmatch(name)}
+        for answer in answers:
+            containers = answer.get("containers") or {}
             for vmid_text, apps in containers.items():
                 vmid = int(vmid_text) if str(vmid_text).isdigit() else None
                 if vmid not in placement or not isinstance(apps, list):
@@ -437,9 +489,15 @@ class Monitor:
                     for endpoint in namespace["endpoints"][:200]:
                         found = target(str(endpoint.get("ip", "")), endpoint.get("port")) if isinstance(endpoint, dict) else None
                         if found and not (found[1] >= PEER_PORT_FROM and ipaddress.ip_address(found[0]).is_global):
-                            rows.append((connection_id("learned", f"{vmid}/{app}", *found), vmid, f"{guest} / {app}" if app else guest, found[0], found[1], stamp, stamp, app))
+                            rows.append([connection_id("learned", f"{vmid}/{app}", *found), vmid, f"{guest} / {app}" if app else guest, found[0], found[1], stamp, stamp, app,
+                                         docker.get(vmid, {}).get(found[0], "")])
+        names = resolve_names(sorted({row[3] for row in rows if not row[8]}), self.names)
+        for row in rows:
+            row[8] = row[8] or names.get(row[3], "")
         with database(self.path) as db:
-            db.executemany("INSERT INTO learned (id, vmid, source, ip, port, first, last, app) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET last=excluded.last, source=excluded.source", rows)
+            db.executemany("INSERT INTO learned (id, vmid, source, ip, port, first, last, app, name) VALUES (?,?,?,?,?,?,?,?,?) "
+                           "ON CONFLICT(id) DO UPDATE SET last=excluded.last, source=excluded.source, "
+                           "name=CASE WHEN excluded.name != '' THEN excluded.name ELSE learned.name END", rows)
             old = [row["id"] for row in db.execute("SELECT id FROM learned WHERE last < ?", (stamp - LEARNED_KEEP,))]
             for identifier in old:
                 db.execute("DELETE FROM learned WHERE id=?", (identifier,))
@@ -489,8 +547,8 @@ class Monitor:
         rows = [{"id": row["id"], "origin": "manual", "source": row["source"], "vmid": row["vmid"], "host": row["host"], "port": row["port"], "label": row["label"]}
                 for row in db.execute("SELECT * FROM manual ORDER BY created")]
         rows += [json.loads(row["payload"]) for row in db.execute("SELECT payload FROM discovered")]
-        rows += [{"id": row["id"], "origin": "learned", "source": row["source"], "vmid": row["vmid"], "app": row["app"], "host": row["ip"], "port": row["port"],
-                  "label": "Geleerd · " + ("intern" if ipaddress.ip_address(row["ip"]).is_private else "internet"), "lastSeen": row["last"]}
+        rows += [{"id": row["id"], "origin": "learned", "source": row["source"], "vmid": row["vmid"], "app": row["app"], "host": row["ip"], "port": row["port"], "name": row["name"],
+                  "label": "Gezien · " + ("intern" if ipaddress.ip_address(row["ip"]).is_private else "internet"), "lastSeen": row["last"]}
                  for row in db.execute("SELECT * FROM learned WHERE last >= ? ORDER BY source, ip, port", (time.time() - LEARNED_TTL,))]
         return rows[:MAX_CONNECTIONS]
 

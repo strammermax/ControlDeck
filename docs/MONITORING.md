@@ -15,8 +15,16 @@ Een verbinding is `bron-app → host:poort`, met een omschrijving. Er zijn twee 
 | Soort | Bron | Opslag |
 | --- | --- | --- |
 | Ontdekt | *arr-apps: downloadclients en indexers (Sonarr/Radarr/Lidarr/Readarr), downloadclients en gekoppelde apps (Prowlarr), via hun eigen API. Cloudflare-tunnel: alle ingangen (`hostname → service`) uit de lokale cloudflared-config. | Elke 10 minuten opnieuw ontdekt; opgeslagen in SQLite |
-| Geleerd | Elke 5 minuten leest de agent per draaiende LXC op een gekoppelde node de open, zelf gestarte TCP-verbindingen (`/proc/<pid>/net/tcp` en `tcp6` van de container; inkomende verbindingen op een luisterpoort en loopback tellen niet). Zo verschijnen ook alle internetverbindingen, bijv. removesky → `api.open-meteo.com`. | SQLite, per bestemming eerste en laatste keer gezien |
+| Gezien ("geleerd") | Elke 5 minuten leest de agent per draaiende LXC op een gekoppelde node de open, zelf gestarte TCP-verbindingen (`/proc/<pid>/net/tcp` en `tcp6` van de container; inkomende verbindingen op een luisterpoort en loopback tellen niet). Zo verschijnen ook alle internetverbindingen, bijv. removesky → `api.open-meteo.com`. | SQLite, per bestemming eerste en laatste keer gezien |
 | Handmatig | Toegevoegd op de pagina, bijv. Home Assistant → `192.168.1.96:6638`, of een internetdienst op hostnaam | SQLite |
+
+**Namen bij IP-adressen.** Een geleerde bestemming krijgt een leesbare naam, in deze volgorde:
+
+1. **Docker-naam:** de agent vraagt per LXC aan Docker welk IP bij welke container hoort (`172.18.0.8` → `qbittorrent`). Dit is exact.
+2. **Reverse DNS** vanaf ControlDeck: voor het LAN levert OPNsense de `.home`-namen (`192.168.20.137` → `arrsuite.home`), voor internet de PTR-naam als die er is.
+3. **CDN-label:** adressen in de gepubliceerde Cloudflare-reeksen heten "Cloudflare (CDN)". Reverse DNS zegt daar niets over de dienst erachter.
+
+Opzoeken gebeurt parallel, met een tijdslimiet van 5 seconden per ronde. Een naam wordt een dag onthouden. Wat niet te vinden is, blijft leeg: er wordt nooit een naam bedacht. Een eenmaal gevonden naam blijft staan, ook als een latere ronde niets vindt. Op de pagina staat de naam bovenaan, met het IP-adres eronder. Meldingsmails tonen `naam (IP)`.
 
 **Docker binnen een LXC** (zoals de arrsuite): elke Docker-container heeft een eigen netwerk. De agent leert per netwerknamespace en noemt de bron naar de Docker-container, bijv. `arrsuite / sonarr`. Hij test ook vanuit die namespace, zodat `qbittorrent` of `localhost` in een *arr-instelling precies betekent wat die app ziet. Bestemmingen op internet met een poort vanaf 10000 worden niet geleerd: dat zijn peers van BitTorrent en Soulseek, die steeds wisselen.
 
@@ -67,7 +75,7 @@ Drie nieuwe acties, alleen-lezen en daarom niet in het agent-auditlog (agentvers
 | Actie | Doet | Invoer |
 | --- | --- | --- |
 | `net.probe` | Per doel: naam oplossen en TCP verbinden vanuit de container, of vanuit een Docker-app daarin | `vmid`, optioneel `app`, `targets` (1-64 × `{host, port}`) |
-| `net.connections` | Open uitgaande TCP-verbindingen per container en per Docker-app daarin (bestemming, poort, aantal), maximaal 200 per namespace | `vmids` (1-200) |
+| `net.connections` | Open uitgaande TCP-verbindingen per container en per Docker-app daarin (bestemming, poort, aantal), maximaal 200 per namespace; plus `names`: Docker-IP → containernaam per LXC (agent v3) | `vmids` (1-200) |
 | `net.tunnel` | Ingangen van cloudflared (`/config` op `127.0.0.1:20241-20245`, alleen `hostname` en `service`) | `vmid` |
 
 Hostnamen en poorten worden in de agent opnieuw gevalideerd; onbekende velden worden geweigerd. De interne modi `__probe` en `__tunnel` start de agent alleen zelf, via `nsenter`, zonder `SSH_ORIGINAL_COMMAND`. Over SSH zijn het geen geldige acties.

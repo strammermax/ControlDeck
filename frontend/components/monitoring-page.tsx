@@ -62,8 +62,8 @@ function Connections({ isAdmin, csrfToken, refreshSeconds }: Props) {
           <thead><tr><th>Status</th><th>Naar</th><th>Wat</th><th>Gecontroleerd via</th><th>Details</th>{isAdmin && <th></th>}</tr></thead>
           <tbody>{group.connections.map(item => { const status = connectionStatus(item); return <tr key={item.id} className={status.level === "error" ? "task-error" : undefined}>
             <td><span className={`task-status ${status.level === "unknown" ? "warning" : status.level}`}>{status.label}</span><div className="muted">{sinceText(item.since, now)}</div></td>
-            <td><code>{item.host}:{item.port}</code>{item.ip && item.ip !== item.host ? <div className="muted">→ {item.ip}</div> : null}</td>
-            <td>{item.label || "—"}<div className="muted">{item.origin === "manual" ? "handmatig" : item.origin === "learned" ? "geleerd uit open verbindingen" : "ontdekt"} · {scope(item.host)}</div></td>
+            <td>{item.name ? <><strong>{item.name}</strong>:{item.port}<div className="muted"><code>{item.host}</code></div></> : <><code>{item.host}:{item.port}</code>{item.ip && item.ip !== item.host ? <div className="muted">→ {item.ip}</div> : null}</>}</td>
+            <td>{item.label || "—"}<div className="muted">{item.origin === "manual" ? "handmatig" : item.origin === "learned" ? "automatisch gezien in open verbindingen" : "ontdekt uit app-instellingen"} · {scope(item.host)}</div></td>
             <td>{item.via ?? "—"}</td>
             <td>{item.error ?? (item.ms != null ? `${item.ms} ms` : "—")}</td>
             {isAdmin && <td>{item.origin === "manual" ? <button type="button" className="task-more" disabled={busy} onClick={() => { if (window.confirm(`Verbinding ${item.source} → ${item.host}:${item.port} verwijderen?`)) void run(() => api(`/connections/${item.id}`, csrfToken, "DELETE")); }}>verwijderen</button> : null}</td>}

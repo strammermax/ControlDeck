@@ -1,5 +1,5 @@
 export type Connection = {
-  id: string; origin: string; source: string; vmid: number | null; host: string; port: number; label: string;
+  id: string; origin: string; source: string; vmid: number | null; host: string; port: number; label: string; name?: string;
   ok: boolean | null; checked: number | null; since: number | null; error: string | null; ms: number | null; ip: string | null; via: string | null;
 };
 export type MonitoringEvent = { at: number; id: string; ok: boolean | null; error: string | null; source: string; host: string; port: number };
