@@ -258,3 +258,5 @@ footer .release-link:hover {color:var(--blue);text-decoration:underline}
 .agent-source label {display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
 .agent-source input {background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font:inherit}
 .agent-source button {justify-self:start}
+.mail-subject {text-align:left;white-space:normal;color:var(--text)}
+.mail-text {white-space:pre-wrap;overflow-wrap:anywhere;max-height:60vh;overflow:auto;font-size:13px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px}

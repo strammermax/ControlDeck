@@ -78,3 +78,17 @@ export function parseRecipients(text: string): { recipients: string[]; invalid: 
   }
   return { recipients, invalid };
 }
+
+export type MailSummary = { uid: number; from: string; address: string; subject: string; date: number | null; unread: boolean; system: string; level: "error" | "ok" | "info" };
+
+/** Systems with their mail count and how many look like a problem; systems with problems first. */
+export function mailSystems(messages: MailSummary[]): { system: string; total: number; errors: number }[] {
+  if (!Array.isArray(messages)) throw new TypeError("Invalid messages");
+  const counts = new Map<string, { system: string; total: number; errors: number }>();
+  for (const message of messages) {
+    const entry = counts.get(message.system) ?? { system: message.system, total: 0, errors: 0 };
+    entry.total += 1; if (message.level === "error") entry.errors += 1;
+    counts.set(message.system, entry);
+  }
+  return [...counts.values()].sort((a, b) => b.errors - a.errors || a.system.localeCompare(b.system));
+}

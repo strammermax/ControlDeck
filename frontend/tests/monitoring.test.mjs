@@ -54,3 +54,10 @@ test('parseRecipients / normaal, boundary and faal', async () => {
   assert.deepEqual(parseRecipients(''), { recipients: [], invalid: [] });
   assert.deepEqual(parseRecipients('geen-adres, x@y'), { recipients: [], invalid: ['geen-adres', 'x@y'] });
 });
+test('mailSystems / normaal, boundary and faal', async () => {
+  const { mailSystems } = await import('../lib/monitoring.ts');
+  const mail = (system, level) => ({ uid: 1, from: '', address: '', subject: '', date: null, unread: false, system, level });
+  assert.deepEqual(mailSystems([mail('Sonarr', 'ok'), mail('NAS', 'error'), mail('NAS', 'info')]), [{ system: 'NAS', total: 2, errors: 1 }, { system: 'Sonarr', total: 1, errors: 0 }]);
+  assert.deepEqual(mailSystems([]), []);
+  assert.throws(() => mailSystems(undefined), TypeError);
+});

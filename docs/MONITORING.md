@@ -45,6 +45,21 @@ Beheerders stellen dit in op de pagina onder **Meldingen per e-mail**: aan/uit, 
 - De relay vraagt geen aanmelding. Biedt hij STARTTLS aan, dan wordt die gebruikt. Mislukt het versturen, dan staat de fout op de pagina en wordt het de volgende ronde opnieuw geprobeerd; er gaat niets verloren.
 - Mail ophalen (IMAP/POP3) kan niet via de relay en is ook niet nodig: ControlDeck verstuurt alleen.
 
+## Mail (tabblad, alleen beheerders)
+
+Het tabblad **Mail** toont de laatste 50 berichten uit de inbox van de meldingenmailbox (`homelab@vanburik.info`). Daar komen de mails van NAS, PBS, de *arr-apps, Nextcloud en Monitoring zelf binnen. Per mail zie je status, tijd, systeem, onderwerp en afzender; een klik toont de volledige tekst.
+
+- **Alleen lezen:** de inbox wordt `readonly` geopend en berichten worden met `BODY.PEEK` opgehaald. ControlDeck markeert dus niets als gelezen en verplaatst of verwijdert niets.
+- **Systeem en status** worden afgeleid uit afzender en onderwerp. Een onderwerp met bijv. *failed*, *fout*, *Problemen* of *Undelivered* wordt een probleem; *Success*, *hersteld* of *klaar* wordt OK. Filter op systeem of op alleen problemen.
+- **Toegang:** de lijst wordt een minuut bewaard; **Vernieuwen** haalt direct op. Alleen beheerders met de module `monitoring` zien het tabblad en de API; mails kunnen gevoelige details bevatten.
+- **Inrichting:** `CONTROLDECK_MAILBOX` in Infisical (`/apps/controldeck/widgets`):
+
+  ```json
+  {"host": "imap.gmail.com", "port": 993, "username": "homelab@vanburik.info", "password": "<app-wachtwoord>"}
+  ```
+
+  Gebruik een eigen app-wachtwoord ("ControlDeck IMAP"), los van dat van de OPNsense-relay, zodat elk apart in te trekken is. De mailrelay zelf kan geen mail ophalen.
+
 ## Agent-acties
 
 Drie nieuwe acties, alleen-lezen en daarom niet in het agent-auditlog (agentversie 2, proxyversie 2):
@@ -92,10 +107,12 @@ Hostnamen en poorten worden in de agent opnieuw gevalideerd; onbekende velden wo
 | `GET /api/monitoring/notifications` | beheerder | Meldinginstellingen en laatste verzendfout |
 | `PUT /api/monitoring/notifications` | beheerder + CSRF | Meldinginstellingen opslaan |
 | `POST /api/monitoring/notifications/test` | beheerder + CSRF | Testmail versturen |
+| `GET /api/monitoring/mail` (`?refresh=1`) | beheerder | Laatste 50 mails uit de inbox (zonder wachtwoord of inhoud) |
+| `GET /api/monitoring/mail/<uid>` | beheerder | Eén mail met tekst (HTML omgezet naar platte tekst, maximaal 100.000 tekens) |
 
 ## Testen
 
-`tests/test_monitoring.py`, `tests/test_monitoring_notify.py` en `frontend/tests/monitoring.test.mjs`. Meldingen: mail pas na de wachttijd en maar één keer; herstelmail; meerdere storingen in één mail; geleerde en onbekende verbindingen melden niet; relay onbereikbaar → fout zichtbaar en later alsnog verstuurd; STARTTLS; ongeldige instellingen geweigerd; ontvangers alleen voor beheerders. Verder:
+`tests/test_monitoring.py`, `tests/test_monitoring_notify.py`, `tests/test_mailbox.py` (alleen lezen: geen STORE/MOVE/EXPUNGE, PEEK; HTML naar tekst; lege inbox; verkeerd wachtwoord; ontbrekende of ongeldige config; alleen beheerders) en `frontend/tests/monitoring.test.mjs`. Meldingen: mail pas na de wachttijd en maar één keer; herstelmail; meerdere storingen in één mail; geleerde en onbekende verbindingen melden niet; relay onbereikbaar → fout zichtbaar en later alsnog verstuurd; STARTTLS; ongeldige instellingen geweigerd; ontvangers alleen voor beheerders. Verder:
 
 - **Normaal:** geleerde verbindingen uit de socketlijst (intern en internet) en controle via de agent in de container, naam via de hosts van de container, ontdekking via de *arr-API en de tunnel, statuswissels met behoud van "sinds".
 - **Grens:** IPv4-in-IPv6-adressen, inkomende en loopbackverbindingen uitgesloten, vervallen na 24 uur, 64 doelen, korte namen met zoekdomein, dubbele verbinding, tunnelregels zonder host (`http_status:404`), hoofdletters en een punt op het eind.

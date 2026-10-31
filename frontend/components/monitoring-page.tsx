@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { connectionStatus, groupBySource, manualConnectionError, parseRecipients, scope, sinceText, summarize, type MonitoringOverview, type NotifySettings } from "../lib/monitoring";
+import { Modal } from "./modal";
+import { connectionStatus, groupBySource, mailSystems, manualConnectionError, parseRecipients, scope, sinceText, summarize, type MailSummary, type MonitoringOverview, type NotifySettings } from "../lib/monitoring";
 
 type Props = { isAdmin: boolean; csrfToken: string; refreshSeconds: number };
 
@@ -13,8 +14,21 @@ async function api<T>(path: string, csrfToken: string, method = "GET", body?: un
   return data;
 }
 
-/** Monitoring: connections between apps, checked from the source app's own container where possible. */
-export function MonitoringPage({ isAdmin, csrfToken, refreshSeconds }: Props) {
+/** Monitoring: connections (everyone with the module) and the alert mailbox (managers). */
+export function MonitoringPage(props: Props) {
+  const [tab, setTab] = useState<"connections" | "mail">("connections");
+  if (!props.isAdmin) return <Connections {...props}/>;
+  return <>
+    <div className="manage-tabs" role="tablist" aria-label="Monitoring">
+      <button role="tab" aria-selected={tab === "connections"} className={tab === "connections" ? "active" : undefined} onClick={() => setTab("connections")}>Verbindingen</button>
+      <button role="tab" aria-selected={tab === "mail"} className={tab === "mail" ? "active" : undefined} onClick={() => setTab("mail")}>Mail</button>
+    </div>
+    {tab === "connections" ? <Connections {...props}/> : <Mail csrfToken={props.csrfToken} refreshSeconds={props.refreshSeconds}/>}
+  </>;
+}
+
+/** Connections between apps, checked from the source app's own container where possible. */
+function Connections({ isAdmin, csrfToken, refreshSeconds }: Props) {
   const [data, setData] = useState<MonitoringOverview | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -124,4 +138,46 @@ function Notifications({ csrfToken }: { csrfToken: string }) {
       <p className="health-ok">Eén mail per controleronde met alles wat langer dan de wachttijd onderbroken is, en een mail bij herstel. Een controle die zelf mislukt (&ldquo;onbekend&rdquo;) geeft geen melding.</p>
     </fieldset></form>
   </details>;
+}
+
+type MailDetail = MailSummary & { to: string; text: string };
+
+/** Read-only alert mailbox: newest first, problems marked; nothing is marked as read. */
+function Mail({ csrfToken, refreshSeconds }: { csrfToken: string; refreshSeconds: number }) {
+  const [data, setData] = useState<{ messages: MailSummary[]; fetchedAt: number } | null>(null);
+  const [error, setError] = useState("");
+  const [system, setSystem] = useState("");
+  const [onlyProblems, setOnlyProblems] = useState(false);
+  const [open, setOpen] = useState<MailDetail | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback((refresh = false) => api<{ messages: MailSummary[]; fetchedAt: number }>(`/mail${refresh ? "?refresh=1" : ""}`, csrfToken).then(value => { setData(value); setError(""); }).catch(failure => setError(failure.message)), [csrfToken]);
+  useEffect(() => { void load(); const timer = setInterval(() => void load(), Math.max(60, refreshSeconds) * 1000); return () => clearInterval(timer); }, [load, refreshSeconds]);
+  const systems = mailSystems(data?.messages ?? []);
+  const rows = (data?.messages ?? []).filter(row => (!system || row.system === system) && (!onlyProblems || row.level === "error"));
+  const show = async (uid: number) => { setBusy(true); try { setOpen(await api<MailDetail>(`/mail/${uid}`, csrfToken)); } catch (failure) { setError(failure instanceof Error ? failure.message : "Mislukt."); } finally { setBusy(false); } };
+  const noSubject = "(geen onderwerp)";
+  return <section className="monitoring cronjobs">
+    <h3>Mail van je systemen</h3>
+    <div className="task-toolbar">
+      <p className="cron-counts">{data ? <><strong>{data.messages.length} recente mails</strong>{systems.filter(s => s.errors).map(s => <span key={s.system} className="count error"> · ✗ {s.system}: {s.errors}</span>)}<span className="muted"> · opgehaald {time(data.fetchedAt)}</span></> : null}</p>
+      <label>Systeem<select value={system} onChange={event => setSystem(event.target.value)}><option value="">Alle</option>{systems.map(s => <option key={s.system} value={s.system}>{s.system} ({s.total})</option>)}</select></label>
+      <label className="checkbox"><input type="checkbox" checked={onlyProblems} onChange={event => setOnlyProblems(event.target.checked)}/> Alleen problemen</label>
+      <button type="button" onClick={() => void load(true)}>Vernieuwen</button>
+    </div>
+    {error && <p className="config-error" role="alert">{error}</p>}
+    {!data ? (!error && <p role="status">Laden…</p>) : rows.length === 0 ? <p>Geen mails{system || onlyProblems ? " voor dit filter" : ""}.</p> :
+      <div className="task-table"><table>
+        <thead><tr><th>Status</th><th>Ontvangen</th><th>Systeem</th><th>Onderwerp</th><th>Afzender</th></tr></thead>
+        <tbody>{rows.map(row => <tr key={row.uid} className={row.level === "error" ? "task-error" : undefined}>
+          <td><span className={`task-status ${row.level === "info" ? "" : row.level}`}>{row.level === "error" ? "✗ Probleem" : row.level === "ok" ? "✓ OK" : "• Info"}</span></td>
+          <td>{time(row.date)}</td><td>{row.system}</td>
+          <td><button type="button" className="task-more mail-subject" disabled={busy} onClick={() => void show(row.uid)}>{row.unread ? <strong>{row.subject || noSubject}</strong> : row.subject || noSubject}</button></td>
+          <td className="muted">{row.from}</td>
+        </tr>)}</tbody></table></div>}
+    <p className="health-ok">Alleen lezen: ControlDeck markeert, verplaatst of verwijdert geen mail. De laatste 50 berichten uit de inbox.</p>
+    {open && <Modal open title={open.subject || noSubject} onClose={() => setOpen(null)}>
+      <p className="muted">Van {open.from} &lt;{open.address}&gt; · {time(open.date)}</p>
+      <pre className="mail-text">{open.text || "(geen tekst)"}</pre>
+    </Modal>}
+  </section>;
 }
