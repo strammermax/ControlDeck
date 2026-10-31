@@ -189,3 +189,66 @@ def test_guest_ip_plus_published_port_names_the_app_and_upgrades_guest_only_name
     monkeypatch.setattr(monitoring, "proxy_request", with_ports)
     monitor.check(force_discovery=True)
     assert {row["port"]: row["name"] for row in client.get("/api/monitoring").get_json()["connections"]} == {8383: "arrsuite / spottarr", 22: "arrsuite"}
+
+
+class FakePool:
+    """Plays OPNsense; records the TLS pin that the pool was created with."""
+    created, fail = [], None
+
+    def __init__(self, **kwargs):
+        FakePool.created.append(kwargs)
+
+    def request(self, method, url, headers=None, preload_content=True):
+        if FakePool.fail:
+            raise FakePool.fail
+        assert headers["authorization"].startswith("Basic ")
+        rows = {"/api/dnsmasq/settings/search_host": [{"host": "printer", "domain": "home", "ip": "192.168.1.89"},
+                                                      {"host": "nas", "domain": "home", "ip": "192.168.20.113,192.168.1.113"},
+                                                      {"host": "bad name", "domain": "home", "ip": "1.2.3.4"}],
+                "/api/dnsmasq/leases/search": [{"hostname": "Camiel", "address": "192.168.1.47"}, {"hostname": "*", "address": "192.168.1.60"}]}
+        return Mock(status=200, data=json.dumps({"rows": rows.get(url.split(":8443")[1], [])}).encode())
+
+
+def opn_app(config):
+    return Mock(extensions={"controldeck_vault": Mock(read=lambda: {"CONTROLDECK_OPNSENSE": json.dumps(config)} if config is not None else {})})
+
+
+OPN = {"url": "https://192.168.20.1:8443", "key": "k", "secret": "s"}
+
+
+def test_opnsense_addresses_normal_boundary_and_pinned(monkeypatch):
+    import urllib3
+    monkeypatch.setattr(urllib3, "PoolManager", FakePool)
+    FakePool.created, FakePool.fail = [], None
+    assert monitoring.opnsense_addresses(opn_app(OPN)) == {"192.168.1.89": "printer.home", "192.168.20.113": "nas.home", "192.168.1.113": "nas.home", "192.168.1.47": "camiel"}
+    assert FakePool.created[-1]["assert_fingerprint"] == monitoring.OPNSENSE_FINGERPRINT.lower(), "TLS is pinned to the known certificate"
+    monitoring.opnsense_addresses(opn_app({**OPN, "fingerprint": "AB:" * 31 + "CD"}))
+    assert FakePool.created[-1]["assert_fingerprint"] == "ab" * 31 + "cd", "a renewed certificate can be pinned via Infisical"
+
+
+@pytest.mark.parametrize("config", [None, {}, {**OPN, "url": "http://192.168.20.1"}, {**OPN, "key": 5}, {**OPN, "fingerprint": "kort"}])
+def test_opnsense_addresses_failure_invalid_config_gives_empty_table(monkeypatch, config):
+    import urllib3
+    monkeypatch.setattr(urllib3, "PoolManager", FakePool)
+    assert monitoring.opnsense_addresses(opn_app(config)) == {}
+
+
+def test_opnsense_addresses_failure_wrong_certificate_or_unreachable(monkeypatch):
+    import urllib3
+    monkeypatch.setattr(urllib3, "PoolManager", FakePool)
+    for failure in (urllib3.exceptions.SSLError("Fingerprints did not match"), urllib3.exceptions.MaxRetryError(None, "x")):
+        FakePool.fail = failure
+        assert monitoring.opnsense_addresses(opn_app(OPN)) == {}
+    FakePool.fail = None
+
+
+def test_opnsense_name_used_before_reverse_dns(env, monkeypatch):
+    client, monitor = env
+    monkeypatch.setattr(monitoring, "guest_addresses", lambda data_dir: {})
+    monkeypatch.setattr(monitoring, "opnsense_addresses", lambda app: {"192.168.1.47": "camiel"})
+    lookups = []
+    monkeypatch.setattr(monitoring.socket, "gethostbyaddr", lambda ip: lookups.append(ip) or ("ander.example", [], [ip]))
+    monkeypatch.setattr(monitoring, "proxy_request", lambda request, timeout=75: answer({}, [{"ip": "192.168.1.47", "port": 8092}, {"ip": "8.8.8.8", "port": 53}]))
+    monitor.check(force_discovery=True)
+    rows = {row["host"]: row["name"] for row in client.get("/api/monitoring").get_json()["connections"]}
+    assert rows == {"192.168.1.47": "camiel", "8.8.8.8": "ander.example"} and lookups == ["8.8.8.8"]

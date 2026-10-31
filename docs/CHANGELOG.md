@@ -9,6 +9,7 @@ Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.m
 - **Geleerde verbindingen:** de agent leest elke 5 minuten de open uitgaande verbindingen van elke container, zodat ook alle internetverbindingen (bijv. van removesky) vanzelf gemonitord worden; filter Intern/Internet.
 - Controle vanuit de container van de bron-app via nieuwe alleen-lezen agent-acties `net.probe`, `net.connections` en `net.tunnel` (agent v2, proxy v2): eigen DNS en firewallpad van de app. VM's en externe bronnen worden vanaf ControlDeck getest, met vermelding.
 - Bijwerken: proxy via `install-wizard.sh`, agent per node via Modulebeheer → Cronjobs.
+- **OPNsense als opzoektabel:** DNS-hostnamen en DHCP-leases geven namen aan apparaten buiten Proxmox; TLS vastgezet op het webcertificaat van OPNsense (`CONTROLDECK_OPNSENSE` in Infisical).
 - **IP + poort → app:** een LAN-adres van een gast krijgt via de gepubliceerde Docker-poorten de app-naam (`arrsuite / spottarr`); eigen IP-tabel uit de Proxmox-LXC-config (agent v4).
 - **Namen bij IP-adressen** in Monitoring: Docker-containernaam via de agent (v3), anders reverse DNS (OPNsense voor het LAN) of "Cloudflare (CDN)". "Geleerd" heet nu "Gezien": automatisch gezien in open verbindingen.
 - **Tabblad Mail** op Monitoring (beheerders): de laatste mails uit de meldingenmailbox via IMAP, alleen lezen, per systeem en met problemen gemarkeerd. App-wachtwoord in Infisical (`CONTROLDECK_MAILBOX`).

@@ -244,6 +244,54 @@ def guest_addresses(data_dir):
     return table
 
 
+# SHA-256 of OPNsense's self-signed web GUI certificate, checked against the firewall's own config on 31-10-2026.
+# CONTROLDECK_OPNSENSE may carry "fingerprint" to replace it (e.g. after the certificate is renewed).
+OPNSENSE_FINGERPRINT = "6869C768FA8DE241AE19421FBBA14CB131C51929EA935A79113E025643A39BA3"
+FINGERPRINT = re.compile(r"[0-9A-Fa-f:]{64,95}")
+
+
+def opnsense_addresses(app):
+    """{IP: hostname} from OPNsense: DNS host entries (host.domain) and DHCP leases. TLS is pinned to the known
+    certificate fingerprint; anything else, or missing configuration, gives an empty table."""
+    import urllib3
+    vault = app.extensions.get("controldeck_vault")
+    try:
+        config = json.loads(vault.read().get("CONTROLDECK_OPNSENSE") or "{}") if vault else {}
+    except (ValueError, VaultError):
+        return {}
+    url, key, secret = config.get("url"), config.get("key"), config.get("secret")
+    fingerprint = str(config.get("fingerprint") or OPNSENSE_FINGERPRINT).replace(":", "").lower()
+    if not (isinstance(url, str) and url.startswith("https://") and isinstance(key, str) and isinstance(secret, str)
+            and len(fingerprint) == 64 and FINGERPRINT.fullmatch(fingerprint)):
+        return {}
+    pool = urllib3.PoolManager(cert_reqs="CERT_NONE", assert_fingerprint=fingerprint, timeout=urllib3.Timeout(connect=4, read=15), retries=False)
+    headers = urllib3.make_headers(basic_auth=f"{key}:{secret}")
+
+    def rows(path):
+        try:
+            response = pool.request("GET", url.rstrip("/") + path, headers=headers, preload_content=True)
+            value = json.loads(response.data[:4 * 1024 * 1024]) if response.status == 200 else {}
+        except (urllib3.exceptions.HTTPError, ValueError, OSError):
+            return []
+        return value.get("rows", []) if isinstance(value, dict) and isinstance(value.get("rows"), list) else []
+
+    table = {}
+    for row in rows("/api/dnsmasq/settings/search_host")[:2000]:
+        if not isinstance(row, dict):
+            continue
+        name = ".".join(part for part in (str(row.get("host") or ""), str(row.get("domain") or "")) if part).lower()
+        for address in str(row.get("ip") or "").split(","):
+            address = address.strip()
+            if name and HOST.fullmatch(name) and valid_host(address):
+                table.setdefault(address, name)
+    for row in rows("/api/dnsmasq/leases/search")[:2000]:
+        if isinstance(row, dict):
+            name, address = str(row.get("hostname") or "").lower(), str(row.get("address") or "")
+            if name and name != "*" and HOST.fullmatch(name) and valid_host(address):
+                table.setdefault(address, name)
+    return table
+
+
 def probe_central(host, port):
     """From ControlDeck itself: its own resolver and network path."""
     started = time.monotonic()
@@ -459,6 +507,7 @@ class Monitor:
         self.lock, self.discovered_at, self.learned_at, self.source_errors = threading.Lock(), 0.0, 0.0, {}
         self.notify_error, self.names = None, {}
         self.guest_table, self.guest_table_at, self.ports = {}, 0.0, {}
+        self.opnsense_table = {}
 
     def placement(self):
         nodes, inventory = enrolled_nodes(), guests(self.data_dir)
@@ -536,6 +585,7 @@ class Monitor:
         # named after the guest only ("arrsuite") is upgraded once its port is known ("arrsuite / spottarr").
         if time.time() - self.guest_table_at > NAME_TTL or not self.guest_table:
             self.guest_table, self.guest_table_at = guest_addresses(self.data_dir), time.time()
+            self.opnsense_table = opnsense_addresses(self.app)
 
         def guest_name(ip, port):
             guest = self.guest_table.get(ip)
@@ -550,7 +600,8 @@ class Monitor:
                 if not row["name"] or (row["ip"] in self.guest_table and " / " not in row["name"])]
         wanted = {row[3] for row in rows if not row[8] and row[3] not in self.guest_table} | \
                  {ip for _, vmid, ip, _, _ in unnamed if ip not in docker.get(vmid, {}) and ip not in self.guest_table}
-        names = resolve_names(sorted(wanted), self.names)
+        names = {ip: self.opnsense_table[ip] for ip in wanted if ip in self.opnsense_table}
+        names.update(resolve_names(sorted(wanted - set(names)), self.names))
         for row in rows:
             row[8] = row[8] or guest_name(row[3], row[4]) or names.get(row[3], "")
         with database(self.path) as db:
