@@ -141,13 +141,24 @@ def test_guest_addresses_reads_lxc_configs_and_survives_proxmox_errors(tmp_path,
 
         def get(self, path):
             if path == "/cluster/resources":
-                return [{"type": "lxc", "vmid": 137, "node": "pve-amd", "name": "arrsuite"}, {"type": "lxc", "vmid": 138, "node": "pve-intel", "name": "infisical"},
-                        {"type": "qemu", "vmid": 106, "node": "pve-intel", "name": "haos"}]
+                return [{"type": "lxc", "vmid": 137, "node": "pve-amd", "name": "arrsuite", "status": "running"},
+                        {"type": "lxc", "vmid": 138, "node": "pve-intel", "name": "infisical", "status": "running"},
+                        {"type": "qemu", "vmid": 106, "node": "pve-intel", "name": "haos", "status": "running"},
+                        {"type": "qemu", "vmid": 166, "node": "pve-intel", "name": "opnsense", "status": "running"},
+                        {"type": "qemu", "vmid": 200, "node": "pve-nas", "name": "uit", "status": "stopped"}]
+            if path == "/cluster/status":
+                return [{"type": "cluster", "name": "homelab"}, {"type": "node", "name": "pve-amd", "ip": "192.168.1.98"}]
             if path.endswith("/137/config"):
                 return {"net0": "name=eth0,bridge=vmbr0,ip=192.168.20.137/24,gw=192.168.20.1"}
-            raise monitoring.ProxmoxError("geen toegang")
+            if path.endswith("/106/agent/network-get-interfaces"):
+                return {"result": [{"name": "lo", "ip-addresses": [{"ip-address-type": "ipv4", "ip-address": "127.0.0.1"}]},
+                                   {"name": "eth0", "ip-addresses": [{"ip-address-type": "ipv4", "ip-address": "192.168.20.106"},
+                                                                     {"ip-address-type": "ipv6", "ip-address": "fe80::1"}]}]}
+            if "/200/" in path:
+                raise AssertionError("stopped VMs are not queried")
+            raise monitoring.ProxmoxError("geen agent / geen toegang")
     monkeypatch.setattr(monitoring, "ProxmoxClient", Client)
-    assert monitoring.guest_addresses(tmp_path) == {"192.168.20.137": ("arrsuite", 137)}
+    assert monitoring.guest_addresses(tmp_path) == {"192.168.1.98": ("pve-amd", None), "192.168.20.137": ("arrsuite", 137), "192.168.20.106": ("haos", 106)}
     assert monitoring.guest_addresses(tmp_path / "bestaat-niet") == {}
 
 

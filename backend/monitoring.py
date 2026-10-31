@@ -209,8 +209,9 @@ def guests(data_dir):
 
 
 def guest_addresses(data_dir):
-    """{IP: (guest name, vmid)} for every LXC from its Proxmox config (net*: ip=...). An own lookup table, because the
-    LAN's DNS answers name → IP but often not IP → name. Empty when Proxmox is unavailable."""
+    """{IP: (name, vmid)} for the Proxmox nodes (/cluster/status), every LXC (config net*: ip=...) and running VMs with a
+    guest agent. An own lookup table, because the LAN's DNS answers name → IP but often not IP → name. Empty when Proxmox
+    is unavailable."""
     try:
         connection = json.loads((Path(data_dir) / "proxmox/connection.json").read_text(encoding="utf-8"))
         client = ProxmoxClient(connection)
@@ -218,15 +219,28 @@ def guest_addresses(data_dir):
     except (OSError, ValueError, KeyError, TypeError, ProxmoxError):
         return {}
     table = {}
+    try:
+        for item in client.get("/cluster/status") or []:
+            if isinstance(item, dict) and item.get("type") == "node" and isinstance(item.get("ip"), str) and valid_host(item["ip"]):
+                table[item["ip"]] = (str(item.get("name", ""))[:63], None)
+    except (ProxmoxError, ValueError, TypeError):
+        pass
     for guest in inventory[:500]:
-        if guest["type"] != "lxc":
-            continue
         try:
-            address = config_ip(client.get(f"/nodes/{guest['node']}/lxc/{guest['vmid']}/config") or {})
-        except (ProxmoxError, ValueError, TypeError, KeyError):
+            if guest["type"] == "lxc":
+                addresses = [config_ip(client.get(f"/nodes/{guest['node']}/lxc/{guest['vmid']}/config") or {})]
+            elif guest["status"] == "running":
+                # VMs: only with a running QEMU guest agent; IPv4, not loopback.
+                interfaces = (client.get(f"/nodes/{guest['node']}/qemu/{guest['vmid']}/agent/network-get-interfaces") or {}).get("result") or []
+                addresses = [a.get("ip-address") for i in interfaces if isinstance(i, dict) for a in i.get("ip-addresses") or []
+                             if isinstance(a, dict) and a.get("ip-address-type") == "ipv4" and not str(a.get("ip-address", "")).startswith("127.")]
+            else:
+                continue
+        except (ProxmoxError, ValueError, TypeError, KeyError, AttributeError):
             continue
-        if address:
-            table[address] = (guest["name"], guest["vmid"])
+        for address in addresses[:8]:
+            if isinstance(address, str) and valid_host(address):
+                table.setdefault(address, (guest["name"], guest["vmid"]))
     return table
 
 

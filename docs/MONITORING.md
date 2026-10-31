@@ -21,7 +21,7 @@ Een verbinding is `bron-app → host:poort`, met een omschrijving. Er zijn twee 
 **Namen bij IP-adressen.** Een geleerde bestemming krijgt een leesbare naam, in deze volgorde:
 
 1. **Docker-naam:** de agent vraagt per LXC aan Docker welk IP bij welke container hoort (`172.18.0.8` → `qbittorrent`). Dit is exact.
-2. **Eigen opzoektabel IP → gast (+ poort → app):** uit de Proxmox-config van elke LXC (`net*: ip=…`), een dag geldig (`192.168.20.137` → `arrsuite`). Staat er op die gast een Docker-container met die poort gepubliceerd (live uit `docker ps`, via de agent), dan krijgt de bestemming de app-naam erbij: `192.168.20.137:8383` → `arrsuite / spottarr`. Nodig omdat de LAN-DNS wel naam → IP beantwoordt, maar vaak niet IP → naam.
+2. **Eigen opzoektabel IP → gast (+ poort → app):** uit Proxmox: de nodes (`/cluster/status`), elke LXC (`net*: ip=…`) en draaiende VM's met QEMU-guest-agent. Een dag geldig (`192.168.20.137` → `arrsuite`). Staat er op die gast een Docker-container met die poort gepubliceerd (live uit `docker ps`, via de agent), dan krijgt de bestemming de app-naam erbij: `192.168.20.137:8383` → `arrsuite / spottarr`. Nodig omdat de LAN-DNS wel naam → IP beantwoordt, maar vaak niet IP → naam.
 3. **Reverse DNS** vanaf ControlDeck: voor het LAN levert OPNsense de `.home`-namen (`192.168.20.137` → `arrsuite.home`), voor internet de PTR-naam als die er is.
 4. **CDN-label:** adressen in de gepubliceerde Cloudflare-reeksen heten "Cloudflare (CDN)". Reverse DNS zegt daar niets over de dienst erachter.
 
