@@ -63,6 +63,12 @@ if systemctl restart controldeck; then
 fi
 if [[ $healthy == true ]]; then
     echo "Deployed $commit"
+    # Keep the five newest releases; never the current or the rollback target.
+    find /opt/controldeck/releases -mindepth 1 -maxdepth 1 -type d -regextype posix-extended \
+        -regex '.*/[a-f0-9]{40}' -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d ' ' -f 2- |
+    while IFS= read -r old; do
+        [[ $old == "$release" || $old == "$previous" ]] || rm -rf -- "$old"
+    done
     exit 0
 fi
 echo 'New release did not become healthy; restoring previous release.' >&2
