@@ -18,6 +18,8 @@ Een verbinding is `bron-app → host:poort`, met een omschrijving. Er zijn twee 
 | Geleerd | Elke 5 minuten leest de agent per draaiende LXC op een gekoppelde node de open, zelf gestarte TCP-verbindingen (`/proc/<pid>/net/tcp` en `tcp6` van de container; inkomende verbindingen op een luisterpoort en loopback tellen niet). Zo verschijnen ook alle internetverbindingen, bijv. removesky → `api.open-meteo.com`. | SQLite, per bestemming eerste en laatste keer gezien |
 | Handmatig | Toegevoegd op de pagina, bijv. Home Assistant → `192.168.1.96:6638`, of een internetdienst op hostnaam | SQLite |
 
+**Docker binnen een LXC** (zoals de arrsuite): elke Docker-container heeft een eigen netwerk. De agent leert per netwerknamespace en noemt de bron naar de Docker-container, bijv. `arrsuite / sonarr`. Hij test ook vanuit die namespace, zodat `qbittorrent` of `localhost` in een *arr-instelling precies betekent wat die app ziet. Bestemmingen op internet met een poort vanaf 10000 worden niet geleerd: dat zijn peers van BitTorrent en Soulseek, die steeds wisselen.
+
 Een geleerde verbinding wordt gecontroleerd zolang hij de afgelopen 24 uur open is gezien en na 7 dagen zonder waarneming vergeten. Internetdiensten achter een CDN wisselen van IP-adres. Een oud adres verdwijnt daardoor vanzelf; voeg een belangrijke internetdienst ook handmatig op hostnaam toe, dan lost de container de naam bij elke controle zelf op. Op de pagina filter je op **Intern** of **Internet**.
 
 Mislukt het ontdekken bij één bron (sleutel ingetrokken, app uit), dan blijft de vorige lijst van die bron staan en toont de pagina de fout. Is Infisical onbereikbaar, dan blijft de hele lijst staan: een onbereikbare vault betekent niet dat alle verbindingen weg zijn.
@@ -40,8 +42,8 @@ Drie nieuwe acties, alleen-lezen en daarom niet in het agent-auditlog (agentvers
 
 | Actie | Doet | Invoer |
 | --- | --- | --- |
-| `net.probe` | Per doel: naam oplossen en TCP verbinden vanuit de container | `vmid`, `targets` (1-64 × `{host, port}`) |
-| `net.connections` | Open uitgaande TCP-verbindingen per container (bestemming, poort, aantal), maximaal 200 per container | `vmids` (1-200) |
+| `net.probe` | Per doel: naam oplossen en TCP verbinden vanuit de container, of vanuit een Docker-app daarin | `vmid`, optioneel `app`, `targets` (1-64 × `{host, port}`) |
+| `net.connections` | Open uitgaande TCP-verbindingen per container en per Docker-app daarin (bestemming, poort, aantal), maximaal 200 per namespace | `vmids` (1-200) |
 | `net.tunnel` | Ingangen van cloudflared (`/config` op `127.0.0.1:20241-20245`, alleen `hostname` en `service`) | `vmid` |
 
 Hostnamen en poorten worden in de agent opnieuw gevalideerd; onbekende velden worden geweigerd. De interne modi `__probe` en `__tunnel` start de agent alleen zelf, via `nsenter`, zonder `SSH_ORIGINAL_COMMAND`. Over SSH zijn het geen geldige acties.
@@ -55,7 +57,7 @@ Hostnamen en poorten worden in de agent opnieuw gevalideerd; onbekende velden wo
 ```json
 {
   "sources": {
-    "sonarr":   {"kind": "sonarr",   "title": "Sonarr",   "url": "http://192.168.20.137:8989", "allowHttp": true, "apiKey": "replace-in-vault", "vmid": 137},
+    "sonarr":   {"kind": "sonarr",   "title": "Sonarr",   "url": "http://192.168.20.137:8989", "allowHttp": true, "apiKey": "replace-in-vault", "vmid": 137, "app": "sonarr"},
     "radarr":   {"kind": "radarr",   "title": "Radarr",   "url": "http://192.168.20.137:7878", "allowHttp": true, "apiKey": "replace-in-vault", "vmid": 137},
     "lidarr":   {"kind": "lidarr",   "title": "Lidarr",   "url": "http://192.168.20.137:8686", "allowHttp": true, "apiKey": "replace-in-vault", "vmid": 137},
     "prowlarr": {"kind": "prowlarr", "title": "Prowlarr", "url": "http://192.168.20.137:9696", "allowHttp": true, "apiKey": "replace-in-vault", "vmid": 137},
@@ -66,6 +68,7 @@ Hostnamen en poorten worden in de agent opnieuw gevalideerd; onbekende velden wo
 
 - `kind`: `sonarr`, `radarr`, `lidarr`, `readarr`, `prowlarr` of `cloudflared`.
 - `vmid` (optioneel bij *arr, verplicht bij `cloudflared`): de container waarin de app draait. Daarvandaan wordt getest.
+- `app` (optioneel, alleen met `vmid`): de Docker-container binnen de LXC van waaruit getest wordt.
 - `url` en `apiKey` voor *arr: de app zelf, zoals bij de servicewidgets. Een API-sleutel is alleen-lezen nodig; hij komt nooit in de browser of in de API-antwoorden.
 - Maximaal 32 bronnen, 500 verbindingen.
 

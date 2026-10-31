@@ -377,8 +377,10 @@ def test_learned_connections_are_checked_from_the_container_and_expire(env, monk
     holder["vault"] = {}
     monkeypatch.setattr(monitoring, "enrolled_nodes", lambda: {"pve-amd"})
     monkeypatch.setattr(monitoring, "guests", lambda data_dir: {137: {"vmid": 137, "node": "pve-amd", "type": "lxc", "status": "running", "name": "remvebg"}})
-    monkeypatch.setattr(agent, "outbound", lambda tables: [{"ip": "127.0.0.2", "port": listener[0], "count": 1}, {"ip": "1.1.1.1", "port": 443, "count": 3}])
+    monkeypatch.setattr(agent, "outbound", lambda tables: [{"ip": "127.0.0.2", "port": listener[0], "count": 1}, {"ip": "1.1.1.1", "port": 443, "count": 3},
+                                                           {"ip": "158.173.241.24", "port": 55794, "count": 1}, {"ip": "192.168.20.5", "port": 32400, "count": 1}])
     monkeypatch.setattr(agent, "container_pid", lambda vmid: 4242)
+    monkeypatch.setattr(agent, "container_namespaces", lambda vmid, init: [{"pid": 4242, "app": ""}])
     calls = []
 
     def proxy(request, timeout=75):
@@ -391,6 +393,8 @@ def test_learned_connections_are_checked_from_the_container_and_expire(env, monk
     rows = {row["host"]: row for row in admin.post("/api/monitoring/check", headers=H).get_json()["connections"]}
     assert rows["1.1.1.1"]["label"] == "Geleerd · internet" and rows["127.0.0.2"]["label"] == "Geleerd · intern"
     assert rows["1.1.1.1"]["source"] == "remvebg" and rows["1.1.1.1"]["via"] == "bron (pve-amd/137)" and rows["1.1.1.1"]["ok"] is True
+    assert "158.173.241.24" not in rows, "public high port = peer (BitTorrent), not a dependency"
+    assert "192.168.20.5" in rows, "internal high ports (e.g. Plex 32400) are kept"
     assert calls.count("net.connections") == 1
     monitor = admin.application.extensions["controldeck_monitor"]
     monkeypatch.setattr(monitoring.time, "time", lambda: 10**10)
@@ -404,7 +408,7 @@ def test_learning_failure_on_a_node_keeps_previous_list(env, monkeypatch):
     monkeypatch.setattr(monitoring, "enrolled_nodes", lambda: {"pve-amd"})
     monkeypatch.setattr(monitoring, "guests", lambda data_dir: {137: {"vmid": 137, "node": "pve-amd", "type": "lxc", "status": "running", "name": "remvebg"}})
     monkeypatch.setattr(monitoring, "probe_all", lambda connections, placement: {})
-    answers = [{"ok": True, "data": {"ok": True, "data": {"containers": {"137": [{"ip": "8.8.8.8", "port": 53}]}}}},
+    answers = [{"ok": True, "data": {"ok": True, "data": {"containers": {"137": [{"app": "", "endpoints": [{"ip": "8.8.8.8", "port": 53}]}]}}}},
                {"ok": False, "message": "De node antwoordde niet op tijd."}]
     monkeypatch.setattr(monitoring, "proxy_request", lambda request, timeout=75: answers.pop(0))
     monitor = client().application.extensions["controldeck_monitor"]
@@ -412,3 +416,48 @@ def test_learning_failure_on_a_node_keeps_previous_list(env, monkeypatch):
     monitor.check(force_discovery=True)
     with monitoring.database(monitor.path) as db:
         assert [row["host"] for row in monitor.connections(db)] == ["8.8.8.8"]
+
+
+def test_docker_app_namespaces_label_learned_connections_and_probe_from_that_app(env, monkeypatch):
+    """Apps in Docker inside an LXC have their own network: learn and probe per app, so 'qbittorrent'/'localhost' mean what Sonarr sees."""
+    client, _, holder = env
+    holder["vault"] = {"CONTROLDECK_MONITORING": json.dumps({"sources": {"sonarr": {"kind": "sonarr", "title": "Sonarr", "url": "http://192.168.20.137:8989", "allowHttp": True, "apiKey": "geheim", "vmid": 137, "app": "Sonarr"}}})}
+    FakeTransport.answers = {"/api/v3/downloadclient": [{"name": "qBittorrent", "fields": [{"name": "host", "value": "qbittorrent"}, {"name": "port", "value": 8080}]}]}
+    monkeypatch.setattr(monitoring, "enrolled_nodes", lambda: {"pve-amd"})
+    monkeypatch.setattr(monitoring, "guests", lambda data_dir: {137: {"vmid": 137, "node": "pve-amd", "type": "lxc", "status": "running", "name": "arrsuite"}})
+    monkeypatch.setattr(agent, "container_pid", lambda vmid: 1000)
+    monkeypatch.setattr(agent, "container_namespaces", lambda vmid, init: [{"pid": 1000, "app": ""}, {"pid": 2000, "app": "sonarr"}])
+    monkeypatch.setattr(agent, "outbound", lambda tables: [{"ip": "192.168.20.137", "port": 8080, "count": 1}])
+    monkeypatch.setattr(agent, "container_file", lambda pid, name, limit=65536: "")
+    used = []
+
+    def netns(pid, mode, data):
+        used.append(pid)
+        return {"results": [{"host": t["host"], "port": t["port"], "ok": True, "ip": "172.18.0.5", "ms": 1} for t in data["targets"]]}
+    monkeypatch.setattr(agent, "netns_run", netns)
+    monkeypatch.setattr(monitoring, "proxy_request", lambda request, timeout=75: {"ok": True, "data": agent.handle(request["action"], json.dumps(request["payload"]))})
+    rows = client().post("/api/monitoring/check", headers=H).get_json()["connections"]
+    sonarr = next(row for row in rows if row["source"] == "Sonarr")
+    assert sonarr["host"] == "qbittorrent" and sonarr["via"] == "bron (pve-amd/137/sonarr)" and sonarr["ok"] is True
+    assert {row["source"] for row in rows if row["origin"] == "learned"} == {"arrsuite", "arrsuite / sonarr"}
+    assert 2000 in used, "the Sonarr connection is probed from Sonarr's namespace"
+
+
+def test_agent_probe_app_boundary_and_failure(in_namespace, monkeypatch):
+    monkeypatch.setattr(agent, "container_namespaces", lambda vmid, init: [{"pid": 4242, "app": ""}, {"pid": 5000, "app": "sonarr"}])
+    assert probe({"vmid": 137, "app": "radarr", "targets": [{"host": "x.home", "port": 80}]})["error"] == "not_running"
+    assert probe({"vmid": 137, "app": "../etc", "targets": [{"host": "x.home", "port": 80}]})["error"] == "invalid_input"
+    assert probe({"vmid": 137, "app": 5, "targets": [{"host": "x.home", "port": 80}]})["error"] == "invalid_input"
+
+
+def test_docker_names_parses_only_valid_lines(monkeypatch):
+    output = "sonarr 4026536642\nqbittorrent 4026538083\nkapot\n../x 12\nradarr notanumber\n"
+    monkeypatch.setattr(agent.subprocess, "run", lambda *a, **k: Mock(stdout=output, returncode=0))
+    assert agent.docker_names(137) == {4026536642: "sonarr", 4026538083: "qbittorrent"}
+    monkeypatch.setattr(agent.subprocess, "run", Mock(side_effect=OSError))
+    assert agent.docker_names(137) == {}
+
+
+def test_source_app_requires_vmid():
+    with pytest.raises(monitoring.MonitorError):
+        monitoring.validate_sources({"sources": {"sonarr": {"kind": "sonarr", "url": "http://x:1", "allowHttp": True, "apiKey": "k", "app": "Sonarr"}}})

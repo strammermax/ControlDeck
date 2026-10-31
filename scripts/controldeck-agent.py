@@ -516,6 +516,71 @@ def container_pid(vmid):
     return int(value) if result.returncode == 0 and value.isdigit() else None
 
 
+APP = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,62}")
+# Process names that say nothing about the app (init systems, shells, supervisors).
+GENERIC_COMMS = {"bash", "sh", "ash", "dash", "sleep", "tini", "busybox", "docker-init", "dumb-init", "crond", "cron", "s6-svscan",
+                 "s6-supervise", "s6-linux-init-s", "s6-ipcserverd", "s6-rc", "nginx", "php-fpm", "systemd", "agetty"}
+
+
+def docker_names(vmid):
+    """{netns inode: container name} for Docker containers inside the LXC; empty without Docker."""
+    script = ('command -v docker >/dev/null 2>&1 || exit 0; for c in $(docker ps -q); do set -- $(docker inspect -f '
+              '"{{.Name}} {{.NetworkSettings.SandboxKey}}" "$c"); [ -n "$2" ] && [ -e "$2" ] && echo "${1#/} $(stat -Lc %i "$2")"; done')
+    try:
+        result = subprocess.run(["pct", "exec", str(vmid), "--", "sh", "-c", script], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    names = {}
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and APP.fullmatch(parts[0]) and parts[1].isdigit():
+            names[int(parts[1])] = parts[0]
+    return names
+
+
+def container_namespaces(vmid, init_pid):
+    """[{"pid", "app"}] per network namespace of the LXC: app "" for the LXC itself, else the Docker container name
+    (or the most telling process name)."""
+    groups = {}
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        try:
+            with open(f"/proc/{entry}/cgroup", encoding="utf-8", errors="replace") as handle:
+                cgroup = handle.read(4096)
+            if f"/lxc/{vmid}/" not in cgroup and not cgroup.rstrip().endswith(f"/lxc/{vmid}"):
+                continue
+            inode = os.stat(f"/proc/{entry}/ns/net").st_ino
+            with open(f"/proc/{entry}/comm", encoding="utf-8", errors="replace") as handle:
+                comm = handle.read(64).strip()
+        except OSError:
+            continue
+        group = groups.setdefault(inode, {"pid": int(entry), "comms": []})
+        group["comms"].append(comm)
+    try:
+        own = os.stat(f"/proc/{init_pid}/ns/net").st_ino
+    except OSError:
+        own = None
+    nested = [inode for inode in groups if inode != own]
+    names = docker_names(vmid) if nested else {}
+    result = [{"pid": init_pid, "app": ""}]
+    for inode in nested:
+        telling = sorted(c for c in groups[inode]["comms"] if c not in GENERIC_COMMS and not c.startswith("s6-"))
+        name = names.get(inode) or (telling[0] if telling else "")
+        if name and APP.fullmatch(name):
+            result.append({"pid": groups[inode]["pid"], "app": name.lower()})
+    return result
+
+
+def app_pid(vmid, init_pid, app):
+    if not app:
+        return init_pid
+    for namespace in container_namespaces(vmid, init_pid):
+        if namespace["app"] == app:
+            return namespace["pid"]
+    raise AgentError("not_running", f"App {app} draait niet in deze container.")
+
+
 def container_file(pid, name, limit=65536):
     try:
         with open(f"/proc/{pid}/root/etc/{name}", "rb") as handle:
@@ -670,7 +735,10 @@ def action_probe(payload):
                 or type(target.get("port")) is not int or not 1 <= target["port"] <= 65535:
             raise AgentError("invalid_input", "Ongeldig doel.")
         clean.append({"host": target["host"], "port": target["port"]})
-    pid = require_vmid(payload)
+    app = payload.get("app", "")
+    if not isinstance(app, str) or (app and not APP.fullmatch(app)):
+        raise AgentError("invalid_input", "Ongeldige appnaam.")
+    pid = app_pid(payload["vmid"], require_vmid(payload), app.lower())
     return netns_run(pid, "__probe", {"targets": clean, "hosts": container_file(pid, "hosts"), "resolv": container_file(pid, "resolv.conf")})
 
 
@@ -722,17 +790,20 @@ def action_connections(payload):
         raise AgentError("invalid_input", "Geef 1 tot 200 container-ID's.")
     result = {}
     for vmid in sorted(set(vmids)):
-        pid = container_pid(vmid)
-        if pid is None:
+        init = container_pid(vmid)
+        if init is None:
             continue
-        tables = []
-        for name in ("tcp", "tcp6"):
-            try:
-                with open(f"/proc/{pid}/net/{name}", encoding="ascii", errors="replace") as handle:
-                    tables.append(handle.read(4 * 1024 * 1024))
-            except OSError:
-                pass
-        result[str(vmid)] = outbound(tables)
+        apps = []
+        for namespace in container_namespaces(vmid, init)[:64]:
+            tables = []
+            for name in ("tcp", "tcp6"):
+                try:
+                    with open(f"/proc/{namespace['pid']}/net/{name}", encoding="ascii", errors="replace") as handle:
+                        tables.append(handle.read(4 * 1024 * 1024))
+                except OSError:
+                    pass
+            apps.append({"app": namespace["app"], "endpoints": outbound(tables)})
+        result[str(vmid)] = apps
     return {"containers": result}
 
 

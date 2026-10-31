@@ -40,11 +40,14 @@ ARR_KINDS = {"sonarr": "/api/v3", "radarr": "/api/v3", "lidarr": "/api/v1", "rea
 KINDS = set(ARR_KINDS) | {"cloudflared"}
 HOST = re.compile(r"(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62})(?:\.[A-Za-z0-9_-]{1,63})*\.?")
 SOURCE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
+APP = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,62}")
 CHECK_TIMEOUT = 3.0
 DISCOVERY_SECONDS = 600
 LEARN_SECONDS = 300
 LEARNED_TTL = 86400
 LEARNED_KEEP = 7 * 86400
+# Public destinations on high ports are peers (BitTorrent, Soulseek): they change constantly and are not a dependency.
+PEER_PORT_FROM = 10000
 INTERVAL_SECONDS = 60
 KEEP_EVENTS = 2000
 MAX_CONNECTIONS = 500
@@ -100,6 +103,8 @@ def validate_sources(value):
         vmid = source.get("vmid")
         if not isinstance(title, str) or not 1 <= len(title) <= 100 or (vmid is not None and (type(vmid) is not int or not 100 <= vmid <= 999999999)):
             raise MonitorError("Ongeldige monitoringbron.")
+        if "app" in source and (not isinstance(source["app"], str) or not APP.fullmatch(source["app"]) or vmid is None):
+            raise MonitorError("Ongeldige appnaam (alleen samen met een container-ID).")
         if source["kind"] in ARR_KINDS:
             if not isinstance(source.get("apiKey"), str) or not 1 <= len(source["apiKey"]) <= 200 or any(ord(c) < 33 for c in source["apiKey"]):
                 raise MonitorError("Toegangsgegevens ontbreken.")
@@ -219,24 +224,24 @@ def probe_all(connections, placement):
     for connection in connections:
         where = placement.get(connection["vmid"]) if connection.get("vmid") else None
         if where:
-            by_container.setdefault((where["node"], connection["vmid"]), []).append(connection)
+            by_container.setdefault((where["node"], connection["vmid"], connection.get("app") or ""), []).append(connection)
         else:
             central.append(connection)
 
     def container(key):
-        node, vmid = key
-        items = by_container[key]
+        node, vmid, app = key
+        items, via = by_container[key], f"bron ({node}/{vmid}{'/' + app if app else ''})"
         unique = sorted({(item["host"], item["port"]) for item in items})
         try:
             answers = []
             for start in range(0, len(unique), 64):
                 chunk = [{"host": host, "port": port} for host, port in unique[start:start + 64]]
-                answers += call_agent(node, "net.probe", {"vmid": vmid, "targets": chunk}).get("results", [])
+                answers += call_agent(node, "net.probe", {"vmid": vmid, "targets": chunk, **({"app": app} if app else {})}).get("results", [])
             by_target = {(a.get("host"), a.get("port")): a for a in answers if isinstance(a, dict)}
-            return {item["id"]: {**by_target.get((item["host"], item["port"]), {"ok": False, "error": "Geen antwoord van de agent."}), "via": f"bron ({node}/{vmid})"} for item in items}
+            return {item["id"]: {**by_target.get((item["host"], item["port"]), {"ok": False, "error": "Geen antwoord van de agent."}), "via": via} for item in items}
         except MonitorError as error:
             # The check itself failed: not the connection. Never report it as up or down.
-            return {item["id"]: {"ok": None, "error": f"Controle vanaf de bron mislukt: {error.message}", "via": f"bron ({node}/{vmid})"} for item in items}
+            return {item["id"]: {"ok": None, "error": f"Controle vanaf de bron mislukt: {error.message}", "via": via} for item in items}
 
     with ThreadPoolExecutor(max_workers=8) as pool:
         for answer in pool.map(container, list(by_container)):
@@ -261,8 +266,10 @@ def database(path):
         CREATE TABLE IF NOT EXISTS events (at REAL NOT NULL, id TEXT NOT NULL, ok INTEGER, error TEXT);
         CREATE TABLE IF NOT EXISTS discovered (id TEXT PRIMARY KEY, payload TEXT NOT NULL, at REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS learned (id TEXT PRIMARY KEY, vmid INTEGER NOT NULL, source TEXT NOT NULL, ip TEXT NOT NULL,
-            port INTEGER NOT NULL, first REAL NOT NULL, last REAL NOT NULL);
+            port INTEGER NOT NULL, first REAL NOT NULL, last REAL NOT NULL, app TEXT NOT NULL DEFAULT '');
     """)
+    if "app" not in {row[1] for row in db.execute("PRAGMA table_info(learned)")}:
+        db.execute("ALTER TABLE learned ADD COLUMN app TEXT NOT NULL DEFAULT ''")
     return db
 
 
@@ -309,7 +316,7 @@ class Monitor:
                 continue
             for item in items:
                 key = connection_id(identifier, source["title"], item["host"], item["port"])
-                found[key] = {"id": key, "origin": identifier, "source": source["title"], "vmid": source.get("vmid"), **item}
+                found[key] = {"id": key, "origin": identifier, "source": source["title"], "vmid": source.get("vmid"), "app": source.get("app", "").lower(), **item}
         with database(self.path) as db:
             failed = set(errors)
             keep = [row["id"] for row in db.execute("SELECT id, payload FROM discovered") if json.loads(row["payload"])["origin"] in failed]
@@ -334,16 +341,21 @@ class Monitor:
             answers = list(pool.map(node_call, list(by_node)))
         stamp, rows = time.time(), []
         for containers in answers:
-            for vmid_text, endpoints in containers.items():
+            for vmid_text, apps in containers.items():
                 vmid = int(vmid_text) if str(vmid_text).isdigit() else None
-                if vmid not in placement or not isinstance(endpoints, list):
+                if vmid not in placement or not isinstance(apps, list):
                     continue
-                for endpoint in endpoints[:200]:
-                    found = target(str(endpoint.get("ip", "")), endpoint.get("port")) if isinstance(endpoint, dict) else None
-                    if found:
-                        rows.append((connection_id("learned", str(vmid), *found), vmid, placement[vmid].get("name") or str(vmid), found[0], found[1], stamp, stamp))
+                guest = placement[vmid].get("name") or str(vmid)
+                for namespace in apps[:64]:
+                    app = namespace.get("app", "") if isinstance(namespace, dict) else None
+                    if not isinstance(app, str) or (app and not APP.fullmatch(app)) or not isinstance(namespace.get("endpoints"), list):
+                        continue
+                    for endpoint in namespace["endpoints"][:200]:
+                        found = target(str(endpoint.get("ip", "")), endpoint.get("port")) if isinstance(endpoint, dict) else None
+                        if found and not (found[1] >= PEER_PORT_FROM and ipaddress.ip_address(found[0]).is_global):
+                            rows.append((connection_id("learned", f"{vmid}/{app}", *found), vmid, f"{guest} / {app}" if app else guest, found[0], found[1], stamp, stamp, app))
         with database(self.path) as db:
-            db.executemany("INSERT INTO learned VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET last=excluded.last, source=excluded.source", rows)
+            db.executemany("INSERT INTO learned (id, vmid, source, ip, port, first, last, app) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET last=excluded.last, source=excluded.source", rows)
             old = [row["id"] for row in db.execute("SELECT id FROM learned WHERE last < ?", (stamp - LEARNED_KEEP,))]
             for identifier in old:
                 db.execute("DELETE FROM learned WHERE id=?", (identifier,))
@@ -354,7 +366,7 @@ class Monitor:
         rows = [{"id": row["id"], "origin": "manual", "source": row["source"], "vmid": row["vmid"], "host": row["host"], "port": row["port"], "label": row["label"]}
                 for row in db.execute("SELECT * FROM manual ORDER BY created")]
         rows += [json.loads(row["payload"]) for row in db.execute("SELECT payload FROM discovered")]
-        rows += [{"id": row["id"], "origin": "learned", "source": row["source"], "vmid": row["vmid"], "host": row["ip"], "port": row["port"],
+        rows += [{"id": row["id"], "origin": "learned", "source": row["source"], "vmid": row["vmid"], "app": row["app"], "host": row["ip"], "port": row["port"],
                   "label": "Geleerd · " + ("intern" if ipaddress.ip_address(row["ip"]).is_private else "internet"), "lastSeen": row["last"]}
                  for row in db.execute("SELECT * FROM learned WHERE last >= ? ORDER BY source, ip, port", (time.time() - LEARNED_TTL,))]
         return rows[:MAX_CONNECTIONS]
