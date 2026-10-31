@@ -40,7 +40,8 @@ from backend.vault import VaultError
 from backend.widgets.transport import ProviderError, Transport
 
 ARR_KINDS = {"sonarr": "/api/v3", "radarr": "/api/v3", "lidarr": "/api/v1", "readarr": "/api/v1", "prowlarr": "/api/v1"}
-KINDS = set(ARR_KINDS) | {"cloudflared"}
+APP_KINDS = {"sabnzbd", "seerr", "bazarr"}  # other apps whose API lists the services they connect to
+KINDS = set(ARR_KINDS) | APP_KINDS | {"cloudflared"}
 HOST = re.compile(r"(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62})(?:\.[A-Za-z0-9_-]{1,63})*\.?")
 SOURCE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 APP = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,62}")
@@ -114,7 +115,7 @@ def validate_sources(value):
             raise MonitorError("Ongeldige monitoringbron.")
         if "app" in source and (not isinstance(source["app"], str) or not APP.fullmatch(source["app"]) or vmid is None):
             raise MonitorError("Ongeldige appnaam (alleen samen met een container-ID).")
-        if source["kind"] in ARR_KINDS:
+        if source["kind"] in ARR_KINDS or source["kind"] in APP_KINDS:
             if not isinstance(source.get("apiKey"), str) or not 1 <= len(source["apiKey"]) <= 200 or any(ord(c) < 33 for c in source["apiKey"]):
                 raise MonitorError("Toegangsgegevens ontbreken.")
             try:
@@ -159,6 +160,49 @@ def discover_arr(source):
                     url_target(values.get("baseUrl") if source["kind"] == "prowlarr" or label == "Indexer" else "")
                 if found_target:
                     found.append({"host": found_target[0], "port": found_target[1], "label": f"{label}: {str(item.get('name', ''))[:80]}"})
+    finally:
+        transport.close()
+    return found
+
+
+def discover_app(source):
+    """SABnzbd: its Usenet servers. Seerr: its Radarr/Sonarr and Plex/Jellyfin settings. Bazarr: its Sonarr/Radarr settings."""
+    transport = Transport({"url": source["url"], "allowHttp": source.get("allowHttp") is True})
+    found = []
+
+    def add(host, port, label, ssl=False):
+        port = int(port) if str(port).isdigit() else (443 if ssl else None)
+        found_target = target(str(host or ""), port) if port else None
+        if found_target:
+            found.append({"host": found_target[0], "port": found_target[1], "label": label[:120]})
+
+    try:
+        if source["kind"] == "sabnzbd":
+            # The key goes in the query string (SABnzbd's API has no header auth); it never leaves the server.
+            data = transport.call(f"/api?mode=get_config&section=servers&output=json&apikey={source['apiKey']}")
+            for server in ((data or {}).get("config") or {}).get("servers") or [] if isinstance(data, dict) else []:
+                if isinstance(server, dict) and str(server.get("enable", 1)) not in ("0", "False", "false"):
+                    add(server.get("host"), server.get("port"), f"Usenet-server: {server.get('displayname') or server.get('name') or server.get('host')}")
+        elif source["kind"] == "seerr":
+            headers = {"X-Api-Key": source["apiKey"]}
+            for kind in ("radarr", "sonarr"):
+                for item in transport.call(f"/api/v1/settings/{kind}", headers=headers) or []:
+                    if isinstance(item, dict):
+                        add(item.get("hostname"), item.get("port"), f"{kind.capitalize()}: {item.get('name') or item.get('hostname')}")
+            for kind in ("plex", "jellyfin"):
+                try:
+                    item = transport.call(f"/api/v1/settings/{kind}", headers=headers)
+                except ProviderError:
+                    continue
+                if isinstance(item, dict):
+                    add(item.get("ip") or item.get("hostname"), item.get("port"), f"{kind.capitalize()}: {item.get('name') or ''}".rstrip(": "), item.get("useSsl") is True)
+        elif source["kind"] == "bazarr":
+            settings = transport.call("/api/system/settings", headers={"X-API-KEY": source["apiKey"]})
+            general = (settings or {}).get("general") or {} if isinstance(settings, dict) else {}
+            for kind in ("sonarr", "radarr"):
+                item = settings.get(kind) if isinstance(settings, dict) else None
+                if isinstance(item, dict) and general.get(f"use_{kind}", True) is not False:
+                    add(item.get("ip"), item.get("port"), kind.capitalize(), item.get("ssl") is True)
     finally:
         transport.close()
     return found
@@ -526,7 +570,7 @@ class Monitor:
                         raise MonitorError("De tunnelcontainer draait niet op een gekoppelde node.", 502)
                     items = discover_tunnel(source, where["node"])
                 else:
-                    items = discover_arr(source)
+                    items = discover_arr(source) if source["kind"] in ARR_KINDS else discover_app(source)
             except (MonitorError, ProviderError) as error:
                 errors[identifier] = getattr(error, "message", None) or str(error)
                 continue

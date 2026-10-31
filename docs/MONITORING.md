@@ -14,7 +14,7 @@ Een verbinding is `bron-app → host:poort`, met een omschrijving. Er zijn twee 
 
 | Soort | Bron | Opslag |
 | --- | --- | --- |
-| Ontdekt | *arr-apps: downloadclients en indexers (Sonarr/Radarr/Lidarr/Readarr), downloadclients en gekoppelde apps (Prowlarr), via hun eigen API. Cloudflare-tunnel: alle ingangen (`hostname → service`) uit de lokale cloudflared-config. | Elke 10 minuten opnieuw ontdekt; opgeslagen in SQLite |
+| Ontdekt | SABnzbd: Usenet-servers. Seerr: Radarr, Sonarr en Plex/Jellyfin. Bazarr: Sonarr en Radarr. *arr-apps: downloadclients en indexers (Sonarr/Radarr/Lidarr/Readarr), downloadclients en gekoppelde apps (Prowlarr), via hun eigen API. Cloudflare-tunnel: alle ingangen (`hostname → service`) uit de lokale cloudflared-config. | Elke 10 minuten opnieuw ontdekt; opgeslagen in SQLite |
 | Gezien ("geleerd") | Elke 5 minuten leest de agent per draaiende LXC op een gekoppelde node de open, zelf gestarte TCP-verbindingen (`/proc/<pid>/net/tcp` en `tcp6` van de container; inkomende verbindingen op een luisterpoort en loopback tellen niet). Zo verschijnen ook alle internetverbindingen, bijv. removesky → `api.open-meteo.com`. | SQLite, per bestemming eerste en laatste keer gezien |
 | Handmatig | Toegevoegd op de pagina, bijv. Home Assistant → `192.168.1.96:6638`, of een internetdienst op hostnaam | SQLite |
 
@@ -100,7 +100,7 @@ Hostnamen en poorten worden in de agent opnieuw gevalideerd; onbekende velden wo
 }
 ```
 
-- `kind`: `sonarr`, `radarr`, `lidarr`, `readarr`, `prowlarr` of `cloudflared`.
+- `kind`: `sonarr`, `radarr`, `lidarr`, `readarr`, `prowlarr`, `sabnzbd` (Usenet-servers), `seerr` (Radarr/Sonarr/Plex/Jellyfin-instellingen), `bazarr` (Sonarr/Radarr-instellingen) of `cloudflared`. De SABnzbd-API kent geen aanmelding via een header; de sleutel gaat daar in de query-string, maar alleen van server naar server en nooit naar de browser.
 - `vmid` (optioneel bij *arr, verplicht bij `cloudflared`): de container waarin de app draait. Daarvandaan wordt getest.
 - `app` (optioneel, alleen met `vmid`): de Docker-container binnen de LXC van waaruit getest wordt.
 - `url` en `apiKey` voor *arr: de app zelf, zoals bij de servicewidgets. Een API-sleutel is alleen-lezen nodig; hij komt nooit in de browser of in de API-antwoorden.
