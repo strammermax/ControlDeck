@@ -330,8 +330,19 @@ def send_mail(settings, subject, body):
                 smtp.starttls()
                 smtp.ehlo("controldeck")
             smtp.send_message(message)
+    except smtplib.SMTPRecipientsRefused as error:
+        code, reply = next(iter(error.recipients.values()), (0, b""))
+        raise MonitorError(f"Mail versturen mislukt: de gateway weigert de ontvanger ({code} {smtp_text(reply)}).", 502) from None
+    except smtplib.SMTPResponseException as error:
+        raise MonitorError(f"Mail versturen mislukt: {error.smtp_code} {smtp_text(error.smtp_error)}.", 502) from None
     except (OSError, smtplib.SMTPException) as error:
         raise MonitorError(f"Mail versturen mislukt: {type(error).__name__}.", 502) from None
+
+
+def smtp_text(reply):
+    """The relay's reply text, bounded and printable (it can contain addresses, never credentials: no AUTH is used)."""
+    text = reply.decode("utf-8", errors="replace") if isinstance(reply, bytes) else str(reply)
+    return "".join(c for c in text if c.isprintable())[:160]
 
 
 def describe(row):

@@ -189,3 +189,18 @@ def test_access_settings_are_manager_only_and_need_csrf(env):
     assert viewer.post("/api/monitoring/notifications/test", headers=H).status_code == 403
     assert client().put("/api/monitoring/notifications", json=SETTINGS).status_code == 403
     assert client().get("/api/monitoring/notifications").get_json()["enabled"] is False, "nothing saved"
+
+
+def test_relay_refusal_reason_is_shown(env, monkeypatch):
+    """Regression: a refused recipient showed only 'SMTPRecipientsRefused', hiding that the relay said
+    'Relay access denied' (ControlDeck's VLAN not in the relay's trusted networks)."""
+    client, _, _ = env
+    admin = client()
+    admin.put("/api/monitoring/notifications", json=SETTINGS, headers=H)
+
+    def refuse(self, message):
+        raise smtplib.SMTPRecipientsRefused({"beheer@example.test": (554, b"5.7.1 <beheer@example.test>: Relay access denied")})
+    monkeypatch.setattr(FakeSMTP, "send_message", refuse)
+    answer = admin.post("/api/monitoring/notifications/test", headers=H)
+    assert answer.status_code == 502
+    assert answer.get_json()["error"] == "Mail versturen mislukt: de gateway weigert de ontvanger (554 5.7.1 <beheer@example.test>: Relay access denied)."
