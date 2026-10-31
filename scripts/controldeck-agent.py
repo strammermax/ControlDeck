@@ -27,7 +27,7 @@ import tempfile
 import time
 from pathlib import Path
 
-AGENT_VERSION = 3
+AGENT_VERSION = 4
 MAX_INPUT = 64 * 1024
 MAX_OUTPUT_PER_RUN = 256 * 1024
 KEEP_RUNS = 20
@@ -548,6 +548,28 @@ def docker_names(vmid):
     return docker_info(vmid)[0]
 
 
+PUBLISHED = re.compile(r"(?:^|,\s*)(?:0\.0\.0\.0|\[::\]|::|[0-9.]+)?:(\d{1,5})->\d{1,5}/tcp")
+
+
+def docker_ports(vmid):
+    """{published TCP port on the LXC: container name}, e.g. {8383: "spottarr"}: lets ControlDeck name
+    "arrsuite:8383" after the app behind it. Empty without Docker."""
+    script = 'command -v docker >/dev/null 2>&1 || exit 0; docker ps --format "{{.Names}}|{{.Ports}}"'
+    try:
+        result = subprocess.run(["pct", "exec", str(vmid), "--", "sh", "-c", script], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    ports = {}
+    for line in result.stdout.splitlines()[:200]:
+        name, _, published = line.partition("|")
+        if APP.fullmatch(name):
+            for match in PUBLISHED.finditer(published):
+                port = int(match.group(1))
+                if 1 <= port <= 65535:
+                    ports.setdefault(port, name)
+    return ports
+
+
 def container_namespaces(vmid, init_pid):
     """[{"pid", "app"}] per network namespace of the LXC: app "" for the LXC itself, else the Docker container name
     (or the most telling process name)."""
@@ -798,7 +820,7 @@ def action_connections(payload):
     vmids = payload.get("vmids")
     if not isinstance(vmids, list) or not 1 <= len(vmids) <= 200 or any(type(v) is not int or not 100 <= v <= 999999999 for v in vmids):
         raise AgentError("invalid_input", "Geef 1 tot 200 container-ID's.")
-    result, names = {}, {}
+    result, names, ports = {}, {}, {}
     for vmid in sorted(set(vmids)):
         init = container_pid(vmid)
         if init is None:
@@ -806,6 +828,9 @@ def action_connections(payload):
         addresses = docker_info(vmid)[1]
         if addresses:
             names[str(vmid)] = addresses
+            published = docker_ports(vmid)
+            if published:
+                ports[str(vmid)] = {str(port): name for port, name in published.items()}
         apps = []
         for namespace in container_namespaces(vmid, init)[:64]:
             tables = []
@@ -817,7 +842,7 @@ def action_connections(payload):
                     pass
             apps.append({"app": namespace["app"], "endpoints": outbound(tables)})
         result[str(vmid)] = apps
-    return {"containers": result, "names": names}
+    return {"containers": result, "names": names, "ports": ports}
 
 
 # --- actions --------------------------------------------------------------------------------------------

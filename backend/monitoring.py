@@ -209,7 +209,7 @@ def guests(data_dir):
 
 
 def guest_addresses(data_dir):
-    """{IP: guest name} for every LXC from its Proxmox config (net*: ip=...). An own lookup table, because the
+    """{IP: (guest name, vmid)} for every LXC from its Proxmox config (net*: ip=...). An own lookup table, because the
     LAN's DNS answers name → IP but often not IP → name. Empty when Proxmox is unavailable."""
     try:
         connection = json.loads((Path(data_dir) / "proxmox/connection.json").read_text(encoding="utf-8"))
@@ -226,7 +226,7 @@ def guest_addresses(data_dir):
         except (ProxmoxError, ValueError, TypeError, KeyError):
             continue
         if address:
-            table[address] = guest["name"]
+            table[address] = (guest["name"], guest["vmid"])
     return table
 
 
@@ -444,7 +444,7 @@ class Monitor:
         self.app, self.data_dir, self.path = app, data_dir, Path(data_dir) / "monitoring.sqlite3"
         self.lock, self.discovered_at, self.learned_at, self.source_errors = threading.Lock(), 0.0, 0.0, {}
         self.notify_error, self.names = None, {}
-        self.guest_table, self.guest_table_at = {}, 0.0
+        self.guest_table, self.guest_table_at, self.ports = {}, 0.0, {}
 
     def placement(self):
         nodes, inventory = enrolled_nodes(), guests(self.data_dir)
@@ -498,6 +498,10 @@ class Monitor:
             for vmid_text, addresses in (answer.get("names") or {}).items() if isinstance(answer.get("names"), dict) else []:
                 if str(vmid_text).isdigit() and isinstance(addresses, dict):
                     docker[int(vmid_text)] = {ip: str(name)[:63] for ip, name in list(addresses.items())[:500] if isinstance(name, str) and APP.fullmatch(name)}
+            for vmid_text, published in (answer.get("ports") or {}).items() if isinstance(answer.get("ports"), dict) else []:
+                if str(vmid_text).isdigit() and isinstance(published, dict):
+                    self.ports[int(vmid_text)] = {int(port): str(name)[:63] for port, name in list(published.items())[:500]
+                                                  if str(port).isdigit() and isinstance(name, str) and APP.fullmatch(name)}
         for answer in answers:
             containers = answer.get("containers") or {}
             for vmid_text, apps in containers.items():
@@ -514,20 +518,31 @@ class Monitor:
                         if found and not (found[1] >= PEER_PORT_FROM and ipaddress.ip_address(found[0]).is_global):
                             rows.append([connection_id("learned", f"{vmid}/{app}", *found), vmid, f"{guest} / {app}" if app else guest, found[0], found[1], stamp, stamp, app,
                                          docker.get(vmid, {}).get(found[0], "")])
-        # Earlier-seen destinations without a name get one too, not only what is open right now.
-        with database(self.path) as db:
-            unnamed = [(row["id"], row["vmid"], row["ip"]) for row in db.execute(
-                "SELECT id, vmid, ip FROM learned WHERE name='' AND last >= ?", (stamp - LEARNED_TTL,))]
+        # Earlier-seen destinations without a name get one too, not only what is open right now. A guest address
+        # named after the guest only ("arrsuite") is upgraded once its port is known ("arrsuite / spottarr").
         if time.time() - self.guest_table_at > NAME_TTL or not self.guest_table:
             self.guest_table, self.guest_table_at = guest_addresses(self.data_dir), time.time()
-        wanted = {row[3] for row in rows if not row[8]} | {ip for _, vmid, ip in unnamed if ip not in docker.get(vmid, {})}
-        names = {ip: self.guest_table[ip] for ip in wanted if ip in self.guest_table}
-        names.update(resolve_names(sorted(wanted - set(names)), self.names))
-        for row in rows:
-            row[8] = row[8] or names.get(row[3], "")
+
+        def guest_name(ip, port):
+            guest = self.guest_table.get(ip)
+            if not guest:
+                return ""
+            app = self.ports.get(guest[1], {}).get(port)
+            return f"{guest[0]} / {app}" if app else guest[0]
+
         with database(self.path) as db:
-            db.executemany("UPDATE learned SET name=? WHERE id=? AND name=''",
-                           [(docker.get(vmid, {}).get(ip) or names.get(ip, ""), identifier) for identifier, vmid, ip in unnamed])
+            unnamed = [(row["id"], row["vmid"], row["ip"], row["port"], row["name"]) for row in db.execute(
+                "SELECT id, vmid, ip, port, name FROM learned WHERE last >= ?", (stamp - LEARNED_TTL,))
+                if not row["name"] or (row["ip"] in self.guest_table and " / " not in row["name"])]
+        wanted = {row[3] for row in rows if not row[8] and row[3] not in self.guest_table} | \
+                 {ip for _, vmid, ip, _, _ in unnamed if ip not in docker.get(vmid, {}) and ip not in self.guest_table}
+        names = resolve_names(sorted(wanted), self.names)
+        for row in rows:
+            row[8] = row[8] or guest_name(row[3], row[4]) or names.get(row[3], "")
+        with database(self.path) as db:
+            db.executemany("UPDATE learned SET name=? WHERE id=? AND ?!=''",
+                           [(name, identifier, name) for identifier, vmid, ip, port, current in unnamed
+                            for name in [docker.get(vmid, {}).get(ip) or guest_name(ip, port) or names.get(ip, "") or current]])
             db.executemany("INSERT INTO learned (id, vmid, source, ip, port, first, last, app, name) VALUES (?,?,?,?,?,?,?,?,?) "
                            "ON CONFLICT(id) DO UPDATE SET last=excluded.last, source=excluded.source, "
                            "name=CASE WHEN excluded.name != '' THEN excluded.name ELSE learned.name END", rows)

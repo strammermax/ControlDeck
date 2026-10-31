@@ -369,7 +369,7 @@ def test_agent_connections_failure_rejects_invalid_vmids(vmids):
 
 def test_agent_connections_skips_stopped_containers(monkeypatch, tmp_path):
     monkeypatch.setattr(agent, "container_pid", lambda vmid: None)
-    assert agent.handle("net.connections", json.dumps({"vmids": [137]}))["data"] == {"containers": {}, "names": {}}
+    assert agent.handle("net.connections", json.dumps({"vmids": [137]}))["data"] == {"containers": {}, "names": {}, "ports": {}}
 
 
 def test_learned_connections_are_checked_from_the_container_and_expire(env, monkeypatch, in_namespace, listener):

@@ -21,7 +21,7 @@ Een verbinding is `bron-app → host:poort`, met een omschrijving. Er zijn twee 
 **Namen bij IP-adressen.** Een geleerde bestemming krijgt een leesbare naam, in deze volgorde:
 
 1. **Docker-naam:** de agent vraagt per LXC aan Docker welk IP bij welke container hoort (`172.18.0.8` → `qbittorrent`). Dit is exact.
-2. **Eigen opzoektabel IP → gast:** uit de Proxmox-config van elke LXC (`net*: ip=…`), een dag geldig (`192.168.20.137` → `arrsuite`). Nodig omdat de LAN-DNS wel naam → IP beantwoordt, maar vaak niet IP → naam.
+2. **Eigen opzoektabel IP → gast (+ poort → app):** uit de Proxmox-config van elke LXC (`net*: ip=…`), een dag geldig (`192.168.20.137` → `arrsuite`). Staat er op die gast een Docker-container met die poort gepubliceerd (live uit `docker ps`, via de agent), dan krijgt de bestemming de app-naam erbij: `192.168.20.137:8383` → `arrsuite / spottarr`. Nodig omdat de LAN-DNS wel naam → IP beantwoordt, maar vaak niet IP → naam.
 3. **Reverse DNS** vanaf ControlDeck: voor het LAN levert OPNsense de `.home`-namen (`192.168.20.137` → `arrsuite.home`), voor internet de PTR-naam als die er is.
 4. **CDN-label:** adressen in de gepubliceerde Cloudflare-reeksen heten "Cloudflare (CDN)". Reverse DNS zegt daar niets over de dienst erachter.
 
@@ -76,7 +76,7 @@ Drie nieuwe acties, alleen-lezen en daarom niet in het agent-auditlog (agentvers
 | Actie | Doet | Invoer |
 | --- | --- | --- |
 | `net.probe` | Per doel: naam oplossen en TCP verbinden vanuit de container, of vanuit een Docker-app daarin | `vmid`, optioneel `app`, `targets` (1-64 × `{host, port}`) |
-| `net.connections` | Open uitgaande TCP-verbindingen per container en per Docker-app daarin (bestemming, poort, aantal), maximaal 200 per namespace; plus `names`: Docker-IP → containernaam per LXC (agent v3) | `vmids` (1-200) |
+| `net.connections` | Open uitgaande TCP-verbindingen per container en per Docker-app daarin (bestemming, poort, aantal), maximaal 200 per namespace; plus `names`: Docker-IP → containernaam en `ports`: gepubliceerde TCP-poort → containernaam per LXC (agent v4) | `vmids` (1-200) |
 | `net.tunnel` | Ingangen van cloudflared (`/config` op `127.0.0.1:20241-20245`, alleen `hostname` en `service`) | `vmid` |
 
 Hostnamen en poorten worden in de agent opnieuw gevalideerd; onbekende velden worden geweigerd. De interne modi `__probe` en `__tunnel` start de agent alleen zelf, via `nsenter`, zonder `SSH_ORIGINAL_COMMAND`. Over SSH zijn het geen geldige acties.

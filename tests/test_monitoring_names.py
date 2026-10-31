@@ -121,7 +121,7 @@ def test_lan_ip_named_from_proxmox_guest_table_when_reverse_dns_has_no_answer(en
     """Regression: 192.168.20.137 stayed nameless because OPNsense resolves arrsuite.home → IP but not IP → name.
     The guest table from the Proxmox LXC configs fills that in before reverse DNS."""
     client, monitor = env
-    monkeypatch.setattr(monitoring, "guest_addresses", lambda data_dir: {"192.168.20.137": "arrsuite"})
+    monkeypatch.setattr(monitoring, "guest_addresses", lambda data_dir: {"192.168.20.137": ("arrsuite", 137)})
     lookups = []
     monkeypatch.setattr(monitoring.socket, "gethostbyaddr", lambda ip: lookups.append(ip) or (_ for _ in ()).throw(socket.herror()))
     monkeypatch.setattr(monitoring, "proxy_request", lambda request, timeout=75: answer({}, [{"ip": "192.168.20.137", "port": 8383}, {"ip": "10.1.1.1", "port": 22}]))
@@ -147,5 +147,34 @@ def test_guest_addresses_reads_lxc_configs_and_survives_proxmox_errors(tmp_path,
                 return {"net0": "name=eth0,bridge=vmbr0,ip=192.168.20.137/24,gw=192.168.20.1"}
             raise monitoring.ProxmoxError("geen toegang")
     monkeypatch.setattr(monitoring, "ProxmoxClient", Client)
-    assert monitoring.guest_addresses(tmp_path) == {"192.168.20.137": "arrsuite"}
+    assert monitoring.guest_addresses(tmp_path) == {"192.168.20.137": ("arrsuite", 137)}
     assert monitoring.guest_addresses(tmp_path / "bestaat-niet") == {}
+
+
+def test_docker_ports_parses_published_tcp_ports(monkeypatch):
+    output = ("spottarr|0.0.0.0:8383->8383/tcp, [::]:8383->8383/tcp\nqbittorrent|0.0.0.0:6881->6881/tcp, 0.0.0.0:6881->6881/udp, 0.0.0.0:8080->8080/tcp\n"
+              "sabnzbd|0.0.0.0:8081->8080/tcp\nmariadb|3306/tcp\n../x|0.0.0.0:1->1/tcp\nkapot\n")
+    monkeypatch.setattr(agent.subprocess, "run", lambda *a, **k: Mock(stdout=output, returncode=0))
+    assert agent.docker_ports(137) == {8383: "spottarr", 6881: "qbittorrent", 8080: "qbittorrent", 8081: "sabnzbd"}
+    monkeypatch.setattr(agent.subprocess, "run", Mock(side_effect=OSError))
+    assert agent.docker_ports(137) == {}
+
+
+def test_guest_ip_plus_published_port_names_the_app_and_upgrades_guest_only_name(env, monkeypatch):
+    """192.168.20.137:8383 is spottarr (published port 8383 on arrsuite). A row already named "arrsuite" is upgraded;
+    a port without a published app keeps the guest name."""
+    client, monitor = env
+    monkeypatch.setattr(monitoring, "guest_addresses", lambda data_dir: {"192.168.20.137": ("arrsuite", 137)})
+    monkeypatch.setattr(monitoring.socket, "gethostbyaddr", Mock(side_effect=socket.herror))
+    endpoints = [{"ip": "192.168.20.137", "port": 8383}, {"ip": "192.168.20.137", "port": 22}]
+    monkeypatch.setattr(monitoring, "proxy_request", lambda request, timeout=75: answer({}, endpoints))
+    monitor.check(force_discovery=True)
+    assert {row["port"]: row["name"] for row in client.get("/api/monitoring").get_json()["connections"]} == {8383: "arrsuite", 22: "arrsuite"}
+
+    def with_ports(request, timeout=75):
+        data = answer({}, endpoints)
+        data["data"]["data"]["ports"] = {"137": {"8383": "spottarr", "x": "y", "1": "../x"}}
+        return data
+    monkeypatch.setattr(monitoring, "proxy_request", with_ports)
+    monitor.check(force_discovery=True)
+    assert {row["port"]: row["name"] for row in client.get("/api/monitoring").get_json()["connections"]} == {8383: "arrsuite / spottarr", 22: "arrsuite"}
