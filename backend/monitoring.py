@@ -16,13 +16,16 @@ container's own DNS are part of the test. Everything else is checked from Contro
 import hashlib
 import ipaddress
 import json
+import os
 import re
+import smtplib
 import socket
 import sqlite3
 import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from email.message import EmailMessage
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -267,6 +270,8 @@ def database(path):
         CREATE TABLE IF NOT EXISTS discovered (id TEXT PRIMARY KEY, payload TEXT NOT NULL, at REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS learned (id TEXT PRIMARY KEY, vmid INTEGER NOT NULL, source TEXT NOT NULL, ip TEXT NOT NULL,
             port INTEGER NOT NULL, first REAL NOT NULL, last REAL NOT NULL, app TEXT NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS alerts (id TEXT PRIMARY KEY, notified REAL NOT NULL);
     """)
     if "app" not in {row[1] for row in db.execute("PRAGMA table_info(learned)")}:
         db.execute("ALTER TABLE learned ADD COLUMN app TEXT NOT NULL DEFAULT ''")
@@ -286,12 +291,80 @@ def record(db, results, stamp):
     db.execute("DELETE FROM events WHERE rowid NOT IN (SELECT rowid FROM events ORDER BY at DESC LIMIT ?)", (KEEP_EVENTS,))
 
 
+# --- notifications (e-mail via the local SMTP relay) ------------------------------------------------------
+
+EMAIL = re.compile(r"[^\s@<>,;\"']{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}")
+NOTIFY_DEFAULTS = {"enabled": False, "recipients": [], "sender": "homelab@vanburik.info", "smtpHost": "192.168.20.1",
+                   "smtpPort": 25, "delayMinutes": 5, "learned": False}
+
+
+def validate_notify(value):
+    if not isinstance(value, dict) or set(value) - set(NOTIFY_DEFAULTS):
+        raise MonitorError("Ongeldige meldinginstellingen.")
+    settings = {**NOTIFY_DEFAULTS, **value}
+    recipients = settings["recipients"]
+    if not isinstance(recipients, list) or len(recipients) > 10 or any(not isinstance(r, str) or not EMAIL.fullmatch(r.strip()) for r in recipients):
+        raise MonitorError("Geef maximaal 10 geldige e-mailadressen.")
+    if not isinstance(settings["sender"], str) or not EMAIL.fullmatch(settings["sender"].strip()):
+        raise MonitorError("Ongeldig afzenderadres.")
+    if not valid_host(settings["smtpHost"]) or type(settings["smtpPort"]) is not int or not 1 <= settings["smtpPort"] <= 65535:
+        raise MonitorError("Ongeldige SMTP-gateway.")
+    if type(settings["delayMinutes"]) is not int or not 1 <= settings["delayMinutes"] <= 1440:
+        raise MonitorError("Wachttijd moet tussen 1 en 1440 minuten liggen.")
+    if not isinstance(settings["enabled"], bool) or not isinstance(settings["learned"], bool):
+        raise MonitorError("Ongeldige meldinginstellingen.")
+    if settings["enabled"] and not recipients:
+        raise MonitorError("Vul minstens één ontvanger in om meldingen aan te zetten.")
+    return {**settings, "recipients": [r.strip() for r in recipients], "sender": settings["sender"].strip()}
+
+
+def send_mail(settings, subject, body):
+    """Plain-text mail through the relay; STARTTLS when the relay offers it. Raises MonitorError on failure."""
+    message = EmailMessage()
+    message["From"], message["To"], message["Subject"] = settings["sender"], ", ".join(settings["recipients"]), subject
+    message.set_content(body)
+    try:
+        with smtplib.SMTP(settings["smtpHost"], settings["smtpPort"], timeout=15) as smtp:
+            smtp.ehlo("controldeck")
+            if smtp.has_extn("starttls"):
+                smtp.starttls()
+                smtp.ehlo("controldeck")
+            smtp.send_message(message)
+    except (OSError, smtplib.SMTPException) as error:
+        raise MonitorError(f"Mail versturen mislukt: {type(error).__name__}.", 502) from None
+
+
+def describe(row):
+    via = f", via {row['via']}" if row.get("via") else ""
+    label = f" ({row['label']})" if row.get("label") else ""
+    return f"{row['source']} → {row['host']}:{row['port']}{label}{via}"
+
+
+def alert_mail(down, recovered, now):
+    parts = ([f"{len(down)} onderbroken"] if down else []) + ([f"{len(recovered)} hersteld"] if recovered else [])
+    subject = "ControlDeck monitoring: " + ", ".join(parts)
+    lines = []
+    if down:
+        lines.append("Onderbroken:")
+        for row in down:
+            since = time.strftime("%d-%m %H:%M", time.localtime(row["since"]))
+            lines += [f"  ✗ {describe(row)}", f"    {row.get('error') or 'geen antwoord'} (sinds {since})"]
+        lines.append("")
+    if recovered:
+        lines += ["Hersteld:"] + [f"  ✓ {describe(row)}" for row in recovered] + [""]
+    base = os.environ.get("CONTROLDECK_BASE_URL", "").rstrip("/")
+    lines.append(f"Overzicht: {base}/#monitoring" if base else "Overzicht: ControlDeck → Monitoring")
+    lines.append(f"Gecontroleerd om {time.strftime('%d-%m-%Y %H:%M', time.localtime(now))}.")
+    return subject, "\n".join(lines)
+
+
 # --- service ----------------------------------------------------------------------------------------------
 
 class Monitor:
     def __init__(self, app, data_dir):
         self.app, self.data_dir, self.path = app, data_dir, Path(data_dir) / "monitoring.sqlite3"
         self.lock, self.discovered_at, self.learned_at, self.source_errors = threading.Lock(), 0.0, 0.0, {}
+        self.notify_error = None
 
     def placement(self):
         nodes, inventory = enrolled_nodes(), guests(self.data_dir)
@@ -362,6 +435,45 @@ class Monitor:
                 db.execute("DELETE FROM status WHERE id=?", (identifier,))
         self.learned_at = stamp
 
+    def notify_settings(self, db=None):
+        own = db is None
+        db = db or database(self.path)
+        try:
+            row = db.execute("SELECT value FROM settings WHERE key='notify'").fetchone()
+            return {**NOTIFY_DEFAULTS, **(json.loads(row["value"]) if row else {})}
+        finally:
+            if own:
+                db.close()
+
+    def notify(self, now):
+        """One mail per round: connections down for at least delayMinutes (not yet mailed) and mailed ones that recovered.
+        A failed send changes nothing, so the next round tries again."""
+        with database(self.path) as db:
+            settings = self.notify_settings(db)
+            if not settings["enabled"] or not settings["recipients"]:
+                return
+            status = {row["id"]: dict(row) for row in db.execute("SELECT * FROM status")}
+            alerted = {row["id"] for row in db.execute("SELECT id FROM alerts")}
+            rows = [{**item, **status[item["id"]]} for item in self.connections(db) if item["id"] in status]
+        known = {row["id"] for row in rows}
+        down = [row for row in rows if row["ok"] == 0 and row["id"] not in alerted and now - row["since"] >= settings["delayMinutes"] * 60
+                and (settings["learned"] or row["origin"] != "learned")]
+        recovered = [row for row in rows if row["ok"] == 1 and row["id"] in alerted]
+        with database(self.path) as db:
+            for identifier in alerted - known:
+                db.execute("DELETE FROM alerts WHERE id=?", (identifier,))
+        if not down and not recovered:
+            return
+        try:
+            send_mail(settings, *alert_mail(down, recovered, now))
+        except MonitorError as error:
+            self.notify_error = error.message
+            return
+        self.notify_error = None
+        with database(self.path) as db:
+            db.executemany("INSERT OR REPLACE INTO alerts VALUES (?,?)", [(row["id"], now) for row in down])
+            db.executemany("DELETE FROM alerts WHERE id=?", [(row["id"],) for row in recovered])
+
     def connections(self, db):
         rows = [{"id": row["id"], "origin": "manual", "source": row["source"], "vmid": row["vmid"], "host": row["host"], "port": row["port"], "label": row["label"]}
                 for row in db.execute("SELECT * FROM manual ORDER BY created")]
@@ -390,6 +502,7 @@ class Monitor:
             results = probe_all(connections, placement) if connections else {}
             with database(self.path) as db:
                 record(db, results, time.time())
+            self.notify(time.time())
 
     def overview(self):
         with database(self.path) as db:
@@ -469,6 +582,32 @@ def setup_monitoring(app, configuration_path, data_dir):
             monitor.check(force_discovery=True)
             return jsonify(monitor.overview())
         return answer(run)
+
+    @app.get("/api/monitoring/notifications")
+    def monitoring_notifications():
+        if not is_manager(g.account):
+            return jsonify(error="Beheerrechten vereist voor deze actie."), 403
+        return jsonify({**monitor.notify_settings(), "lastError": monitor.notify_error})
+
+    @app.put("/api/monitoring/notifications")
+    def monitoring_notifications_save():
+        def save():
+            settings = validate_notify(request.get_json(silent=True))
+            with database(monitor.path) as db:
+                db.execute("INSERT OR REPLACE INTO settings VALUES ('notify', ?)", (json.dumps(settings),))
+            return jsonify({**settings, "lastError": monitor.notify_error})
+        return answer(save)
+
+    @app.post("/api/monitoring/notifications/test")
+    def monitoring_notifications_test():
+        def test():
+            settings = monitor.notify_settings()
+            if not settings["recipients"]:
+                raise MonitorError("Vul eerst een ontvanger in en sla op.")
+            send_mail(settings, "ControlDeck monitoring: testmail", "Dit is een testmail van ControlDeck Monitoring.\n"
+                      "Komt hij aan, dan werken de meldingen via de SMTP-gateway.")
+            return jsonify(sent=True, recipients=settings["recipients"])
+        return answer(test)
 
     @app.post("/api/monitoring/connections")
     def monitoring_add():

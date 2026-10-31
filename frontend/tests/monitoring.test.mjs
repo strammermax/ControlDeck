@@ -47,3 +47,10 @@ test('scope / normaal, boundary and faal: private vs public addresses and names'
   for (const host of ['192.168.1.96', '10.0.0.1', '172.31.0.1', '100.64.0.1', 'arrsuite.home', 'qbittorrent', 'printer.local', 'fd00::1', 'localhost']) assert.equal(scope(host), 'intern', host);
   for (const host of ['1.1.1.1', '172.32.0.1', 'api.open-meteo.com', 'Removesky.Vanburik.Info.', '2606:4700::1111']) assert.equal(scope(host), 'internet', host);
 });
+test('parseRecipients / normaal, boundary and faal', async () => {
+  const { parseRecipients } = await import('../lib/monitoring.ts');
+  assert.deepEqual(parseRecipients('homelab@vanburik.info, beheer@example.test'), { recipients: ['homelab@vanburik.info', 'beheer@example.test'], invalid: [] });
+  assert.deepEqual(parseRecipients(' A@x.nl;\na@X.nl  '), { recipients: ['A@x.nl'], invalid: [] });
+  assert.deepEqual(parseRecipients(''), { recipients: [], invalid: [] });
+  assert.deepEqual(parseRecipients('geen-adres, x@y'), { recipients: [], invalid: ['geen-adres', 'x@y'] });
+});

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { connectionStatus, groupBySource, manualConnectionError, scope, sinceText, summarize, type MonitoringOverview } from "../lib/monitoring";
+import { connectionStatus, groupBySource, manualConnectionError, parseRecipients, scope, sinceText, summarize, type MonitoringOverview, type NotifySettings } from "../lib/monitoring";
 
 type Props = { isAdmin: boolean; csrfToken: string; refreshSeconds: number };
 
@@ -39,6 +39,7 @@ export function MonitoringPage({ isAdmin, csrfToken, refreshSeconds }: Props) {
     </div>
     {error && <p className="config-error" role="alert">{error}</p>}
     {data?.sourceErrors.map(item => <p key={item.source} className="config-error" role="alert">✗ Ontdekken via {item.source} mislukt: {item.error} De vorige lijst blijft staan.</p>)}
+    {isAdmin && <Notifications csrfToken={csrfToken}/>}
     {adding && <AddConnection csrfToken={csrfToken} onDone={() => { setAdding(false); void load(); }}/>}
     {!data ? <p role="status">Laden…</p> : data.connections.length === 0 ? <div className="proxmox-empty"><p>Nog geen verbindingen. Ze verschijnen na de eerste controleronde zodra bronnen in Infisical staan, of voeg er handmatig een toe.</p></div> :
       groups.length === 0 ? <p>Geen problemen. ✓</p> : groups.map(group => <div key={group.source} className="monitoring-group">
@@ -88,4 +89,39 @@ function AddConnection({ csrfToken, onDone }: { csrfToken: string; onDone: () =>
     {error && <p className="config-error" role="alert">{error}</p>}
     <div className="form-actions"><button type="submit" className="primary" disabled={saving}>{saving ? "Opslaan…" : "Opslaan"}</button><button type="button" onClick={onDone}>Annuleren</button></div>
   </fieldset></form>;
+}
+
+function Notifications({ csrfToken }: { csrfToken: string }) {
+  const [settings, setSettings] = useState<NotifySettings | null>(null);
+  const [recipients, setRecipients] = useState("");
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [busy, setBusy] = useState("");
+  useEffect(() => { api<NotifySettings>("/notifications", csrfToken).then(value => { setSettings(value); setRecipients(value.recipients.join(", ")); }).catch(failure => setMessage({ text: failure.message, ok: false })); }, [csrfToken]);
+  if (!settings) return message ? <p className="config-error" role="alert">{message.text}</p> : null;
+  const act = async (key: string, action: () => Promise<string>) => { setBusy(key); setMessage(null); try { setMessage({ text: await action(), ok: true }); } catch (failure) { setMessage({ text: failure instanceof Error ? failure.message : "Mislukt.", ok: false }); } finally { setBusy(""); } };
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    const parsed = parseRecipients(recipients);
+    if (parsed.invalid.length) { setMessage({ text: `Ongeldig e-mailadres: ${parsed.invalid.join(", ")}`, ok: false }); return; }
+    const { lastError: _ignored, ...body } = { ...settings, recipients: parsed.recipients };
+    void act("save", async () => { const value = await api<NotifySettings>("/notifications", csrfToken, "PUT", body); setSettings(value); return "Opgeslagen."; });
+  };
+  const set = (patch: Partial<NotifySettings>) => setSettings({ ...settings, ...patch });
+  return <details className="cron-timers monitoring-notify" open={!settings.enabled}><summary>Meldingen per e-mail {settings.enabled ? "· aan" : "· uit"}</summary>
+    <form className="cron-form monitoring-form" onSubmit={save}><fieldset>
+      <label className="checkbox"><input type="checkbox" checked={settings.enabled} onChange={event => set({ enabled: event.target.checked })}/> Mail sturen als een verbinding wegvalt en weer terugkomt</label>
+      <label>Ontvangers (gescheiden door komma&rsquo;s)<input value={recipients} onChange={event => setRecipients(event.target.value)} placeholder="homelab@vanburik.info"/></label>
+      <label>Afzender<input value={settings.sender} onChange={event => set({ sender: event.target.value })}/></label>
+      <label>Pas melden na (minuten onderbroken)<input type="number" min={1} max={1440} value={settings.delayMinutes} onChange={event => set({ delayMinutes: Number(event.target.value) })}/></label>
+      <label className="checkbox"><input type="checkbox" checked={settings.learned} onChange={event => set({ learned: event.target.checked })}/> Ook geleerde verbindingen (kan vals alarm geven bij wisselende internetadressen)</label>
+      <label>SMTP-gateway<input value={`${settings.smtpHost}:${settings.smtpPort}`} onChange={event => { const [host, port] = event.target.value.split(":"); set({ smtpHost: host ?? "", smtpPort: Number(port ?? 25) }); }}/></label>
+      {settings.lastError && <p className="config-error" role="alert">Laatste verzendfout: {settings.lastError}</p>}
+      {message && <p className={message.ok ? "health-ok" : "config-error"} role={message.ok ? "status" : "alert"}>{message.text}</p>}
+      <div className="form-actions">
+        <button type="submit" className="primary" disabled={!!busy}>{busy === "save" ? "Opslaan…" : "Opslaan"}</button>
+        <button type="button" disabled={!!busy} onClick={() => void act("test", async () => { const value = await api<{ recipients: string[] }>("/notifications/test", csrfToken, "POST"); return `Testmail verstuurd naar ${value.recipients.join(", ")}.`; })}>{busy === "test" ? "Versturen…" : "Testmail versturen"}</button>
+      </div>
+      <p className="health-ok">Eén mail per controleronde met alles wat langer dan de wachttijd onderbroken is, en een mail bij herstel. Een controle die zelf mislukt (&ldquo;onbekend&rdquo;) geeft geen melding.</p>
+    </fieldset></form>
+  </details>;
 }

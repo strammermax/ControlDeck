@@ -9,6 +9,7 @@ Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.m
 - **Geleerde verbindingen:** de agent leest elke 5 minuten de open uitgaande verbindingen van elke container, zodat ook alle internetverbindingen (bijv. van removesky) vanzelf gemonitord worden; filter Intern/Internet.
 - Controle vanuit de container van de bron-app via nieuwe alleen-lezen agent-acties `net.probe`, `net.connections` en `net.tunnel` (agent v2, proxy v2): eigen DNS en firewallpad van de app. VM's en externe bronnen worden vanaf ControlDeck getest, met vermelding.
 - Bijwerken: proxy via `install-wizard.sh`, agent per node via Modulebeheer → Cronjobs.
+- **Meldingen per e-mail** via de SMTP-gateway op OPNsense: één mail per ronde bij onderbreking (na een instelbare wachttijd) en bij herstel, testmail, instellingen op de Monitoring-pagina.
 - **Opgelost:** opnieuw installeren van de agent werkte het `from=`-adres in `authorized_keys` niet bij. Daardoor bleef de agent onbereikbaar na de IP-wijziging van ControlDeck (sinds 7-10). Het commando vervangt nu de oude regel, en het adres zoals de node het ziet (NAT) is in de wizard in te vullen. Ontbrekende firewallregel ControlDeck → nodes poort 22 toegevoegd op OPNsense. Zie [NODE-AGENT.md](NODE-AGENT.md).
 
 ## 2026.10.17 — Verplaatsbare en schaalbare pagina's

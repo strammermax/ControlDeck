@@ -66,3 +66,15 @@ export function scope(host: string): "intern" | "internet" {
   if (!name.includes(".") || /\.(home|local|lan|internal|localdomain)$/.test(name) || name === "localhost") return "intern";
   return "internet";
 }
+
+export type NotifySettings = { enabled: boolean; recipients: string[]; sender: string; smtpHost: string; smtpPort: number; delayMinutes: number; learned: boolean; lastError?: string | null };
+
+/** Recipients typed as a list separated by commas, semicolons, spaces or new lines; duplicates removed (case-insensitive). */
+export function parseRecipients(text: string): { recipients: string[]; invalid: string[] } {
+  const seen = new Set<string>(), recipients: string[] = [], invalid: string[] = [];
+  for (const part of text.split(/[\s,;]+/).map(value => value.trim()).filter(Boolean)) {
+    if (!/^[^\s@<>,;"']{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/.test(part)) { invalid.push(part); continue; }
+    if (!seen.has(part.toLowerCase())) { seen.add(part.toLowerCase()); recipients.push(part); }
+  }
+  return { recipients, invalid };
+}

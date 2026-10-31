@@ -1,6 +1,6 @@
 # Monitoring: verbindingen tussen apps
 
-**Status:** eerste versie gebouwd: handmatige verbindingen, ontdekken via *arr-API's en de Cloudflare-tunnel, geleerde verbindingen (intern en internet) uit de open sockets van elke container, controle vanaf de bron via de node-agent. Nog niet gebouwd: ontdekken via Home Assistant, DNS-/proxycontroles uit de Myscripts-inventaris en meldingen (zie [ROADMAP.md](ROADMAP.md)).
+**Status:** eerste versie gebouwd: handmatige verbindingen, ontdekken via *arr-API's en de Cloudflare-tunnel, geleerde verbindingen (intern en internet) uit de open sockets van elke container, controle vanaf de bron via de node-agent. Meldingen per e-mail via de SMTP-gateway op OPNsense. Nog niet gebouwd: ontdekken via Home Assistant en DNS-/proxycontroles uit de Myscripts-inventaris (zie [ROADMAP.md](ROADMAP.md)).
 
 Pagina: **Proxmox → Monitoring** (`#monitoring`). Zichtbaar voor iedereen met de module `monitoring`; toevoegen, verwijderen en "Nu controleren" alleen voor beheerders (admin/editor).
 
@@ -35,6 +35,15 @@ Elke minuut (achtergrondthread in de ene Gunicorn-worker; geen extra systemd-uni
 - Per verbinding wordt bewaard: status, sinds wanneer, laatste controle, fout, reactietijd, IP-adres en via wie. Elke statuswissel komt in de lijst **Laatste wijzigingen** (maximaal 2000 bewaard).
 
 De gast-ID van een bron wordt via de bestaande alleen-lezen Proxmox-koppeling (`/cluster/resources`) gekoppeld aan node, type en status.
+
+## Meldingen per e-mail
+
+Beheerders stellen dit in op de pagina onder **Meldingen per e-mail**: aan/uit, ontvangers (maximaal 10), afzender (standaard `homelab@vanburik.info`), de SMTP-gateway (standaard `192.168.20.1:25`, de mailrelay op OPNsense) en na hoeveel minuten onderbreking er gemeld wordt (standaard 5). Met **Testmail versturen** controleer je de route. De instellingen staan in de SQLite van Monitoring; ontvangers zijn alleen voor beheerders zichtbaar.
+
+- Na elke controleronde gaat er hoogstens **één mail** uit, met alle verbindingen die langer dan de wachttijd onderbroken zijn en nog niet gemeld waren, plus alles wat gemeld was en weer online is ("hersteld"). Zolang iets onderbroken blijft, komt er geen herhaalmail.
+- Een controle die zelf mislukt ("onbekend") meldt nooit iets. Geleerde verbindingen melden standaard niet: internetadressen achter een CDN wisselen. Dat is per instelling aan te zetten.
+- De relay vraagt geen aanmelding. Biedt hij STARTTLS aan, dan wordt die gebruikt. Mislukt het versturen, dan staat de fout op de pagina en wordt het de volgende ronde opnieuw geprobeerd; er gaat niets verloren.
+- Mail ophalen (IMAP/POP3) kan niet via de relay en is ook niet nodig: ControlDeck verstuurt alleen.
 
 ## Agent-acties
 
@@ -80,10 +89,13 @@ Hostnamen en poorten worden in de agent opnieuw gevalideerd; onbekende velden wo
 | `POST /api/monitoring/check` | beheerder + CSRF | Nu ontdekken en controleren |
 | `POST /api/monitoring/connections` | beheerder + CSRF | Handmatige verbinding: `source`, `host`, `port`, optioneel `label`, `vmid` |
 | `DELETE /api/monitoring/connections/<id>` | beheerder + CSRF | Handmatige verbinding verwijderen (ontdekte niet) |
+| `GET /api/monitoring/notifications` | beheerder | Meldinginstellingen en laatste verzendfout |
+| `PUT /api/monitoring/notifications` | beheerder + CSRF | Meldinginstellingen opslaan |
+| `POST /api/monitoring/notifications/test` | beheerder + CSRF | Testmail versturen |
 
 ## Testen
 
-`tests/test_monitoring.py` en `frontend/tests/monitoring.test.mjs`:
+`tests/test_monitoring.py`, `tests/test_monitoring_notify.py` en `frontend/tests/monitoring.test.mjs`. Meldingen: mail pas na de wachttijd en maar één keer; herstelmail; meerdere storingen in één mail; geleerde en onbekende verbindingen melden niet; relay onbereikbaar → fout zichtbaar en later alsnog verstuurd; STARTTLS; ongeldige instellingen geweigerd; ontvangers alleen voor beheerders. Verder:
 
 - **Normaal:** geleerde verbindingen uit de socketlijst (intern en internet) en controle via de agent in de container, naam via de hosts van de container, ontdekking via de *arr-API en de tunnel, statuswissels met behoud van "sinds".
 - **Grens:** IPv4-in-IPv6-adressen, inkomende en loopbackverbindingen uitgesloten, vervallen na 24 uur, 64 doelen, korte namen met zoekdomein, dubbele verbinding, tunnelregels zonder host (`http_status:404`), hoofdletters en een punt op het eind.
