@@ -99,3 +99,19 @@ def test_older_agent_without_names_and_failed_lookup_keep_known_name(env, monkey
     rows = {row["host"]: row["name"] for row in client.get("/api/monitoring").get_json()["connections"]}
     assert rows["172.18.0.8"] == "qbittorrent", "a name once found is not wiped by a round without names"
     assert rows["192.168.20.137"] == "", "unknown stays empty, never invented"
+
+
+def test_earlier_seen_connection_gets_a_name_in_a_later_round(env, monkeypatch):
+    """Regression: only connections open in the current round were named; ones seen earlier stayed bare IPs
+    (in production 74 of 92 had no name although their Docker container or CDN was known)."""
+    client, monitor = env
+    monkeypatch.setattr(monitoring.socket, "gethostbyaddr", Mock(side_effect=socket.herror))
+    monkeypatch.setattr(monitoring, "proxy_request", lambda request, timeout=75: answer(None, [{"ip": "172.18.0.8", "port": 8080}, {"ip": "104.26.0.248", "port": 443}]))
+    monkeypatch.setattr(monitoring, "CDN_RANGES", [])
+    monitor.check(force_discovery=True)
+    monkeypatch.setattr(monitoring, "CDN_RANGES", [("Cloudflare (CDN)", monitoring.ipaddress.ip_network("104.24.0.0/14"))])
+    monkeypatch.setattr(monitoring, "proxy_request", lambda request, timeout=75: answer({"137": {"172.18.0.8": "qbittorrent"}}, [{"ip": "10.9.9.9", "port": 22}]))
+    monitor.names.clear()
+    monitor.check(force_discovery=True)
+    rows = {row["host"]: row["name"] for row in client.get("/api/monitoring").get_json()["connections"]}
+    assert rows["172.18.0.8"] == "qbittorrent" and rows["104.26.0.248"] == "Cloudflare (CDN)"

@@ -491,10 +491,16 @@ class Monitor:
                         if found and not (found[1] >= PEER_PORT_FROM and ipaddress.ip_address(found[0]).is_global):
                             rows.append([connection_id("learned", f"{vmid}/{app}", *found), vmid, f"{guest} / {app}" if app else guest, found[0], found[1], stamp, stamp, app,
                                          docker.get(vmid, {}).get(found[0], "")])
-        names = resolve_names(sorted({row[3] for row in rows if not row[8]}), self.names)
+        # Earlier-seen destinations without a name get one too, not only what is open right now.
+        with database(self.path) as db:
+            unnamed = [(row["id"], row["vmid"], row["ip"]) for row in db.execute(
+                "SELECT id, vmid, ip FROM learned WHERE name='' AND last >= ?", (stamp - LEARNED_TTL,))]
+        names = resolve_names(sorted({row[3] for row in rows if not row[8]} | {ip for _, vmid, ip in unnamed if ip not in docker.get(vmid, {})}), self.names)
         for row in rows:
             row[8] = row[8] or names.get(row[3], "")
         with database(self.path) as db:
+            db.executemany("UPDATE learned SET name=? WHERE id=? AND name=''",
+                           [(docker.get(vmid, {}).get(ip) or names.get(ip, ""), identifier) for identifier, vmid, ip in unnamed])
             db.executemany("INSERT INTO learned (id, vmid, source, ip, port, first, last, app, name) VALUES (?,?,?,?,?,?,?,?,?) "
                            "ON CONFLICT(id) DO UPDATE SET last=excluded.last, source=excluded.source, "
                            "name=CASE WHEN excluded.name != '' THEN excluded.name ELSE learned.name END", rows)
