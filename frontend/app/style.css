@@ -254,3 +254,7 @@ footer .release-link:hover {color:var(--blue);text-decoration:underline}
 .monitoring-form label {display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
 .monitoring-form input {background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:9px;font:inherit;min-width:0}
 .monitoring .checkbox {display:flex;align-items:center;gap:6px;font-size:14px}
+.agent-source {display:grid;gap:6px;max-width:520px;margin:8px 0}
+.agent-source label {display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+.agent-source input {background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font:inherit}
+.agent-source button {justify-self:start}

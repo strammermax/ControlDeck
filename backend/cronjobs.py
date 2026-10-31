@@ -57,7 +57,11 @@ def install_command(public_key, source, commit):
         f"echo '{agent_checksum()}  /tmp/controldeck-agent' | sha256sum -c - && "
         "install -m 0755 /tmp/controldeck-agent /usr/local/sbin/controldeck-agent && rm -f /tmp/controldeck-agent && "
         "mkdir -p /root/.ssh && chmod 700 /root/.ssh && "
-        f"{{ grep -qF '{key_blob}' /root/.ssh/authorized_keys 2>/dev/null || echo '{line}' >> /root/.ssh/authorized_keys; }} && "
+        # Replace an older line for this key (e.g. after an IP change: from= no longer matches). Write through
+        # the file with cat: on Proxmox authorized_keys is a symlink to the shared cluster file.
+        f"{{ grep -vF '{key_blob}' /root/.ssh/authorized_keys > /tmp/controldeck-authorized_keys 2>/dev/null; "
+        f"echo '{line}' >> /tmp/controldeck-authorized_keys && cat /tmp/controldeck-authorized_keys > /root/.ssh/authorized_keys && "
+        "rm -f /tmp/controldeck-authorized_keys; } && "
         "echo 'ControlDeck-agent geïnstalleerd.'"
     )
 
@@ -164,9 +168,17 @@ def setup_cronjobs(app, data_dir, commit):
     @app.post("/api/cronjobs/agent/install-command")
     def agent_install_command():
         try:
-            value = body(("node", "address"))
+            value = request.get_json(silent=True)
+            if not isinstance(value, dict) or not {"node", "address"} <= set(value) <= {"node", "address", "source"}:
+                raise ValueError("Ongeldige invoer.")
+            if not isinstance(value["node"], str) or not NODE.fullmatch(value["node"]) or not isinstance(value["address"], str) or not ADDRESS.fullmatch(value["address"]):
+                raise ValueError("Ongeldige node of adres.")
+            # Behind NAT (e.g. a firewall between VLANs) the node sees another address than ControlDeck's route source.
+            source = value.get("source") or source_address(value["address"])
+            if not isinstance(source, str) or not ADDRESS.fullmatch(source):
+                raise ValueError("Ongeldig bronadres.")
             status = proxy({"op": "status"})
-            return jsonify(command=install_command(status.get("publicKey"), source_address(value["address"]), commit),
+            return jsonify(command=install_command(status.get("publicKey"), source, commit), source=source,
                            checksum=agent_checksum(), agentVersion=required_agent_version())
         except OSError:
             return jsonify(error="ControlDeck kan geen route naar deze node bepalen."), 400

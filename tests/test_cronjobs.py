@@ -1,4 +1,6 @@
 import json
+import shutil
+import subprocess
 
 import pytest
 
@@ -64,8 +66,8 @@ def test_install_command(case):
         assert f"https://raw.githubusercontent.com/strammermax/ControlDeck/{'a' * 40}/scripts/controldeck-agent.py" in command
         assert f"echo '{cronjobs.agent_checksum()}  /tmp/controldeck-agent' | sha256sum -c -" in command
         assert f'restrict,from="192.168.1.164",command="/usr/local/sbin/controldeck-agent" {PUBLIC_KEY}' in command
-        # Idempotent: the key line is only added when the key is not present yet (shared cluster authorized_keys).
-        assert f"grep -qF '{'A' * 68}' /root/.ssh/authorized_keys" in command
+        # Idempotent: an older line for this key is replaced, other keys stay (shared cluster authorized_keys).
+        assert f"grep -vF '{'A' * 68}' /root/.ssh/authorized_keys" in command
         # The checksum is verified before anything is installed.
         assert command.index("sha256sum -c") < command.index("install -m 0755")
     elif case == "boundary":
@@ -153,5 +155,36 @@ def test_removal_command_keeps_the_cluster_authorized_keys_symlink():
     cronjobs_entry = source[source.index("cronjobs:{"):source.index("termix:{")]
     assert "sed -i" not in cronjobs_entry.replace("Gebruik geen sed -i", "")
     assert "cat /tmp/authorized_keys.new > /root/.ssh/authorized_keys" in cronjobs_entry
-    # The install command appends (>>), which also writes through the symlink.
-    assert ">> /root/.ssh/authorized_keys" in cronjobs.install_command(PUBLIC_KEY, "192.168.1.164", "a" * 40)
+    # The install command also writes through the symlink (cat into the file, never mv/sed -i).
+    assert "cat /tmp/controldeck-authorized_keys > /root/.ssh/authorized_keys" in cronjobs.install_command(PUBLIC_KEY, "192.168.1.164", "a" * 40)
+
+
+@pytest.mark.skipif(shutil.which("bash") is None or shutil.which("grep") is None, reason="needs bash and grep")
+def test_reinstall_replaces_stale_from_address(tmp_path):
+    """Regression: after ControlDeck moved to another IP (and behind NAT), re-running the install command kept the old
+    line because it only added the key when absent (`grep -qF ... ||`). The node then rejected the key: from= no longer
+    matched and the agent was unreachable. The command must replace this key's line and keep every other key."""
+    keys = tmp_path / "authorized_keys"
+    other = "ssh-ed25519 " + "B" * 68 + " someone-else"
+    keys.write_text(f'{other}\nrestrict,from="192.168.1.164",command="/usr/local/sbin/controldeck-agent" {PUBLIC_KEY}\n')
+    command = cronjobs.install_command(PUBLIC_KEY, "192.168.1.166", "a" * 40)
+    snippet = command[command.index("{ grep -vF"):command.index("echo 'ControlDeck-agent")].rstrip("& ")
+    snippet = snippet.replace("/root/.ssh/authorized_keys", keys.as_posix()).replace("/tmp/controldeck-authorized_keys", (tmp_path / "new").as_posix())
+    subprocess.run(["bash", "-c", snippet], check=True)
+    lines = keys.read_text().splitlines()
+    assert lines == [other, f'restrict,from="192.168.1.166",command="/usr/local/sbin/controldeck-agent" {PUBLIC_KEY}']
+
+
+@pytest.mark.parametrize("case", ["normaal", "boundary", "faal"])
+def test_install_command_source_override_for_nat(env, case):
+    client, fake, _ = env
+    admin = client()
+    if case == "normaal":
+        answer = admin.post("/api/cronjobs/agent/install-command", headers=H, json={"node": "pve-amd", "address": "192.168.1.98", "source": "192.168.1.166"}).json
+        assert answer["source"] == "192.168.1.166" and 'from="192.168.1.166"' in answer["command"]
+    elif case == "boundary":
+        answer = admin.post("/api/cronjobs/agent/install-command", headers=H, json={"node": "pve-amd", "address": "192.168.1.98", "source": ""}).json
+        assert answer["source"] == "192.168.1.164", "empty source falls back to ControlDeck's route source"
+    else:
+        for body in ({"node": "pve-amd", "address": "192.168.1.98", "source": "1.2.3.4'; id #"}, {"node": "pve-amd", "address": "192.168.1.98", "extra": 1}, {"node": "pve-amd"}):
+            assert admin.post("/api/cronjobs/agent/install-command", headers=H, json=body).status_code == 400

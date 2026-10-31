@@ -32,7 +32,7 @@ Browser ──HTTPS──> ControlDeck-webapp (gebruiker controldeck, geen root,
 - **Sleutel alleen bij de agent-proxy:** de privésleutel staat in `/var/lib/controldeck-ssh/id_ed25519` (eigenaar `controldeck-ssh`, `0600`, map `0700`). De proxy is een kleine dienst (`controldeck-agent-proxy`) die als eigen systeemgebruiker **zonder rootrechten** draait; SSH heeft geen root nodig. Het webproces is lid van de groep `controldeck-ssh` en mag alleen het socket gebruiken, nooit de sleutel lezen. De proxy controleert per verzoek: bewerking, gekoppelde node, agent-actie uit de vaste lijst en grootte.
 - **Waarom geen root-worker:** de bestaande root-worker draait via een timer (eens per 15 s). Dat is goed voor installaties, maar te traag voor een interactieve pagina, en SSH heeft geen root nodig. De proxy reageert direct en heeft minder rechten.
 - **Hostsleutel vastgepind:** bij het koppelen wordt de SSH-hostsleutel van elke node vastgelegd na bevestiging van de vingerafdruk (zoals bij het Proxmox-certificaat). Een andere hostsleutel blokkeert de verbinding.
-- **Alleen vanaf ControlDeck:** de sleutelregel krijgt `from="<IP van de ControlDeck-LXC>"`.
+- **Alleen vanaf ControlDeck:** de sleutelregel krijgt `from="<adres van ControlDeck zoals de node het ziet>"`. Standaard is dat het bronadres van de route vanaf ControlDeck. Zit er een firewall met NAT tussen (zoals OPNsense tussen VLAN 20 en het LAN), dan ziet de node het adres van die firewall. Vul dat dan in de wizard in, bij "Adres van ControlDeck zoals de node het ziet". In deze installatie is dat `192.168.1.166`.
 
 ## 3. Acties (eerste versie)
 
@@ -153,7 +153,7 @@ De functies zijn geïnspireerd op [CronMaster](https://github.com/fccview/cronma
      - controleert dat `python3` aanwezig is;
      - downloadt `scripts/controldeck-agent.py` van GitHub **op de exacte commit die ControlDeck draait** en controleert de **SHA-256** vóór installatie (de checksum komt uit het bestand in de release-bundel);
      - installeert `/usr/local/sbin/controldeck-agent`;
-     - voegt de sleutelregel `restrict,from="<IP van ControlDeck>",command="/usr/local/sbin/controldeck-agent" …` toe, maar alleen als die er nog niet staat. Op Proxmox is `/root/.ssh/authorized_keys` een symlink naar het clustergedeelde `/etc/pve/priv/authorized_keys`; het commando schrijft daar met `>>` doorheen, dus één keer toevoegen geldt voor het hele cluster.
+     - zet de sleutelregel `restrict,from="<adres>",command="/usr/local/sbin/controldeck-agent" …` en vervangt daarbij een oudere regel voor dezelfde sleutel. Andere sleutels blijven staan. Na een IP-wijziging van ControlDeck werkt opnieuw uitvoeren dus. Op Proxmox is `/root/.ssh/authorized_keys` een symlink naar het clustergedeelde `/etc/pve/priv/authorized_keys`. Het commando schrijft daar met `cat … >` doorheen, dus één keer uitvoeren geldt voor het hele cluster.
      - Het IP-adres van ControlDeck bepaalt ControlDeck zelf per node (de route naar die node).
    - **Verbinding testen** → agent-actie `info`. Status per node: Klaar, Agent verouderd, Agent nog niet geïnstalleerd, Hostsleutel veranderd, Niet bereikbaar, Nog niet gekoppeld (onbekend is nooit "Klaar").
 3. **Geïnstalleerd** zodra minstens één node "Klaar" is (`<datamap>/cronjobs/connection.json`).
@@ -177,3 +177,11 @@ API (alleen admins, CSRF): `GET /api/cronjobs/agent`, `POST /api/cronjobs/agent/
 | Extra beveiliging bij aanmaken, wijzigen, nu uitvoeren | **Samenvatting + expliciete bevestiging + auditlog** (bij ControlDeck en op de node). Geen verplichte hernieuwde login |
 | Meldingen bij mislukte of gemiste jobs | Voorlopig **alleen zichtbaar in ControlDeck**; e-mail/push later als aparte functie |
 | Bestaande cronjobs | **Alleen-lezen**, met per job **Overnemen**: ControlDeck maakt een eigen job met hetzelfde schema en commando (met logging en monitoring) en zet het origineel uit door de regel uit te commentariëren met de markering `# disabled by ControlDeck <datum> (job <id>)`. Een kopie van het originele bestand gaat naar `/var/lib/controldeck-agent/backups/`. Terugzetten kan met **Teruggeven** |
+
+
+## Storing: "De node accepteert de sleutel van ControlDeck niet"
+
+Komt de agent niet meer door, terwijl hij wel geïnstalleerd is, controleer dan in deze volgorde:
+
+1. **Firewall:** mag ControlDeck naar poort 22 van de node? Test vanaf de ControlDeck-host: `timeout 4 bash -c '</dev/tcp/<node>/22' && echo open`. Op 31-10-2026 ontbrak deze regel op OPNsense na de verhuizing van ControlDeck naar VLAN 20. Er waren alleen regels voor 8006-8008. Aangemaakt: `192.168.20.164 → 192.168.1.97/.98/.99 TCP 22` ("ControlDeck agent SSH").
+2. **Bronadres (`from=`):** kijk in de SSH-log van de node (`journalctl -u ssh`) van welk adres ControlDeck binnenkomt, en vergelijk dat met `grep -o 'restrict,from="[^"]*"' /etc/pve/priv/authorized_keys`. Verschillen ze, voer dan het installatiecommando opnieuw uit met het juiste adres. Op 31-10-2026 stond er nog het oude adres `192.168.1.164`. Door de NAT van OPNsense moest het `192.168.1.166` worden.

@@ -223,7 +223,7 @@ def op_call(request):
         if "REMOTE HOST IDENTIFICATION HAS CHANGED" in stderr or "Host key verification failed" in stderr:
             raise ProxyError("hostkey_changed", "De hostsleutel van de node is veranderd. Koppel de node opnieuw na controle.") from None
         if "Permission denied" in stderr:
-            raise ProxyError("not_authorized", "De node accepteert de sleutel van ControlDeck niet (agent nog niet geïnstalleerd?).") from None
+            raise ProxyError("not_authorized", "De node accepteert de sleutel van ControlDeck niet: agent nog niet geïnstalleerd, of ControlDeck komt van een ander adres dan in de sleutelregel (from=) staat, bijv. na een IP-wijziging of door NAT. Voer het installatiecommando opnieuw uit.") from None
         raise ProxyError("ssh_failed", "De verbinding met de node is mislukt.") from None
     audit({**entry, "result": "ok" if answer["ok"] else answer.get("error", "error")})
     return answer

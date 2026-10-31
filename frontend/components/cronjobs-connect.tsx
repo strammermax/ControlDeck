@@ -57,6 +57,7 @@ function NodeRow({ row, csrfToken, busy, run, reload }: { row: AgentNode; csrfTo
   const [scanned, setScanned] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [command, setCommand] = useState<string | null>(null);
+  const [source, setSource] = useState("");
   const [copied, setCopied] = useState(false);
   const state = agentStateText(row.state);
   const enrolled = row.state !== "not_enrolled";
@@ -75,8 +76,13 @@ function NodeRow({ row, csrfToken, busy, run, reload }: { row: AgentNode; csrfTo
       </div>)}
     {enrolled && row.state !== "ready" && row.state !== "hostkey_changed" && <div>
       {command === null
-        ? <button type="button" disabled={!!busy} onClick={() => void run(`cmd-${row.node}`, async () => { setCommand((await call<{ command: string }>("/agent/install-command", csrfToken, "POST", target)).command); })}>Installatiecommando tonen</button>
-        : <><p>Plak dit in de shell van <strong>{row.node}</strong> (Proxmox → {row.node} → Shell). Het controleert de agent met SHA-256 voordat het iets installeert, en voegt de sleutel maar één keer toe.</p>
+        ? <button type="button" disabled={!!busy} onClick={() => void run(`cmd-${row.node}`, async () => { const answer = await call<{ command: string; source: string }>("/agent/install-command", csrfToken, "POST", target); setCommand(answer.command); setSource(answer.source); })}>Installatiecommando tonen</button>
+        : <><p>Plak dit in de shell van <strong>{row.node}</strong> (Proxmox → {row.node} → Shell). Het controleert de agent met SHA-256 voordat het iets installeert, en vervangt een oudere regel voor deze sleutel.</p>
+          <form className="agent-source" onSubmit={event => { event.preventDefault(); void run(`cmd-${row.node}`, async () => { const answer = await call<{ command: string; source: string }>("/agent/install-command", csrfToken, "POST", { ...target, source: source.trim() }); setCommand(answer.command); setSource(answer.source); }); }}>
+            <label>Adres van ControlDeck zoals de node het ziet<input value={source} onChange={event => setSource(event.target.value)} inputMode="decimal"/></label>
+            <button type="submit" disabled={!!busy}>Commando bijwerken</button>
+            <p className="health-ok">De sleutel werkt alleen vanaf dit adres. Zit er een firewall met NAT tussen ControlDeck en de node (bijv. OPNsense tussen VLAN&rsquo;s), vul dan het adres van die firewall aan de kant van de node in. Na een IP-wijziging van ControlDeck: commando opnieuw uitvoeren.</p>
+          </form>
           <div className="copy-row"><pre className="command">{command}</pre><button type="button" onClick={() => { void navigator.clipboard.writeText(command).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}>{copied ? "✓ Gekopieerd" : "Kopiëren"}</button></div></>}
     </div>}
     {enrolled && <button type="button" disabled={!!busy} onClick={() => void run(`test-${row.node}`, async () => { await call("/agent/test", csrfToken, "POST", { node: row.node }); await reload(); })}>{busy === `test-${row.node}` ? "Testen…" : "Verbinding testen"}</button>}
