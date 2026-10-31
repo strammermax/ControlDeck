@@ -2,6 +2,14 @@
 
 Vanaf oktober 2026 is elke build van `main` een release met versienummer `jjjj.mm.dd.<build>` (zie [CI-CD.md](CI-CD.md)). De changelog groepeert wijzigingen per dag.
 
+## 2026.10.31 — Monitoring van verbindingen
+
+- **Monitoring** (`#monitoring`): verbindingen tussen apps (bron → host:poort) met status, sinds wanneer, foutmelding en laatste wijzigingen. Elke minuut gecontroleerd. Zie [MONITORING.md](MONITORING.md).
+- Ontdekken via de API van Sonarr/Radarr/Lidarr/Readarr/Prowlarr (downloadclients, indexers, apps) en via de ingangen van de Cloudflare-tunnel; bronnen en sleutels in Infisical (`CONTROLDECK_MONITORING`). Handmatige verbindingen voor de rest.
+- **Geleerde verbindingen:** de agent leest elke 5 minuten de open uitgaande verbindingen van elke container, zodat ook alle internetverbindingen (bijv. van removesky) vanzelf gemonitord worden; filter Intern/Internet.
+- Controle vanuit de container van de bron-app via nieuwe alleen-lezen agent-acties `net.probe`, `net.connections` en `net.tunnel` (agent v2, proxy v2): eigen DNS en firewallpad van de app. VM's en externe bronnen worden vanaf ControlDeck getest, met vermelding.
+- Bijwerken: proxy via `install-wizard.sh`, agent per node via Modulebeheer → Cronjobs.
+
 ## 2026.10.17 — Verplaatsbare en schaalbare pagina's
 
 - Persoonlijke indeling voor Bookmarks (links binnen een groep) en Proxmox (iedere widget): **Indeling aanpassen**, slepen met ⠿, vergroten/verkleinen met ↘ of pijltjestoetsen, Opslaan/Annuleren/Standaard herstellen. Eén gedeelde rastermodule die ook het Dashboard gebruikt; zie [LAYOUTS.md](LAYOUTS.md).

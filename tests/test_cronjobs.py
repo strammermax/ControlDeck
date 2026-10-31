@@ -35,7 +35,7 @@ class FakeProxy:
             self.nodes = [(n, a) for n, a in self.nodes if n != request["node"]]
             return {"ok": True, "data": {"forgotten": True}}
         if op == "call":
-            return self.info.get(request["node"], {"ok": True, "data": {"ok": True, "data": {"agentVersion": 1, "hostname": request["node"]}}})
+            return self.info.get(request["node"], {"ok": True, "data": {"ok": True, "data": {"agentVersion": cronjobs.required_agent_version(), "hostname": request["node"]}}})
         raise AssertionError(op)
 
 

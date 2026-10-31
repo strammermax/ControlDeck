@@ -49,6 +49,8 @@ Browser ──HTTPS──> ControlDeck-webapp (gebruiker controldeck, geen root,
 | `cron.log` | Log van een run, vanaf een offset (voor live meekijken) | `id`, `runId`, `offset` |
 | `cron.runs` | Alle runs sinds een tijdstip: ControlDeck-jobs (met resultaat) en gestarte overige cronjobs uit het cron-systeemlog | `since`, `limit` (maximaal 500) |
 
+| `net.probe` / `net.connections` / `net.tunnel` | Alleen-lezen: netwerkcontrole vanuit een container, open uitgaande verbindingen per container en Cloudflare-tunnelingangen, voor [Monitoring](MONITORING.md) | `vmid`, `targets` / `vmids` / `vmid` |
+
 Later, met dezelfde route: `lxc.update` (één of meer CT-ID's) en `proxmenux.install`.
 
 ## 4. Module Cronjobs

@@ -27,7 +27,7 @@ import tempfile
 import time
 from pathlib import Path
 
-AGENT_VERSION = 1
+AGENT_VERSION = 2
 MAX_INPUT = 64 * 1024
 MAX_OUTPUT_PER_RUN = 256 * 1024
 KEEP_RUNS = 20
@@ -483,6 +483,259 @@ def journal_cron_starts(since, limit):
     return starts[-limit:]
 
 
+# --- network checks from inside a container (docs/MONITORING.md) ----------------------------------------
+#
+# The probe runs in the container's network namespace (nsenter -n), so routing, firewall rules and the
+# container's own /etc/hosts and resolver are the ones the app itself uses. The host's mount namespace
+# stays, so this script and the host Python do the work; the container needs no tools.
+
+HOST = re.compile(r"(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62})(?:\.[A-Za-z0-9_-]{1,63})*\.?")
+MAX_TARGETS = 64
+PROBE_TIMEOUT = 3.0
+TUNNEL_PORTS = range(20241, 20246)
+
+
+def valid_host(value):
+    if not isinstance(value, str):
+        return False
+    try:
+        import ipaddress
+        ipaddress.ip_address(value)
+        return True
+    except ValueError:
+        return bool(HOST.fullmatch(value))
+
+
+def container_pid(vmid):
+    """PID of a running LXC's init process; None when it is not running here."""
+    try:
+        result = subprocess.run(["lxc-info", "-n", str(vmid), "-p", "-H"], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    value = result.stdout.strip()
+    return int(value) if result.returncode == 0 and value.isdigit() else None
+
+
+def container_file(pid, name, limit=65536):
+    try:
+        with open(f"/proc/{pid}/root/etc/{name}", "rb") as handle:
+            return handle.read(limit).decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def netns_run(pid, mode, data):
+    """This script in mode `mode` inside the network namespace of `pid`; JSON in, JSON out."""
+    env = {key: value for key, value in os.environ.items() if key != "SSH_ORIGINAL_COMMAND"}
+    try:
+        result = subprocess.run(["nsenter", "-t", str(pid), "-n", "--", sys.executable, os.path.abspath(__file__), mode],
+                                input=json.dumps(data).encode(), capture_output=True, timeout=45, env=env)
+        return json.loads(result.stdout.decode("utf-8", errors="replace").strip().splitlines()[-1])
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        raise AgentError("netns_failed", "Controle binnen de container is mislukt.") from None
+
+
+def parse_hosts(text):
+    names = {}
+    for line in text.splitlines():
+        parts = line.split("#", 1)[0].split()
+        for name in parts[1:]:
+            names.setdefault(name.lower().rstrip("."), parts[0])
+    return names
+
+
+def parse_resolv(text):
+    servers, search = [], []
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[0] == "nameserver":
+            servers.append(parts[1])
+        elif parts and parts[0] in ("search", "domain"):
+            search = parts[1:]
+    return servers[:3], search[:6]
+
+
+def dns_query(server, name, timeout):
+    """Minimal A-record lookup over UDP; returns the first IPv4 address or None."""
+    ident = secrets.randbits(16)
+    question = b"".join(bytes([len(label)]) + label.encode("idna") for label in name.rstrip(".").split(".")) + b"\x00\x00\x01\x00\x01"
+    packet = ident.to_bytes(2, "big") + b"\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00" + question
+    family = socket.AF_INET6 if ":" in server else socket.AF_INET
+    with socket.socket(family, socket.SOCK_DGRAM) as sock:
+        sock.settimeout(timeout)
+        sock.sendto(packet, (server, 53))
+        answer, _ = sock.recvfrom(4096)
+    if len(answer) < 12 or int.from_bytes(answer[:2], "big") != ident or answer[3] & 0x0F:
+        return None
+    count, offset = int.from_bytes(answer[6:8], "big"), 12 + len(question)
+    for _ in range(count):
+        if offset >= len(answer):
+            break
+        if answer[offset] & 0xC0 == 0xC0:
+            offset += 2
+        else:
+            while offset < len(answer) and answer[offset]:
+                offset += answer[offset] + 1
+            offset += 1
+        kind, length = int.from_bytes(answer[offset:offset + 2], "big"), int.from_bytes(answer[offset + 8:offset + 10], "big")
+        offset += 10
+        if kind == 1 and length == 4:
+            return socket.inet_ntoa(answer[offset:offset + 4])
+        offset += length
+    return None
+
+
+def resolve(host, hosts, servers, search, timeout):
+    import ipaddress
+    try:
+        return str(ipaddress.ip_address(host)), None
+    except ValueError:
+        pass
+    name = host.lower().rstrip(".")
+    if name in hosts:
+        return hosts[name], None
+    if not servers:
+        return None, "Geen DNS-server in de container."
+    candidates = [name] if "." in name else [f"{name}.{domain}" for domain in search] + [name]
+    for candidate in candidates:
+        for server in servers:
+            try:
+                address = dns_query(server, candidate, timeout)
+            except OSError:
+                continue
+            if address:
+                return address, None
+    return None, f"{host} is niet op te lossen."
+
+
+def probe_targets(data):
+    """Runs inside the namespace: resolve and TCP-connect every target, in parallel."""
+    from concurrent.futures import ThreadPoolExecutor
+    hosts, (servers, search) = parse_hosts(data.get("hosts", "")), parse_resolv(data.get("resolv", ""))
+
+    def one(target):
+        started = time.monotonic()
+        address, error = resolve(target["host"], hosts, servers, search, PROBE_TIMEOUT)
+        result = {"host": target["host"], "port": target["port"], "ip": address}
+        if address is None:
+            return {**result, "ok": False, "error": error}
+        try:
+            with socket.create_connection((address, target["port"]), timeout=PROBE_TIMEOUT):
+                pass
+            return {**result, "ok": True, "ms": round((time.monotonic() - started) * 1000)}
+        except socket.timeout:
+            return {**result, "ok": False, "error": "Time-out (geen antwoord, mogelijk firewall)."}
+        except ConnectionRefusedError:
+            return {**result, "ok": False, "error": "Verbinding geweigerd (dienst draait niet op deze poort)."}
+        except OSError as failure:
+            return {**result, "ok": False, "error": f"Niet bereikbaar: {failure.strerror or 'netwerkfout'}."}
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        return {"results": list(pool.map(one, data["targets"]))}
+
+
+def tunnel_ingress(data):
+    """Runs inside the namespace: ingress rules from cloudflared's local metrics server (hostname → service)."""
+    import urllib.request
+    for port in TUNNEL_PORTS:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/config", timeout=2) as response:
+                config = json.loads(response.read(1024 * 1024))
+        except (OSError, ValueError):
+            continue
+        rules = (config.get("config") or {}).get("ingress") if isinstance(config, dict) else None
+        if isinstance(rules, list):
+            return {"ingress": [{"hostname": str(rule.get("hostname"))[:253], "service": str(rule.get("service"))[:300]}
+                                for rule in rules[:200] if isinstance(rule, dict) and rule.get("hostname") and isinstance(rule.get("service"), str)]}
+    return {"ingress": None}
+
+
+def require_vmid(payload):
+    vmid = payload.get("vmid")
+    if type(vmid) is not int or not 100 <= vmid <= 999999999:
+        raise AgentError("invalid_input", "Ongeldige container-ID.")
+    pid = container_pid(vmid)
+    if pid is None:
+        raise AgentError("not_running", "De container draait niet op deze node.")
+    return pid
+
+
+def action_probe(payload):
+    targets = payload.get("targets")
+    if not isinstance(targets, list) or not 1 <= len(targets) <= MAX_TARGETS:
+        raise AgentError("invalid_input", f"Geef 1 tot {MAX_TARGETS} doelen.")
+    clean = []
+    for target in targets:
+        if not isinstance(target, dict) or set(target) - {"host", "port"} or not valid_host(target.get("host")) \
+                or type(target.get("port")) is not int or not 1 <= target["port"] <= 65535:
+            raise AgentError("invalid_input", "Ongeldig doel.")
+        clean.append({"host": target["host"], "port": target["port"]})
+    pid = require_vmid(payload)
+    return netns_run(pid, "__probe", {"targets": clean, "hosts": container_file(pid, "hosts"), "resolv": container_file(pid, "resolv.conf")})
+
+
+def action_tunnel(payload):
+    return netns_run(require_vmid(payload), "__tunnel", {})
+
+
+def hex_endpoint(value):
+    """`0100007F:1F90` (kernel byte order) → ("127.0.0.1", 8080); IPv6 as well."""
+    import ipaddress
+    address, port = value.split(":")
+    raw = bytes.fromhex(address)
+    if len(raw) == 4:
+        ip = ipaddress.IPv4Address(raw[::-1])
+    else:
+        ip = ipaddress.IPv6Address(b"".join(raw[i:i + 4][::-1] for i in range(0, 16, 4)))
+        ip = ip.ipv4_mapped or ip
+    return ip, int(port, 16)
+
+
+def outbound(text_by_family):
+    """Established connections this namespace opened itself (local port is not a listening port)."""
+    rows, listening = [], set()
+    for text in text_by_family:
+        for line in text.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+            try:
+                local, remote = hex_endpoint(parts[1]), hex_endpoint(parts[2])
+            except (ValueError, IndexError):
+                continue
+            if parts[3] == "0A":
+                listening.add(local[1])
+            elif parts[3] == "01":
+                rows.append((local, remote))
+    seen = {}
+    for (local_ip, local_port), (remote_ip, remote_port) in rows:
+        if local_port in listening or remote_ip.is_loopback or remote_ip.is_unspecified:
+            continue
+        key = (str(remote_ip), remote_port)
+        seen[key] = seen.get(key, 0) + 1
+    return [{"ip": ip, "port": port, "count": count} for (ip, port), count in sorted(seen.items())][:200]
+
+
+def action_connections(payload):
+    vmids = payload.get("vmids")
+    if not isinstance(vmids, list) or not 1 <= len(vmids) <= 200 or any(type(v) is not int or not 100 <= v <= 999999999 for v in vmids):
+        raise AgentError("invalid_input", "Geef 1 tot 200 container-ID's.")
+    result = {}
+    for vmid in sorted(set(vmids)):
+        pid = container_pid(vmid)
+        if pid is None:
+            continue
+        tables = []
+        for name in ("tcp", "tcp6"):
+            try:
+                with open(f"/proc/{pid}/net/{name}", encoding="ascii", errors="replace") as handle:
+                    tables.append(handle.read(4 * 1024 * 1024))
+            except OSError:
+                pass
+        result[str(vmid)] = outbound(tables)
+    return {"containers": result}
+
+
 # --- actions --------------------------------------------------------------------------------------------
 
 def action_info(payload):
@@ -584,6 +837,7 @@ ACTIONS = {
     "info": (action_info, False), "cron.list": (action_list, False), "cron.put": (action_put, True), "cron.delete": (action_delete, True),
     "cron.run": (action_run, True), "cron.history": (action_history, False), "cron.log": (action_log, False), "cron.runs": (action_runs, False),
     "cron.adopt": (action_adopt, True), "cron.release": (action_release, True),
+    "net.probe": (action_probe, False), "net.tunnel": (action_tunnel, False), "net.connections": (action_connections, False),
 }
 
 
@@ -625,6 +879,14 @@ def main(argv=None):
         result = handle(action if re.fullmatch(r"[a-z.]{1,20}", action) else "", raw)
         sys.stdout.write(json.dumps(result) + "\n")
         return 0 if result["ok"] else 1
+    if argv[:1] in (["__probe"], ["__tunnel"]):
+        # Internal: started by netns_run inside a container's network namespace, never over SSH.
+        try:
+            data = json.loads(sys.stdin.read(MAX_INPUT * 2) or "{}")
+            sys.stdout.write(json.dumps(probe_targets(data) if argv[0] == "__probe" else tunnel_ingress(data)) + "\n")
+            return 0
+        except (ValueError, KeyError, TypeError):
+            return 2
     if len(argv) >= 2 and argv[0] == "run" and JOB_ID.fullmatch(argv[1]):
         options = dict(zip(argv[2::2], argv[3::2]))
         run_id = options.get("--run-id")

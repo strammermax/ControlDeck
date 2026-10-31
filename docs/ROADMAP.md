@@ -10,10 +10,10 @@ Werkwijze: nieuwe functies bouwen op de gedeelde bouwstenen (B1–B8, F1–F6 in
 
 - [ ] **502-bug** — 8 routes (Proxmox 4×, Linkwarden, Homepage-integraties, Cronjobs) geven 502; Cloudflare verbergt dan de melding. Oplossen met `UpstreamError` (B1) + regressietest per route. *S*
 - [ ] **Auditlog (F-17)** — `audit(action, target, result)` in SQLite voor accounts, module-installaties, koppelingen, VM starten, Kasm stoppen, Files verwijderen/verplaatsen, Bookmarks-beheer; Admin-pagina "Activiteit" (alleen-lezen, filter, export). *M*
-- [ ] **Monitoring-pagina (F-07)** — ProxMenux-gezondheid, Beszel, Uptime-status, Home Assistant; per regel bron en actualiteit (F-14). *M*
+- [ ] **Monitoring uitbreiden (F-07)** — eerste versie (verbindingen) staat in [MONITORING.md](MONITORING.md). Nog: ontdekken via Home Assistant-integraties, DNS-/proxycontroles uit de Myscripts-inventaris en de eigen apps (Prefect, MemoRecorder, Koopjesbot); ProxMenux-gezondheid, Beszel, Uptime-status, Home Assistant; per regel bron en actualiteit (F-14). *M*
 - [ ] **Meldingen** — e-mail/ntfy/Telegram/push bij offline node, mislukte cronjob, volle opslag, verlopen koppeling, verlopen licentie, Kasm-sessiegrens. *M*
 - [ ] **Zoeken uitbreiden** — ook Linkwarden-bookmarks, Virtual Apps-workspaces, Proxmox-gasten en Files; één zoekbron per module. *M*
-- [ ] **Menu opschonen** — `proxmox/containers` (dubbel met VM's & Containers), en placeholders (`monitoring`, `radarr`, `plex`, `admin`) verbergen tot ze bestaan. *S*
+- [ ] **Menu opschonen** — `proxmox/containers` (dubbel met VM's & Containers), en placeholders (`radarr`, `plex`, `admin`) verbergen tot ze bestaan. *S*
 - [ ] **Geplande backup + hersteltest** — dagelijkse SQLite-backup (backup-API) + private bestanden naar PBS of Nextcloud; maandelijkse hersteltest. *M*
 
 ## 2. Functionaliteit per module (prioriteit M/L)

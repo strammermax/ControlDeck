@@ -23,14 +23,15 @@ import time
 from pathlib import Path
 
 # Raise when the proxy gains operations; ControlDeck compares it with REQUIRED_PROXY in backend/root_components.py.
-PROXY_VERSION = 1
+PROXY_VERSION = 2
 MAX_REQUEST = 80 * 1024
 CALL_TIMEOUT = 60
 NODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,62}")
 ADDRESS = re.compile(r"(?:\d{1,3}\.){3}\d{1,3}|[0-9A-Fa-f:]{2,39}|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?")
 FINGERPRINT = re.compile(r"SHA256:[A-Za-z0-9+/]{43}")
 # Must match ACTIONS in scripts/controldeck-agent.py; the agent rejects anything else as well.
-AGENT_ACTIONS = {"info", "cron.list", "cron.put", "cron.delete", "cron.run", "cron.history", "cron.log", "cron.runs", "cron.adopt", "cron.release"}
+AGENT_ACTIONS = {"info", "cron.list", "cron.put", "cron.delete", "cron.run", "cron.history", "cron.log", "cron.runs", "cron.adopt", "cron.release",
+                 "net.probe", "net.tunnel", "net.connections"}
 lock = threading.Lock()
 
 

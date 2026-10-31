@@ -25,6 +25,7 @@ from backend.app_launches import setup_app_launches
 from backend.search import setup_search
 from backend.search_engines import setup_search_engines
 from backend.service_widgets import setup_service_widgets
+from backend.monitoring import setup_monitoring
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -58,6 +59,7 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
     setup_virtual_apps(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_search(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_search_engines(app, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
+    setup_monitoring(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
 
     @app.get("/health")
     def health():

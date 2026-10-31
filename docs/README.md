@@ -26,6 +26,7 @@ De documentatie in deze map is het centrale naslagwerk voor ontwerp, installatie
 | [PROXMOX-STORAGE.md](PROXMOX-STORAGE.md) | Clusteropslag met shared-deduplicatie, fysieke schijven, ZFS en mounts in ProxMenux-vormgeving |
 | [PROXMENUX.md](PROXMENUX.md) | ProxMenux Monitor installeren, inrichten en koppelen; gezondheid per node |
 | [CRONJOBS.md](CRONJOBS.md) | Cronjob-manager: clustertijdlijn, cronjobs per node beheren en monitoren |
+| [MONITORING.md](MONITORING.md) | Verbindingen tussen apps monitoren: ontdekken via *arr en Cloudflare-tunnel, controle vanaf de bron |
 | [NODE-AGENT.md](NODE-AGENT.md) | Ontwerp en werking: module Cronjobs, agent-proxy en ControlDeck-agent op de nodes |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Werkelijke repository en runtime |
 | [CODE-AUDIT-HERGEBRUIK.md](CODE-AUDIT-HERGEBRUIK.md) | Codeonderzoek: dubbele functionaliteit, herbruikbare modules/widgets en verbeteringsvolgorde |

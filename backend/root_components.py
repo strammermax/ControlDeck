@@ -11,7 +11,7 @@ from pathlib import Path
 from backend.agent_client import AgentUnavailable, proxy_request
 
 # Raise together with PROXY_VERSION in scripts/controldeck-agent-proxy.py (a test keeps them equal).
-REQUIRED_PROXY = 1
+REQUIRED_PROXY = 2
 DEFAULT_CHECKOUT = "/root/controldeck-bootstrap"
 
 
