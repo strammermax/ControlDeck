@@ -2,6 +2,9 @@
 
 Datum: 1 november 2026. Status: voorstel ter bespreking, nog geen bouw- of migratieopdracht.
 
+Uitvoering: de eigenaar bouwt dit als **controldeskv2** in een aparte repository. De losse
+Homarr-site (homarr.vanburik.info) verdwijnt later, inclusief de tunnelroute.
+
 ## Richting en doel
 
 De voorkeursrichting van de eigenaar is Homarr als basis nemen en onze eigen
