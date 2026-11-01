@@ -1,9 +1,16 @@
 # Plan van aanpak — Homarr als basis voor ControlDeck
 
-Datum: 1 november 2026. Status: voorstel ter bespreking, nog geen bouw- of migratieopdracht.
+Datum: 1 november 2026. Status: richting besloten (volledige vervanging, modules los van Homarr); uitvoering per fase.
 
 Uitvoering: de eigenaar bouwt dit als **controldeskv2** in een aparte repository. De losse
 Homarr-site (homarr.vanburik.info) verdwijnt later, inclusief de tunnelroute.
+
+**Besluit 1 november 2026:**
+- ControlDeckv2 op basis van Homarr **vervangt uiteindelijk het hele huidige ControlDeck**. Het wordt dus niet alleen
+  een startpagina met links.
+- De functies van ControlDeck gaan **per functie** over, niet door code of databases samen te voegen.
+- **Eigen modules staan los van Homarr,** zodat Homarr-updates eenvoudig blijven.
+- Zie [Besluit: volledige vervanging, modules los van Homarr](#besluit-volledige-vervanging-modules-los-van-homarr).
 
 ## Richting en doel
 
@@ -211,10 +218,71 @@ De voornaamste kosten zitten na de eerste proef in updates en regressiecontrole,
 niet in het overnemen van één editorbestand. Daarom beperken we wijzigingen aan
 Homarr-kerncode en behouden we maatwerk achter duidelijke module- en API-grenzen.
 
+## Besluit: volledige vervanging, modules los van Homarr
+
+### Uitgangspunt
+
+ControlDeckv2 vervangt het huidige ControlDeck volledig. Homarr blijft daarbij **ongewijzigd upstream**.
+Eigen functionaliteit zit ernaast, niet erin. Zo kan een nieuwe Homarr-versie worden overgenomen zonder
+conflicten met ons maatwerk.
+
+### Regels voor eigen modules
+
+1. **Geen wijzigingen in de Homarr-kerncode** (`apps/`, `packages/` van upstream). Is een aanpassing onvermijdelijk,
+   bijvoorbeeld een ontbrekend uitbreidingspunt? Dan maak je hem zo klein mogelijk en apart herkenbaar, en bied je hem bij
+   voorkeur upstream aan. In de repository staat een lijst van zulke afwijkingen. Doel: die lijst leeg houden.
+2. **Al ons eigen werk staat buiten de Homarr-mappen:** in `controldeck/` (deployment, scripts, documentatie) en in
+   eigen modulemappen. Het samenvoegen van een nieuwe upstream-versie raakt die mappen dus niet.
+3. **Een module koppelt alleen via de uitbreidingspunten die Homarr zelf biedt.** Op volgorde van voorkeur:
+   - **Instelling:** een standaard-widget of -integratie van Homarr, alleen geconfigureerd.
+   - **Iframe- of link-widget:** voor een bestaande eigen webpagina, zoals Workfarm of AgentDeck.
+   - **Custom Widget:** volgens het Workshop-formaat, los te installeren en los te versiebeheren.
+   - **Eigen API-dienst:** een eigen dienst buiten Homarr, bijvoorbeeld de bestaande ControlDeck-backend in
+     Python. Homarr benadert hem via een integratie, een widget of MCP. Logica, rechtencontrole en geheimen blijven in
+     die dienst.
+4. **Geheimen** blijven in Infisical. Homarr bewaart alleen wat een integratie nodig heeft, versleuteld met
+   `SECRET_ENCRYPTION_KEY`. Modules krijgen geen rechtstreekse toegang tot de Homarr-database.
+5. **Huisstijl** gaat via het thema en de aanpassingsmogelijkheden van Homarr (kleuren, logo, eigen CSS), niet via
+   gewijzigde componenten.
+6. **Updateproef bij elke Homarr-versie:**
+   - eerst in een proefomgeving: build, databasemigratie, readiness-check;
+   - daarna een rooktest per eigen module: laadt hij, en klopt de rechtencontrole?
+   - pas daarna op CT 123.
+
+   De samenvoeging met upstream is een aparte PR, zonder modulewijzigingen erin.
+
+### Indeling per functie
+
+| Functie in ControlDeck v1 | Aanpak in ControlDeckv2 | Soort |
+|---|---|---|
+| Board, tegels, slepen, persoonlijke indeling | Homarr-board-editor | Instelling |
+| Gebruikers, groepen, rechten | Homarr-gebruikers en -groepen. Google-login via OIDC (nu nog `credentials`). | Instelling |
+| Zoeken | Homarr-zoekfunctie | Instelling |
+| Media, Plex, Radarr, downloads | Standaardintegraties en -widgets van Homarr | Instelling |
+| Bookmarks en Linkwarden | Homarr-bookmarks of de Linkwarden-integratie. Persoonlijke collecties migreren. | Instelling + migratie |
+| Workfarm (Prefect-dashboard) | Iframe-widget naar `/workfarm/` met de bestaande auth_request. Later een compacte statuswidget op de dashboard-API. | Iframe → eigen API-dienst |
+| AgentDeck | Iframe- of link-widget naar `https://agentdeck.vanburik.info` (zelfde Cloudflare Access) | Iframe |
+| Proxmox en ProxMenux (nodes, VM's, opslag, netwerk, hardware, taken) | Eerst de Proxmox-integratie van Homarr bekijken. Beheeracties en ProxMenux-details via de bestaande Python-backend als API-dienst, met een eigen widget. | Instelling + eigen API-dienst |
+| Kasm / virtuele apps | Bestaande launch-logica en persoonlijke accountkoppeling in de API-dienst. Widget of pagina voor het starten. | Eigen API-dienst |
+| Cronjobs | API-dienst met de bestaande toegestane acties en rechten. Widget voor status en uitvoeren. | Eigen API-dienst |
+| Monitoring (verbindingen, mail) | API-dienst. Homarr-widget voor de status. | Eigen API-dienst |
+| Termix (terminal) | Voorlopig beveiligde link naar de bestaande websocket-proxy. Geen publiek terminaladres. | Link, later beoordelen |
+| Bestanden (Nextcloud/SMB) | Voorlopig beveiligde link naar de bestaande pagina, met eigenaar- en padgrenzen. Later beoordelen. | Link, later beoordelen |
+| Modulebeheer en providers (Admin) | Vervalt grotendeels: integraties zijn in Homarr in te stellen. Infisical-koppelingen blijven in de API-dienst. | Instelling |
+| Persoonlijke instellingen en dashboards | Eenmalig migratiescript van ControlDeck v1 naar Homarr, via de Homarr-API, niet via de database | Migratie |
+
+### Overgang
+
+- ControlDeck v1 (CT 164) blijft draaien tot elke functie in ControlDeckv2 is getest.
+- Daarna verdwijnt per functie het menu-item in v1.
+- Als laatste gaat v1 uit, samen met de tunnelroute en de LXC, na een back-up.
+- De Python-backend van v1 leeft voort als de **API-dienst** voor Proxmox, Kasm, cronjobs en monitoring. De
+  frontend van v1 vervalt.
+
 ## Nog te kiezen bij bespreking
 
-1. Moet de nieuwe Homarr-basis uiteindelijk de hele ControlDeck-shell vervangen,
-   of wordt die eerst alleen de startpagina met links naar eigen beheerschermen?
+1. ~~Moet de nieuwe Homarr-basis uiteindelijk de hele ControlDeck-shell vervangen?~~ **Besloten:** ja, volledige
+   vervanging (zie hierboven).
 2. Welke drie eigen modules hebben prioriteit? Voorstel: Proxmox, Workfarm en Kasm.
 3. Starten met persoonlijke boards zoals nu, of moet delen direct in de eerste versie?
 
