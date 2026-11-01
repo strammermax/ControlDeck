@@ -2,6 +2,11 @@
 
 Datum: 14 oktober 2026. Status: plan voor uitvoering; functies hieronder zijn niet als voltooid aangemerkt.
 
+Bijstelling 1 november 2026: de eigenaar wil Homarr als basis met eigen modules
+onderzoeken. Zie het nieuwe [PVA Homarr-basis](PVA-HOMARR-BASIS.md). De technische
+voorkeursroute uit dit oudere document is daarmee onderwerp van herziening;
+dit is geen opdracht om beide architecturen tegelijk uit te bouwen.
+
 Uitvoeringsupdate: de eerste persoonlijke dashboardeditor en de aanpassing van de bestaande Infisical-clientkoppeling staan beschreven in [DASHBOARD.md](DASHBOARD.md) en [VAULT.md](VAULT.md). Dit is een eerste werkend deel, geen afronding van alle fasen. Het adapterregister, de uitgebreide rechten en volledige vaultmigratie moeten nog worden gebouwd. Nieuwe opmaak sluit later aan op Camiels afzonderlijke gedeelde huisstijlproject. Releases blijven `yyyy.mm.dd.buildnr` volgens de bestaande CI-versieopbouw.
 
 ## 1. Doel en uitgangspunt
