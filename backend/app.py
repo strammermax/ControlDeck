@@ -9,6 +9,7 @@ from flask import Flask, g, jsonify, send_from_directory
 from backend.configuration import ConfigurationError, DEFAULT_PATH, load_config
 from backend.auth import filter_configuration, setup_auth
 from backend.termix import setup_termix
+from backend.workfarm import setup_workfarm
 from backend.installations import setup_installations
 from backend.proxmox import setup_proxmox
 from backend.proxmenux import setup_proxmenux
@@ -45,6 +46,7 @@ def create_app(static_directory=None, config_path=None, data_dir=None, accounts_
         else {"version": (ROOT / "VERSION").read_text().strip(), "commit": "development"}
     )
     setup_termix(app, configuration_path)
+    setup_workfarm(app, configuration_path)
     setup_installations(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_proxmox(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")
     setup_proxmenux(app, configuration_path, data_dir or os.environ.get("CONTROLDECK_DATA_DIR") or ROOT / "data")

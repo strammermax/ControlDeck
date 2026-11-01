@@ -18,13 +18,18 @@
     },
     {
       "id": "virtual-apps",
-      "label": "Virtual Apps",
+      "label": "Apps",
       "icon": "virtual-apps",
       "children": [
         {
           "id": "virtual-apps-overview",
-          "label": "Overzicht",
+          "label": "Virtual Apps",
           "route": "virtual-apps"
+        },
+        {
+          "id": "workfarm-menu",
+          "label": "Workfarm",
+          "route": "workfarm"
         },
         {
           "id": "kasm-menu",
