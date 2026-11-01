@@ -95,5 +95,10 @@
     "id": "workfarm",
     "enabled": true,
     "title": "Workfarm"
+  },
+  {
+    "id": "agentdeck",
+    "enabled": true,
+    "title": "AgentDeck"
   }
 ]

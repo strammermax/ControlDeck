@@ -32,6 +32,11 @@
           "route": "workfarm"
         },
         {
+          "id": "agentdeck-menu",
+          "label": "AgentDeck",
+          "route": "agentdeck"
+        },
+        {
           "id": "kasm-menu",
           "label": "Kasm",
           "route": "kasm"
