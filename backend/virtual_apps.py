@@ -227,6 +227,22 @@ def setup_virtual_apps(app, configuration_path, data_dir):
     def kasm_error(error):
         return jsonify(error=str(error), notConfigured=isinstance(error, NotConfigured), notLinked=isinstance(error, NotLinked)), error.status
 
+    @app.get("/api/service/virtual-apps/images")
+    def service_virtual_app_images():
+        """Kasm workspaces for ControlDeckv2's widget: the same list for everyone, no user, sessions or hosts."""
+        vault = app.extensions.get("controldeck_vault")
+        try:
+            config = json.loads(vault.read().get("CONTROLDECK_APP_LAUNCHES", "{}")).get("kasm") if vault else None
+            kasm = kasm_config(config) if config else None
+        except (VaultError, ValueError):
+            kasm = None
+        if kasm is None:
+            raise NotConfigured("Kasm is nog niet ingericht.")
+        apps = [{k: v for k, v in item.items() if k not in ("serverHost", "serverId")} for item in images(kasm)]
+        result = jsonify(apps=apps, portal=kasm["origin"])
+        result.headers["Cache-Control"] = "no-store"
+        return result
+
     @app.get("/api/virtual-apps")
     def virtual_apps():
         kasm, user_id = settings()

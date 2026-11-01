@@ -308,6 +308,9 @@ def setup_auth(app, data_dir, accounts_path):
         # Unknown paths, other methods and all browser widget reads retain session/CSRF checks.
         if request.endpoint == "ingest_widget_statistics" and request.method == "POST":
             return None
+        # Server-to-server reads (ControlDeckv2 widgets): backend.service_api checks their API key.
+        if request.path.startswith("/api/service/"):
+            return None
         if request.path.startswith("/api/") and request.path != "/api/session":
             if g.account is None:
                 return jsonify(error="Aanmelden vereist."), 401
